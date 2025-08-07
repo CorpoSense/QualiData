@@ -1,0 +1,34 @@
+{
+  "name": "master-data-cleaner",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "cross-env NODE_ENV=production vite preview",
+    "start": "cross-env NODE_ENV=production node --loader ts-node/esm --no-warnings ./src/server.ts",
+    "clean": "rm -rf ./dist",
+    "clean:all": "rm -rf ./dist && rm -rf ./node_modules"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.14.1",
+    "@hono/vite-dev-server": "^0.18.3",
+    "@mdi/font": "^7.4.47",
+    "axios": "^1.11.0",
+    "buefy": "^1.0.1",
+    "cross-env": "^7.0.3",
+    "hono": "^4.7.7",
+    "pinia": "^3.0.2",
+    "vue": "^3.5.17",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.1",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vue-tsc": "^2.2.10"
+  }
+}
