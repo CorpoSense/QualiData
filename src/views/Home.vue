@@ -1,92 +1,113 @@
-<!-- src/views/Home.vue - Modern SaaS Design with Bulma/Buefy -->
+<!-- src/views/Home.vue - Modern SaaS Redesign with Buefy 3.0.4 -->
 <template>
   <div class="home-page">
     <!-- Hero Section -->
-    <section class="hero is-fullheight-with-navbar hero-gradient">
+    <section class="hero is-medium is-bold is-relative overflow-hidden">
+      <div class="hero-background-pattern"></div>
       <div class="hero-body">
         <div class="container">
           <div class="columns is-vcentered">
-            <div class="column is-6">
-              <span class="tag is-primary is-light is-medium mb-4">
-                <b-icon icon="robot" size="is-small"></b-icon>
-                <span class="ml-2">AI-Powered Solution</span>
-              </span>
-              <h1 class="title is-1 is-spaced has-text-weight-bold">
-                Clean Your Data with
-                <span class="has-text-success">AI Intelligence</span>
+            <div class="column is-6 animate-fade-in-left">
+              <b-tag
+                type="is-primary"
+                rounded
+                size="is-medium"
+                class="mb-4 glow-tag"
+              >
+                <b-icon icon="sparkles" size="is-small" class="mr-1"></b-icon>
+                Version 3.0 is here
+              </b-tag>
+              <h1 class="title is-1 is-spaced has-text-weight-black">
+                Master Your Data with
+                <span class="gradient-text">AI Precision</span>
               </h1>
-              <p class="subtitle is-4 has-text-white">
-                Transform messy datasets into pristine, analysis-ready data in minutes.
-                Our intelligent assistant guides you through every step.
+              <p class="subtitle is-4 has-text-grey-darker mb-6">
+                The ultimate platform for cleaning, normalizing, and enriching your master data. 
+                Say goodbye to manual spreadsheets and hello to automated intelligence.
               </p>
               
-              <div class="buttons mt-5">
+              <div class="buttons">
                 <b-button
                   type="is-primary"
                   size="is-large"
                   rounded
+                  class="px-6 py-4 has-text-weight-bold"
                   @click="goGetStarted"
-                  class="has-shadow-primary"
                 >
-                  <b-icon icon="rocket-launch"></b-icon>
-                  <span>Start Free Trial</span>
+                  Get Started Free
                 </b-button>
                 <b-button
                   type="is-white"
                   size="is-large"
                   rounded
+                  outlined
+                  class="px-6 py-4 has-text-weight-bold"
                   @click="watchDemo"
                 >
-                  <b-icon icon="play-circle"></b-icon>
-                  <span>Watch Demo</span>
+                  <b-icon icon="play" class="mr-2"></b-icon>
+                  Watch Demo
                 </b-button>
               </div>
 
-              <div class="trust-badges mt-5">
-                <span class="is-size-7 has-text-grey">Trusted by data teams at</span>
-                <div class="logos mt-2">
-                  <span class="tag is-light">Fortune 500</span>
-                  <span class="tag is-light">Startups</span>
-                  <span class="tag is-light">Research Labs</span>
+              <div class="mt-6 flex align-center">
+                <div class="avatar-group mr-4">
+                  <img src="https://i.pravatar.cc/150?u=1" alt="User" class="avatar">
+                  <img src="https://i.pravatar.cc/150?u=2" alt="User" class="avatar">
+                  <img src="https://i.pravatar.cc/150?u=3" alt="User" class="avatar">
+                  <div class="avatar-more">+2k</div>
                 </div>
+                <p class="is-size-7 has-text-grey-dark">
+                  Joined by <strong>2,000+</strong> data engineers this month.
+                </p>
               </div>
             </div>
             
-            <div class="column is-6">
-              <div class="hero-visual">
-                <div class="dashboard-preview">
-                  <div class="window-header">
-                    <span class="dot"></span>
-                    <span class="dot"></span>
-                    <span class="dot"></span>
+            <div class="column is-6 animate-fade-in-right">
+              <div class="hero-card-container">
+                <div class="glass-card main-preview">
+                  <div class="card-header-mock">
+                    <div class="window-dots">
+                      <span></span><span></span><span></span>
+                    </div>
+                    <div class="search-bar-mock">master-data-cleanup.csv</div>
                   </div>
-                  <div class="window-content">
-                    <div class="data-flow">
-                      <div class="data-block dirty">
-                        <b-icon icon="file-alert" type="is-danger"></b-icon>
-                        <span>Messy Data</span>
+                  <div class="card-content">
+                    <div class="data-cleaning-animation">
+                      <div class="data-row dirty-row">
+                        <div class="cell-mock">Jhn Doe</div>
+                        <div class="cell-mock">ny, usa</div>
+                        <div class="cell-mock danger">invalid_email</div>
                       </div>
-                      <b-icon icon="arrow-right" size="is-large" type="is-primary"></b-icon>
-                      <div class="data-block clean">
-                        <b-icon icon="file-check" type="is-success"></b-icon>
-                        <span>Clean Data</span>
+                      <div class="cleaning-line"></div>
+                      <div class="data-row clean-row">
+                        <div class="cell-mock">John Doe</div>
+                        <div class="cell-mock">New York, USA</div>
+                        <div class="cell-mock success">john@example.com</div>
                       </div>
                     </div>
-                    <div class="stats-preview">
-                      <div class="stat-item">
-                        <span class="stat-value">98%</span>
-                        <span class="stat-label">Accuracy</span>
+                    <div class="metrics-row mt-4">
+                      <div class="metric-small">
+                        <p class="label">Accuracy</p>
+                        <p class="value has-text-success">99.9%</p>
                       </div>
-                      <div class="stat-item">
-                        <span class="stat-value">10x</span>
-                        <span class="stat-label">Faster</span>
+                      <div class="metric-small">
+                        <p class="label">Duplicates</p>
+                        <p class="value has-text-danger">0</p>
                       </div>
-                      <div class="stat-item">
-                        <span class="stat-value">0</span>
-                        <span class="stat-label">Errors</span>
+                      <div class="metric-small">
+                        <p class="label">Time Saved</p>
+                        <p class="value has-text-primary">45h</p>
                       </div>
                     </div>
                   </div>
+                </div>
+                <div class="glass-card floating-card-1">
+                  <b-icon icon="database-check" type="is-success" size="is-medium"></b-icon>
+                  <span>Data Validated</span>
+                </div>
+                <div class="glass-card floating-card-2">
+                  <b-icon icon="robot" type="is-primary" size="is-medium"></b-icon>
+                  <span>AI Suggestions Ready</span>
                 </div>
               </div>
             </div>
@@ -95,98 +116,43 @@
       </div>
     </section>
 
-    <!-- Key Features Section -->
-    <section class="section is-medium">
+    <!-- Partners Section -->
+    <section class="section py-5 has-background-white border-bottom">
+      <div class="container">
+        <p class="has-text-centered is-uppercase has-text-grey-light is-size-7 mb-5 has-text-weight-semibold letter-spacing-wide">
+          Trusted by Industry Leaders
+        </p>
+        <div class="level is-mobile opacity-50">
+          <div class="level-item"><b-icon icon="alpha-a-circle" size="is-large"></b-icon></div>
+          <div class="level-item"><b-icon icon="alpha-b-circle" size="is-large"></b-icon></div>
+          <div class="level-item"><b-icon icon="alpha-g-circle" size="is-large"></b-icon></div>
+          <div class="level-item"><b-icon icon="alpha-m-circle" size="is-large"></b-icon></div>
+          <div class="level-item"><b-icon icon="alpha-n-circle" size="is-large"></b-icon></div>
+          <div class="level-item"><b-icon icon="alpha-s-circle" size="is-large"></b-icon></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="section is-medium">
       <div class="container">
         <div class="has-text-centered mb-6">
-          <h2 class="title is-2 has-text-weight-bold">Why Teams Choose MasterDataCleaner</h2>
+          <h2 class="title is-2 has-text-weight-bold">Powerful Features for Data Teams</h2>
           <p class="subtitle is-5 has-text-grey">
-            Powerful features designed for modern data workflows
+            Everything you need to maintain a pristine data ecosystem.
           </p>
         </div>
 
         <div class="columns is-multiline">
-          <div class="column is-4">
-            <div class="feature-box">
-              <div class="feature-icon">
-                <b-icon icon="brain" type="is-primary" size="is-large"></b-icon>
+          <div v-for="feature in features" :key="feature.title" class="column is-4">
+            <div class="card feature-card h-100 no-shadow border-hover">
+              <div class="card-content p-6">
+                <div class="icon-box mb-5" :class="`has-background-${feature.type}-light`">
+                  <b-icon :icon="feature.icon" :type="`is-${feature.type}`" size="is-medium"></b-icon>
+                </div>
+                <h3 class="title is-5 mb-3">{{ feature.title }}</h3>
+                <p class="has-text-grey">{{ feature.description }}</p>
               </div>
-              <h3 class="title is-5">AI-Guided Cleaning</h3>
-              <p class="has-text-grey">
-                Smart suggestions for deduplication, normalization, and outlier detection.
-                Our AI learns from your decisions.
-              </p>
-              <a class="feature-link">Learn more →</a>
-            </div>
-          </div>
-
-          <div class="column is-4">
-            <div class="feature-box">
-              <div class="feature-icon">
-                <b-icon icon="lightning-bolt" type="is-warning" size="is-large"></b-icon>
-              </div>
-              <h3 class="title is-5">Lightning Fast</h3>
-              <p class="has-text-grey">
-                Process millions of rows in seconds. Our optimized engine handles
-                datasets of any size without breaking a sweat.
-              </p>
-              <a class="feature-link">See benchmarks →</a>
-            </div>
-          </div>
-
-          <div class="column is-4">
-            <div class="feature-box">
-              <div class="feature-icon">
-                <b-icon icon="shield-check" type="is-success" size="is-large"></b-icon>
-              </div>
-              <h3 class="title is-5">Enterprise Ready</h3>
-              <p class="has-text-grey">
-                SOC 2 compliant with end-to-end encryption. Your data never leaves
-                your infrastructure.
-              </p>
-              <a class="feature-link">Security details →</a>
-            </div>
-          </div>
-
-          <div class="column is-4">
-            <div class="feature-box">
-              <div class="feature-icon">
-                <b-icon icon="database-export" type="is-info" size="is-large"></b-icon>
-              </div>
-              <h3 class="title is-5">Universal Export</h3>
-              <p class="has-text-grey">
-                Export to any database or file format. Native integrations with
-                PostgreSQL, MySQL, CSV, JSON, and Parquet.
-              </p>
-              <a class="feature-link">View integrations →</a>
-            </div>
-          </div>
-
-          <div class="column is-4">
-            <div class="feature-box">
-              <div class="feature-icon">
-                <b-icon icon="code-braces" type="is-danger" size="is-large"></b-icon>
-              </div>
-              <h3 class="title is-5">Custom Scripts</h3>
-              <p class="has-text-grey">
-                Extend with Python or JavaScript. Build custom transformations
-                and automate repetitive workflows.
-              </p>
-              <a class="feature-link">API docs →</a>
-            </div>
-          </div>
-
-          <div class="column is-4">
-            <div class="feature-box">
-              <div class="feature-icon">
-                <b-icon icon="history" type="is-link" size="is-large"></b-icon>
-              </div>
-              <h3 class="title is-5">Version Control</h3>
-              <p class="has-text-grey">
-                Track every change with full audit trails. Rollback mistakes
-                instantly with time-travel debugging.
-              </p>
-              <a class="feature-link">How it works →</a>
             </div>
           </div>
         </div>
@@ -194,138 +160,229 @@
     </section>
 
     <!-- How It Works Section -->
-    <section class="section is-medium has-background-light">
+    <section class="section is-medium has-background-light-alt">
       <div class="container">
         <div class="has-text-centered mb-6">
           <h2 class="title is-2 has-text-weight-bold">Simple 4-Step Process</h2>
           <p class="subtitle is-5 has-text-grey">
-            From messy data to production-ready in minutes
+            Go from raw mess to production-ready in record time.
           </p>
         </div>
 
-        <div class="process-timeline">
-          <div class="columns">
-            <div class="column is-3">
-              <div class="process-step">
-                <div class="step-number">1</div>
-                <h4 class="title is-6">Connect</h4>
-                <p class="is-size-7 has-text-grey">
-                  Import from databases, APIs, or upload files directly
+        <b-steps
+          v-model="activeStep"
+          :animated="true"
+          :rounded="true"
+          :has-navigation="false"
+          type="is-primary"
+        >
+          <b-step-item step="1" label="Connect" icon="database-import">
+            <div class="columns is-vcentered py-6">
+              <div class="column is-5">
+                <h3 class="title is-3">Import from Anywhere</h3>
+                <p class="is-size-5 has-text-grey mb-5">
+                  Connect directly to your cloud databases (Snowflake, BigQuery), 
+                  APIs, or simply drag and drop your CSV/Excel files.
                 </p>
+                <b-message type="is-info" size="is-small">
+                  Supports 50+ native integrations and any custom REST API.
+                </b-message>
+              </div>
+              <div class="column is-6 is-offset-1">
+                <img src="https://placehold.co/600x400/667eea/white?text=Connect+Sources" alt="Connect" class="rounded-lg shadow-xl">
               </div>
             </div>
-            <div class="column is-3">
-              <div class="process-step">
-                <div class="step-number">2</div>
-                <h4 class="title is-6">Analyze</h4>
-                <p class="is-size-7 has-text-grey">
-                  AI scans for issues and suggests cleaning strategies
+          </b-step-item>
+
+          <b-step-item step="2" label="Analyze" icon="magnify">
+            <div class="columns is-vcentered py-6">
+              <div class="column is-5">
+                <h3 class="title is-3">AI Issue Detection</h3>
+                <p class="is-size-5 has-text-grey mb-5">
+                  Our AI models automatically scan for schema drifts, duplicates, 
+                  outliers, and missing values across your entire dataset.
                 </p>
+                <ul class="custom-list mb-5">
+                  <li><b-icon icon="check-circle" type="is-success" size="is-small"></b-icon> Schema Validation</li>
+                  <li><b-icon icon="check-circle" type="is-success" size="is-small"></b-icon> Outlier Detection</li>
+                  <li><b-icon icon="check-circle" type="is-success" size="is-small"></b-icon> PII Masking Suggestions</li>
+                </ul>
+              </div>
+              <div class="column is-6 is-offset-1">
+                <img src="https://placehold.co/600x400/48bb78/white?text=AI+Analysis" alt="Analyze" class="rounded-lg shadow-xl">
               </div>
             </div>
-            <div class="column is-3">
-              <div class="process-step">
-                <div class="step-number">3</div>
-                <h4 class="title is-6">Clean</h4>
-                <p class="is-size-7 has-text-grey">
-                  Apply transformations with real-time preview
+          </b-step-item>
+
+          <b-step-item step="3" label="Clean" icon="broom">
+            <div class="columns is-vcentered py-6">
+              <div class="column is-5">
+                <h3 class="title is-3">Smart Transformations</h3>
+                <p class="is-size-5 has-text-grey mb-5">
+                  Apply complex cleaning rules with zero code. Standardize addresses, 
+                  normalize names, and merge duplicates with high-confidence matching.
                 </p>
+                <div class="buttons">
+                  <b-button type="is-primary" outlined rounded>Deduplicate</b-button>
+                  <b-button type="is-info" outlined rounded>Standardize</b-button>
+                  <b-button type="is-success" outlined rounded>Enrich</b-button>
+                </div>
+              </div>
+              <div class="column is-6 is-offset-1">
+                <img src="https://placehold.co/600x400/ed8936/white?text=Transformation+Engine" alt="Clean" class="rounded-lg shadow-xl">
               </div>
             </div>
-            <div class="column is-3">
-              <div class="process-step">
-                <div class="step-number">4</div>
-                <h4 class="title is-6">Export</h4>
-                <p class="is-size-7 has-text-grey">
-                  Push clean data to your destination of choice
+          </b-step-item>
+
+          <b-step-item step="4" label="Export" icon="database-export">
+            <div class="columns is-vcentered py-6">
+              <div class="column is-5">
+                <h3 class="title is-3">Sync & Automate</h3>
+                <p class="is-size-5 has-text-grey mb-5">
+                  Sync your cleaned data back to your production database or 
+                  automate the entire pipeline to run weekly.
                 </p>
+                <b-button type="is-primary" size="is-medium" rounded @click="goGetStarted">
+                  Setup Your First Pipeline
+                </b-button>
+              </div>
+              <div class="column is-6 is-offset-1">
+                <img src="https://placehold.co/600x400/a0aec0/white?text=Export+Clean+Data" alt="Export" class="rounded-lg shadow-xl">
               </div>
             </div>
-          </div>
+          </b-step-item>
+        </b-steps>
+
+        <div class="buttons is-centered mt-6">
+          <b-button
+            type="is-primary"
+            outlined
+            rounded
+            icon-left="chevron-left"
+            :disabled="activeStep === 0"
+            @click="activeStep--"
+          >
+            Previous
+          </b-button>
+          <b-button
+            type="is-primary"
+            rounded
+            icon-right="chevron-right"
+            :disabled="activeStep === 3"
+            @click="activeStep++"
+          >
+            Next Step
+          </b-button>
         </div>
       </div>
     </section>
 
-    <!-- Metrics Section -->
+    <!-- Testimonials Section -->
     <section class="section is-medium">
       <div class="container">
-        <div class="box metrics-box">
-          <div class="columns is-vcentered">
-            <div class="column is-5">
-              <h3 class="title is-3 has-text-weight-bold">
-                Trusted by 10,000+ data professionals
-              </h3>
-              <p class="subtitle is-6 has-text-grey mt-3">
-                Join thousands of companies that rely on MasterDataCleaner
-                to maintain data quality at scale.
-              </p>
-              <b-button type="is-primary" rounded class="mt-4" @click="goGetStarted">
-                Get Started Free
-              </b-button>
-            </div>
-            <div class="column is-7">
-              <div class="columns is-multiline">
-                <div class="column is-6">
-                  <div class="metric-item">
-                    <span class="metric-value">500M+</span>
-                    <span class="metric-label">Records Cleaned</span>
-                  </div>
-                </div>
-                <div class="column is-6">
-                  <div class="metric-item">
-                    <span class="metric-value">99.9%</span>
-                    <span class="metric-label">Uptime SLA</span>
-                  </div>
-                </div>
-                <div class="column is-6">
-                  <div class="metric-item">
-                    <span class="metric-value">85%</span>
-                    <span class="metric-label">Time Saved</span>
-                  </div>
-                </div>
-                <div class="column is-6">
-                  <div class="metric-item">
-                    <span class="metric-value">24/7</span>
-                    <span class="metric-label">Support</span>
-                  </div>
-                </div>
+        <div class="has-text-centered mb-6">
+          <h2 class="title is-2">Loved by Data Engineers</h2>
+        </div>
+        
+        <b-carousel
+          :autoplay="true"
+          :indicator="true"
+          :indicator-inside="false"
+          :indicator-background="false"
+          :indicator-mode="'click'"
+          :indicator-position="'is-bottom'"
+          type="is-primary"
+          class="testimonial-carousel"
+        >
+          <b-carousel-item v-for="(testimonial, i) in testimonials" :key="i">
+            <div class="testimonial-content py-6 px-4 has-text-centered">
+              <p class="is-size-3 is-italic mb-5 serif-font">"{{ testimonial.text }}"</p>
+              <div class="testimonial-meta">
+                <img :src="testimonial.avatar" class="avatar-large mb-3">
+                <p class="has-text-weight-bold is-size-5">{{ testimonial.name }}</p>
+                <p class="has-text-grey">{{ testimonial.role }} @ {{ testimonial.company }}</p>
               </div>
             </div>
-          </div>
+          </b-carousel-item>
+        </b-carousel>
+      </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="section is-medium has-background-white">
+      <div class="container is-max-desktop">
+        <div class="has-text-centered mb-6">
+          <h2 class="title is-2">Frequently Asked Questions</h2>
+        </div>
+        
+        <div class="faq-container">
+          <b-collapse
+            v-for="(faq, index) in faqs"
+            :key="index"
+            class="card mb-3 no-shadow border"
+            animation="slide"
+            :open="isOpen === index"
+            @open="isOpen = index"
+          >
+            <template #trigger="props">
+              <div class="card-header" role="button">
+                <p class="card-header-title py-4 px-5">
+                  {{ faq.question }}
+                </p>
+                <a class="card-header-icon">
+                  <b-icon :icon="props.open ? 'minus' : 'plus'"></b-icon>
+                </a>
+              </div>
+            </template>
+            <div class="card-content px-5">
+              <div class="content has-text-grey">
+                {{ faq.answer }}
+              </div>
+            </div>
+          </b-collapse>
         </div>
       </div>
     </section>
 
     <!-- CTA Section -->
-    <section class="section is-medium cta-section">
+    <section class="section is-large">
       <div class="container">
-        <div class="has-text-centered">
-          <h2 class="title is-2 has-text-white has-text-weight-bold">
-            Ready to transform your data?
-          </h2>
-          <p class="subtitle is-5 has-text-white-ter mt-3">
-            Start your free trial today. No credit card required.
-          </p>
-          <div class="buttons is-centered mt-5">
-            <b-button
-              type="is-white"
-              size="is-large"
-              rounded
-              @click="goGetStarted"
-            >
-              <b-icon icon="rocket-launch"></b-icon>
-              <span>Start Free Trial</span>
-            </b-button>
-            <b-button
-              type="is-primary"
-              inverted
-              outlined
-              size="is-large"
-              rounded
-              @click="contactSales"
-            >
-              <span>Contact Sales</span>
-            </b-button>
+        <div class="cta-box has-background-primary p-6 rounded-2xl has-text-centered has-text-white relative overflow-hidden">
+          <div class="cta-pattern"></div>
+          <div class="relative z-10">
+            <h2 class="title is-1 has-text-white mb-4">Start Cleaning Your Data Today</h2>
+            <p class="subtitle is-4 has-text-white opacity-90 mb-6">
+              Join 10,000+ professionals using MasterDataCleaner to win back their time.
+            </p>
+            <div class="buttons is-centered">
+              <b-button
+                type="is-white"
+                size="is-large"
+                rounded
+                class="px-6 has-text-weight-bold has-text-primary"
+                @click="goGetStarted"
+              >
+                Create Free Account
+              </b-button>
+              <b-button
+                type="is-primary"
+                inverted
+                outlined
+                size="is-large"
+                rounded
+                class="px-6"
+                @click="contactSales"
+              >
+                Talk to Sales
+              </b-button>
+            </div>
+            <p class="mt-5 is-size-7 opacity-75">
+              <b-icon icon="check" size="is-small"></b-icon> No credit card required 
+              <span class="mx-2">•</span> 
+              <b-icon icon="check" size="is-small"></b-icon> 14-day free trial 
+              <span class="mx-2">•</span> 
+              <b-icon icon="check" size="is-small"></b-icon> Setup in 2 minutes
+            </p>
           </div>
         </div>
       </div>
@@ -334,9 +391,94 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const activeStep = ref(0)
+const isOpen = ref(0)
+
+const features = [
+  {
+    title: 'AI Deduplication',
+    description: 'Fuzzy matching algorithms that find duplicate records across messy datasets with 99% accuracy.',
+    icon: 'content-duplicate',
+    type: 'primary'
+  },
+  {
+    title: 'Address Standardization',
+    description: 'Verify and format global addresses against official postal databases in real-time.',
+    icon: 'map-marker-check',
+    type: 'info'
+  },
+  {
+    title: 'PII Protection',
+    description: 'Automatically detect and mask sensitive information like emails, phone numbers, and IDs.',
+    icon: 'shield-lock',
+    type: 'success'
+  },
+  {
+    title: 'Schema Mapping',
+    description: 'Intelligent field mapping that learns your data structure and automates future imports.',
+    icon: 'vector-arrange-below',
+    type: 'warning'
+  },
+  {
+    title: 'Data Enrichment',
+    description: 'Enhance your data with external signals like company size, industry, and social profiles.',
+    icon: 'plus-circle',
+    type: 'link'
+  },
+  {
+    title: 'API First',
+    description: 'Everything you can do in the UI is available via our robust, high-performance API.',
+    icon: 'api',
+    type: 'danger'
+  }
+]
+
+const testimonials = [
+  {
+    text: 'MasterDataCleaner saved our team over 200 hours of manual Excel work in just the first month.',
+    name: 'Sarah Chen',
+    role: 'Lead Data Engineer',
+    company: 'TechFlow',
+    avatar: 'https://i.pravatar.cc/150?u=sarah'
+  },
+  {
+    text: 'The AI deduplication is magic. It found matches we would have never seen manually.',
+    name: 'Marcus Thorne',
+    role: 'VP of Operations',
+    company: 'LogiGlobal',
+    avatar: 'https://i.pravatar.cc/150?u=marcus'
+  },
+  {
+    text: 'Security was our main concern, and their SOC 2 compliance and PII masking made it an easy choice.',
+    name: 'Elena Rodriguez',
+    role: 'CISO',
+    company: 'FinSecure',
+    avatar: 'https://i.pravatar.cc/150?u=elena'
+  }
+]
+
+const faqs = [
+  {
+    question: 'How do you ensure data privacy?',
+    answer: 'We are SOC 2 Type II compliant. Your data is encrypted at rest and in transit. We also offer on-premise deployment for enterprise customers with strict data residency requirements.'
+  },
+  {
+    question: 'Which file formats do you support?',
+    answer: 'We support CSV, Excel, JSON, XML, Parquet, and Avro. We also have native connectors for Snowflake, BigQuery, PostgreSQL, MongoDB, and Salesforce.'
+  },
+  {
+    question: 'How accurate is the AI cleaning?',
+    answer: 'Our models are trained on billions of real-world data points and consistently achieve over 99% accuracy in deduplication and normalization tasks.'
+  },
+  {
+    question: 'Can I build custom cleaning rules?',
+    answer: 'Yes! You can use our visual rule builder or write custom Python/JavaScript scripts for complex business logic.'
+  }
+]
 
 const goGetStarted = () => {
   router.push('/connections').catch(() => {})
@@ -353,252 +495,315 @@ const contactSales = () => {
 
 <style scoped>
 .home-page {
-  overflow-x: hidden;
+  background-color: #fff;
 }
 
-/* Hero Section */
-.hero-gradient {
+/* Utils */
+.mb-6 { margin-bottom: 3rem !important; }
+.mt-6 { margin-top: 3rem !important; }
+.py-6 { padding-top: 3rem !important; padding-bottom: 3rem !important; }
+.rounded-lg { border-radius: 12px; }
+.rounded-2xl { border-radius: 24px; }
+.shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+.overflow-hidden { overflow: hidden; }
+.relative { position: relative; }
+.z-10 { z-index: 10; }
+.opacity-50 { opacity: 0.5; }
+.opacity-75 { opacity: 0.75; }
+.opacity-90 { opacity: 0.9; }
+.h-100 { height: 100%; }
+
+/* Typography */
+.gradient-text {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  position: relative;
-}
-
-.hero-gradient::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background:
-    radial-gradient(circle at 20% 80%, rgba(255,255,255,0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 50%);
-}
-
-.hero-gradient .title,
-.hero-gradient .subtitle {
-  color: white;
-}
-
-.has-shadow-primary {
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
-}
-
-.trust-badges .logos {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-/* Dashboard Preview */
-.hero-visual {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.dashboard-preview {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-  overflow: hidden;
-  width: 100%;
-  max-width: 500px;
-}
-
-.window-header {
-  background: #f5f5f5;
-  padding: 12px;
-  display: flex;
-  gap: 6px;
-}
-
-.window-header .dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #ddd;
-}
-
-.window-header .dot:first-child { background: #ff5f57; }
-.window-header .dot:nth-child(2) { background: #ffbd2e; }
-.window-header .dot:nth-child(3) { background: #28ca42; }
-
-.window-content {
-  padding: 2rem;
-}
-
-.data-flow {
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  margin-bottom: 2rem;
-}
-
-.data-block {
-  padding: 1rem;
-  border-radius: 8px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.data-block.dirty {
-  background: #ffe5e5;
-}
-
-.data-block.clean {
-  background: #e5ffe5;
-}
-
-.stats-preview {
-  display: flex;
-  justify-content: space-around;
-  padding-top: 1rem;
-  border-top: 1px solid #f0f0f0;
-}
-
-.stat-item {
-  text-align: center;
-}
-
-.stat-value {
-  display: block;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #667eea;
-}
-
-.stat-label {
-  display: block;
-  font-size: 0.75rem;
-  color: #999;
-}
-
-/* Feature Boxes */
-.feature-box {
-  padding: 2rem;
-  height: 100%;
-  transition: transform 0.3s, box-shadow 0.3s;
-  border-radius: 12px;
-  background: white;
-  border: 1px solid #f0f0f0;
-}
-
-.feature-box:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(0,0,0,0.1);
-}
-
-.feature-icon {
-  margin-bottom: 1.5rem;
-}
-
-.feature-link {
-  color: #667eea;
-  font-size: 0.9rem;
-  font-weight: 500;
-  display: inline-block;
-  margin-top: 1rem;
-}
-
-.feature-link:hover {
-  text-decoration: underline;
-}
-
-/* Process Timeline */
-.process-timeline {
-  position: relative;
-  margin-top: 3rem;
-}
-
-.process-timeline::before {
-  content: '';
-  position: absolute;
-  top: 30px;
-  left: 12.5%;
-  right: 12.5%;
-  height: 2px;
-  background: linear-gradient(to right, #667eea, #764ba2);
-}
-
-.process-step {
-  text-align: center;
-  position: relative;
-}
-
-.step-number {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin: 0 auto 1rem;
-  position: relative;
-  z-index: 1;
-}
-
-/* Metrics */
-.metrics-box {
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  border: none;
-  padding: 3rem;
-}
-
-.metric-item {
-  text-align: center;
-  padding: 1.5rem;
-}
-
-.metric-value {
-  display: block;
-  font-size: 2.5rem;
-  font-weight: bold;
-  background: linear-gradient(135deg, #667eea, #764ba2);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.metric-label {
-  display: block;
-  font-size: 0.9rem;
-  color: #666;
-  margin-top: 0.5rem;
+.serif-font {
+  font-family: 'Georgia', serif;
 }
 
-/* CTA Section */
-.cta-section {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  position: relative;
+.letter-spacing-wide {
+  letter-spacing: 0.1em;
 }
 
-.cta-section::before {
-  content: '';
+/* Animations */
+.animate-fade-in-left {
+  animation: fadeInLeft 0.8s ease-out;
+}
+
+.animate-fade-in-right {
+  animation: fadeInRight 0.8s ease-out;
+}
+
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Hero Enhancements */
+.hero {
+  background-color: #f8faff;
+}
+
+.hero-background-pattern {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background-image: radial-gradient(#667eea 0.5px, transparent 0.5px);
+  background-size: 24px 24px;
+  opacity: 0.05;
+}
+
+.glow-tag {
+  box-shadow: 0 0 15px rgba(102, 126, 234, 0.3);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.avatar-group {
+  display: flex;
+  align-items: center;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid white;
+  margin-left: -8px;
+}
+
+.avatar:first-child { margin-left: 0; }
+
+.avatar-more {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  border: 2px solid white;
+  margin-left: -8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  color: #666;
+}
+
+/* Hero Card Visual */
+.hero-card-container {
+  position: relative;
+  padding: 2rem;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+}
+
+.main-preview {
+  width: 100%;
+  height: 320px;
+}
+
+.card-header-mock {
+  padding: 12px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.window-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.window-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ddd;
+}
+
+.search-bar-mock {
+  background: #f0f0f0;
+  border-radius: 4px;
+  font-size: 10px;
+  padding: 4px 12px;
+  color: #999;
+  flex: 1;
+}
+
+.data-cleaning-animation {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: relative;
+}
+
+.data-row {
+  display: flex;
+  gap: 8px;
+}
+
+.cell-mock {
+  background: #f5f5f5;
+  height: 30px;
+  border-radius: 4px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.cell-mock.danger { background: #fee2e2; color: #ef4444; }
+.cell-mock.success { background: #dcfce7; color: #22c55e; }
+
+.cleaning-line {
+  height: 2px;
+  background: linear-gradient(to right, transparent, #667eea, transparent);
+  width: 100%;
+  animation: moveLine 2s infinite linear;
+}
+
+@keyframes moveLine {
+  0% { opacity: 0; transform: scaleX(0); }
+  50% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(0); }
+}
+
+.metric-small {
+  text-align: center;
+  flex: 1;
+}
+
+.metric-small .label { font-size: 9px; color: #999; margin-bottom: 2px; }
+.metric-small .value { font-size: 14px; font-weight: bold; }
+
+.floating-card-1 {
+  position: absolute;
+  top: -10px;
+  right: 0;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  animation: float 4s infinite ease-in-out;
+}
+
+.floating-card-2 {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  animation: float 4s infinite ease-in-out 1s;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Features */
+.icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feature-card {
+  transition: all 0.3s ease;
+}
+
+.no-shadow { box-shadow: none !important; }
+.border { border: 1px solid #f0f0f0 !important; }
+.border-hover:hover {
+  border-color: #667eea;
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.05) !important;
+}
+
+/* Steps Enhancements */
+.has-background-light-alt {
+  background-color: #fcfdfe;
+}
+
+.custom-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.custom-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #4a4a4a;
+}
+
+/* Testimonials */
+.avatar-large {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.testimonial-carousel :deep(.carousel-indicator) {
+  margin-top: 2rem;
+}
+
+/* CTA Box */
+.cta-box {
+  position: relative;
+  box-shadow: 0 30px 60px -12px rgba(102, 126, 234, 0.4);
+}
+
+.cta-pattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 86c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zm66-3c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zm-46-45c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm26 18c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm16 18c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM9 41c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm39 42c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm-24-6c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM1 29c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm33-22c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm65 8c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM28 49c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm66 31c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm-33-5c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm-20-47c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm4 32c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm-27-2c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM86 52c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm-60 7c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm0-72c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM16 52c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm44 40c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM71 19c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM4 72c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm67 4c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM48 7c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM25 1c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm23 23c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm-24 13c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm47 33c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm21-43c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm-19 -7c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM17 10c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm80 49c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm-40 -22c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zM44 54c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1zm-27 10c.552 0 1-.448 1-1s-.448-1-1-1-1 .448-1 1 .448 1 1 1z' fill='%23ffffff' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .hero-visual {
+  .hero-card-container {
     margin-top: 3rem;
+    padding: 1rem;
   }
   
-  .process-timeline::before {
+  .main-preview { height: 280px; }
+  
+  .floating-card-1, .floating-card-2 {
     display: none;
-  }
-  
-  .metrics-box {
-    padding: 2rem 1rem;
   }
 }
 </style>

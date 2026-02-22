@@ -12,23 +12,24 @@
     "clean:all": "rm -rf ./dist && rm -rf ./node_modules"
   },
   "dependencies": {
-    "@hono/node-server": "^1.14.1",
-    "@hono/vite-dev-server": "^0.18.3",
-    "@mdi/font": "^7.4.47",
-    "axios": "^1.11.0",
-    "buefy": "^1.0.1",
-    "cross-env": "^7.0.3",
-    "hono": "^4.7.7",
-    "pinia": "^3.0.2",
-    "vue": "^3.5.17",
-    "vue-router": "^4.5.0"
+    "@hono/node-server": "^1.19.9",
+    "@hono/vite-dev-server": "^0.24.1",
+    "axios": "^1.13.2",
+    "buefy": "^3.0.4",
+    "cross-env": "^10.1.0",
+    "hono": "^4.11.7",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.27",
+    "vue-chartjs": "^5.3.3",
+    "vue-draggable-next": "^2.3.0",
+    "vue-router": "^4.6.4"
   },
   "devDependencies": {
-    "@types/node": "^20.14.1",
-    "@vitejs/plugin-vue": "^5.2.4",
+    "@types/node": "^25.1.0",
+    "@vitejs/plugin-vue": "^6.0.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3",
+    "typescript": "^5.9.3",
     "vite": "^6.3.5",
-    "vue-tsc": "^2.2.10"
+    "vue-tsc": "^3.1.4"
   }
 }
