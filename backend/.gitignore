@@ -26,16 +26,16 @@ wheels/
 .coverage
 htmlcov/
 
+# Environment
+.env
+.env.local
+.env.*.local
+
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# Environment
-.env
-.env.local
-.env.*.local
 
 # OS
 .DS_Store
