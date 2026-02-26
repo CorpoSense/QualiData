@@ -1,3 +1,8 @@
+import os
+
+# Set test database before importing app
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///test.db"
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient

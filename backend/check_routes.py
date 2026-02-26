@@ -6,5 +6,8 @@ import sys
 sys.path.insert(0, '/root/.openclaw/workspace/MasterDataCleaner/backend')
 
 from app.main import app
-print("App loaded successfully!")
-print(f"Routes: {[r.path for r in app.routes if hasattr(r, 'path')][:15]}")
+print("Dataset routes:")
+for r in app.routes:
+    if hasattr(r, 'path') and 'dataset' in r.path:
+        methods = r.methods if hasattr(r, 'methods') else ''
+        print(f"  {r.path} {methods}")

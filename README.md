@@ -199,12 +199,12 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Add row count and storage tracking
 
 #### Dataset Import/Export
-- [ ] CSV import
-- [ ] Excel (.xlsx, .xls) import
-- [ ] JSON import
-- [ ] CSV export
+- [x] CSV import
+- [x] Excel (.xlsx, .xls) import
+- [x] JSON import
+- [x] CSV export
 - [ ] Excel export
-- [ ] JSON export
+- [x] JSON export
 - [ ] Clipboard import (paste CSV)
 - [ ] Clipboard export (copy to clipboard)
 
