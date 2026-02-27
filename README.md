@@ -220,13 +220,18 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Split column (delimiter/regex/count)
 - [x] Duplicate column
 - [x] Reorder columns (drag-and-drop)
+- [x] Filter rows
+- [x] Sort data
+- [x] Remove duplicates
+- [x] Find & replace
+- [x] Change data type
 
 #### Simple Cleaning Operations
 - [ ] Strip whitespace
 - [ ] Convert to uppercase
 - [ ] Convert to lowercase
 - [ ] Convert to title case
-- [ ] Remove duplicates
+- [x] Remove duplicates
 - [ ] Handle missing values (fillna, impute)
 - [ ] Standardize date/time formats
 - [ ] Fix structural errors (typos, capitalization)
