@@ -256,7 +256,7 @@ Track progress for the MasterDataCleaner SaaS project.
 
 #### Agent Management
 - [x] Create agent model
-- [ ] Implement agent CRUD endpoints
+- [x] Implement agent CRUD endpoints
 - [ ] Add provider/model selection
 - [ ] Create system prompt editor
 - [ ] Add prompt template support
