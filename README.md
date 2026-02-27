@@ -303,10 +303,10 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Add rate limit warnings
 
 #### Before/After Comparison
-- [ ] Side-by-side view
-- [ ] Toggle view (before/after switch)
-- [ ] Diff highlighting for changed cells
-- [ ] Summary comparison stats
+- [x] Side-by-side view
+- [x] Toggle view (before/after switch)
+- [x] Diff highlighting for changed cells
+- [x] Summary comparison stats
 
 #### Assistant Feature
 - [ ] Create step-by-step wizard
