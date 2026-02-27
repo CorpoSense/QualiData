@@ -232,7 +232,7 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Convert to lowercase
 - [x] Convert to title case
 - [x] Remove duplicates
-- [ ] Handle missing values (fillna, impute)
+- [x] Handle missing values (fillna, impute)
 - [ ] Standardize date/time formats
 - [ ] Fix structural errors (typos, capitalization)
 - [ ] Custom function chaining (predefined library)
