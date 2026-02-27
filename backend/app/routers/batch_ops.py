@@ -1,12 +1,12 @@
 """Batch AI processing operations."""
 
 from typing import Optional, List
-from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
-from app.db.models import Dataset, Project, User, OperationHistory
+from app.db.models import Dataset, Project, User
 from app.routers.auth import get_current_active_user
 
 router = APIRouter(tags=["ai-operations"])

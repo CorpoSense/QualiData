@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
-from app.db.models import Dataset, Project, User
+from app.db.models import User
 from app.routers.auth import get_current_active_user
 from app.routers.operations import get_dataset_with_owner_check, save_operation
 
@@ -85,7 +85,7 @@ async def extract_datetime_parts(
     # Parse datetime if not already
     try:
         dt = pd.to_datetime(df[column], errors='coerce')
-    except:
+    except Exception:
         raise HTTPException(status_code=400, detail=f"Column '{column}' is not a datetime column")
     
     valid_parts = {"year", "month", "day", "hour", "minute", "second", "weekday", "quarter"}

@@ -1,6 +1,6 @@
 """AI-powered data cleaning operations."""
 
-from typing import Optional, List, Any
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
