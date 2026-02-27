@@ -262,17 +262,17 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Implement temperature configuration
 
 #### Pre-built Agent Templates
-- [ ] Email Normalizer agent
-- [ ] Address Formatter agent
-- [ ] Phone Number Formatter agent
-- [ ] Text Cleaner agent
-- [ ] Date Parser agent
+- [x] Email Normalizer agent
+- [x] Address Formatter agent
+- [x] Phone Number Formatter agent
+- [x] Text Cleaner agent
+- [x] Date Parser agent
 
 #### AI Cleaning Operations
-- [ ] Create AI operation endpoint
+- [x] Create AI operation endpoint
 - [ ] Implement batch processing
-- [ ] Add column selection for context
-- [ ] Support summary statistics for agent
+- [x] Add column selection for context
+- [x] Support summary statistics for agent
 - [ ] Implement cross-row context option
 - [ ] Handle structured JSON output
 - [ ] Add progress tracking
