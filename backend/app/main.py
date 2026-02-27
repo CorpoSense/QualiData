@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import health, ai, auth, projects, datasets, operations, operations_extra, agents, missing_values
+from app.routers import health, ai, auth, projects, datasets, operations, operations_extra, agents, missing_values, undo_redo
 
 settings = get_settings()
 
@@ -35,6 +35,7 @@ def create_app() -> FastAPI:
     app.include_router(operations_extra.router, prefix="/api")
     app.include_router(agents.router, prefix="/api")
     app.include_router(missing_values.router, prefix="/api")
+    app.include_router(undo_redo.router, prefix="/api")
     
     return app
 
