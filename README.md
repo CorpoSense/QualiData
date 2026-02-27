@@ -233,7 +233,7 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Convert to title case
 - [x] Remove duplicates
 - [x] Handle missing values (fillna, impute)
-- [ ] Standardize date/time formats
+- [x] Standardize date/time formats
 - [ ] Fix structural errors (typos, capitalization)
 - [ ] Custom function chaining (predefined library)
 
