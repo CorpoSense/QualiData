@@ -25,3 +25,27 @@ dist-ssr
 
 # var env
 .env
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+develop-eggs/
+dist/
+downloads/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+*.db
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
