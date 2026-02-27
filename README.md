@@ -213,13 +213,13 @@ Track progress for the MasterDataCleaner SaaS project.
 ### Phase 2: Core Operations
 
 #### Standard Operations (pandas-based)
-- [ ] Add column (empty/default/calculated)
-- [ ] Remove column(s)
-- [ ] Rename column
-- [ ] Merge columns (concatenate with delimiter)
-- [ ] Split column (delimiter/regex/count)
-- [ ] Duplicate column
-- [ ] Reorder columns (drag-and-drop)
+- [x] Add column (empty/default/calculated)
+- [x] Remove column(s)
+- [x] Rename column
+- [x] Merge columns (concatenate with delimiter)
+- [x] Split column (delimiter/regex/count)
+- [x] Duplicate column
+- [x] Reorder columns (drag-and-drop)
 
 #### Simple Cleaning Operations
 - [ ] Strip whitespace

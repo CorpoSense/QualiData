@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
+import os
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///test.db"
+
 import sys
 sys.path.insert(0, '/root/.openclaw/workspace/MasterDataCleaner/backend')
 
 from app.main import app
 print("All routes:")
-for route in app.routes:
-    if hasattr(route, 'path'):
-        methods = route.methods if hasattr(route, 'methods') else ''
-        print(f"  {route.path} {methods}")
+for r in app.routes:
+    if hasattr(r, 'path'):
+        methods = r.methods if hasattr(r, 'methods') else ''
+        print(f"  {r.path} {methods}")
