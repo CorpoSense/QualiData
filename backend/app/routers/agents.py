@@ -91,7 +91,7 @@ async def list_agents(
     if include_templates:
         # Include templates (is_template=True) or user's own agents
         query = query.where(
-            (Agent.owner_id == current_user.id) | (Agent.is_template == True)
+            (Agent.owner_id == current_user.id) | (Agent.is_template)
         )
     else:
         query = query.where(Agent.owner_id == current_user.id)
@@ -109,7 +109,7 @@ async def list_templates(
 ):
     """List available agent templates."""
     result = await session.execute(
-        select(Agent).where(Agent.is_template == True)
+        select(Agent).where(Agent.is_template)
     )
     agents = result.scalars().all()
     

@@ -2,12 +2,12 @@
 
 from typing import Optional, List
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import AsyncSessionLocal, get_async_session
+from app.db.database import get_async_session
 from app.db.models import Dataset, Project, User, OperationHistory
 from app.routers.auth import get_current_active_user
 
@@ -221,7 +221,7 @@ async def reorder_columns(dataset_id: int, request: ReorderColumnsRequest, curre
 
 @router.get("/datasets/{dataset_id}/operations/history")
 async def get_operation_history(dataset_id: int, current_user: User = Depends(get_current_active_user), session: AsyncSession = Depends(get_async_session)):
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    get_dataset_with_owner_check(dataset_id, current_user.id, session)
     result = await session.execute(select(OperationHistory).where(OperationHistory.dataset_id == dataset_id).order_by(OperationHistory.created_at.desc()))
     operations = result.scalars().all()
     return [{"id": op.id, "operation_type": op.operation_type, "operation_params": op.operation_params, "created_at": op.created_at.isoformat() if op.created_at else None, "is_undone": op.is_undone} for op in operations]

@@ -1,7 +1,6 @@
 """Dataset routes for import/export."""
 
 import io
-import json
 from typing import Optional, List
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
@@ -9,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import AsyncSessionLocal, get_async_session
+from app.db.database import get_async_session
 from app.db.models import Dataset, Project, User
 from app.routers.auth import get_current_active_user
 

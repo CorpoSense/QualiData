@@ -1,7 +1,7 @@
 """Additional dataset operations - filter, sort, deduplicate, find-replace, type conversion."""
 
 from typing import Optional, List, Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

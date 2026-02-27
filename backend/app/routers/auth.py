@@ -10,7 +10,7 @@ from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
 
 from app.config import get_settings
-from app.db.database import AsyncSessionLocal, get_async_session
+from app.db.database import get_async_session
 from app.db.models import User
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.database import AsyncSessionLocal, get_async_session
+from app.db.database import get_async_session
 from app.db.models import Project, User
 from app.routers.auth import get_current_active_user
 

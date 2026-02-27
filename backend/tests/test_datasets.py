@@ -1,8 +1,7 @@
 """Tests for dataset import/export."""
 
-import io
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 # Mock database before importing app
