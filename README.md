@@ -270,10 +270,10 @@ Track progress for the MasterDataCleaner SaaS project.
 
 #### AI Cleaning Operations
 - [x] Create AI operation endpoint
-- [ ] Implement batch processing
+- [x] Implement batch processing
 - [x] Add column selection for context
 - [x] Support summary statistics for agent
-- [ ] Implement cross-row context option
+- [x] Implement cross-row context option
 - [ ] Handle structured JSON output
 - [ ] Add progress tracking
 
