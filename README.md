@@ -289,11 +289,11 @@ Track progress for the MasterDataCleaner SaaS project.
 ### Phase 4: UX Polish
 
 #### Column Profiling
-- [ ] Auto-detect data types
-- [ ] Calculate column statistics
-- [ ] Display categorical stats (count, distinct, mode)
-- [ ] Display numerical stats (sum, avg, median, min, max)
-- [ ] Highlight data quality issues
+- [x] Auto-detect data types
+- [x] Calculate column statistics
+- [x] Display categorical stats (count, distinct, mode)
+- [x] Display numerical stats (sum, avg, median, min, max)
+- [x] Highlight data quality issues
 
 #### Notifications
 - [ ] Create notification system
