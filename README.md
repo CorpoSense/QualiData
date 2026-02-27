@@ -245,8 +245,8 @@ Track progress for the MasterDataCleaner SaaS project.
 
 #### Operation History
 - [x] Create operation history model
-- [ ] Implement undo (single step)
-- [ ] Implement redo (single step)
+- [x] Implement undo (single step)
+- [x] Implement redo (single step)
 - [x] Add history list view
 
 ---
