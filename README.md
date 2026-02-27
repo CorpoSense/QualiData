@@ -235,7 +235,7 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Handle missing values (fillna, impute)
 - [x] Standardize date/time formats
 - [x] Fix structural errors (typos, capitalization)
-- [ ] Custom function chaining (predefined library)
+- [ ] Custom function chaining (predefined library) - optional
 
 #### Preview System
 - [x] Implement preview endpoint
