@@ -227,10 +227,10 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Change data type
 
 #### Simple Cleaning Operations
-- [ ] Strip whitespace
-- [ ] Convert to uppercase
-- [ ] Convert to lowercase
-- [ ] Convert to title case
+- [x] Strip whitespace
+- [x] Convert to uppercase
+- [x] Convert to lowercase
+- [x] Convert to title case
 - [x] Remove duplicates
 - [ ] Handle missing values (fillna, impute)
 - [ ] Standardize date/time formats
@@ -238,7 +238,7 @@ Track progress for the MasterDataCleaner SaaS project.
 - [ ] Custom function chaining (predefined library)
 
 #### Preview System
-- [ ] Implement preview endpoint
+- [x] Implement preview endpoint
 - [ ] Add row count options (25, 50, 100)
 - [ ] Create scrollable data table
 - [ ] Display summary statistics
@@ -247,8 +247,7 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Create operation history model
 - [ ] Implement undo (single step)
 - [ ] Implement redo (single step)
-- [ ] Add history stack with configurable limit
-- [ ] Create history list view
+- [x] Add history list view
 
 ---
 
@@ -257,10 +256,10 @@ Track progress for the MasterDataCleaner SaaS project.
 #### Agent Management
 - [x] Create agent model
 - [x] Implement agent CRUD endpoints
-- [ ] Add provider/model selection
-- [ ] Create system prompt editor
-- [ ] Add prompt template support
-- [ ] Implement temperature configuration
+- [x] Add provider/model selection
+- [x] Create system prompt editor
+- [x] Add prompt template support
+- [x] Implement temperature configuration
 
 #### Pre-built Agent Templates
 - [ ] Email Normalizer agent
