@@ -1,6 +1,34 @@
 <template>
   <div id="app">
-    <!-- Navbar -->
+    <!-- Public Navbar (when not authenticated) -->
+    <b-navbar v-if="!isAuthenticated" type="is-light">
+      <template #brand>
+        <b-navbar-item tag="router-link" :to="{ path: '/' }">
+          <span class="has-text-weight-bold is-size-5">MasterDataCleaner</span>
+        </b-navbar-item>
+      </template>
+
+      <template #start>
+        <b-navbar-item tag="router-link" :to="{ path: '/' }">
+          Home
+        </b-navbar-item>
+        <b-navbar-item tag="router-link" :to="{ path: '/pricing' }">
+          Pricing
+        </b-navbar-item>
+      </template>
+
+      <template #end>
+        <b-navbar-item tag="div">
+          <div class="buttons">
+            <b-button size="is-small" type="is-primary" tag="router-link" to="/login">
+              Sign In
+            </b-button>
+          </div>
+        </b-navbar-item>
+      </template>
+    </b-navbar>
+
+    <!-- Authenticated Navbar -->
     <b-navbar v-if="isAuthenticated" type="is-dark" :fixed-top="true">
       <template #brand>
         <b-navbar-item tag="router-link" :to="{ path: '/' }">

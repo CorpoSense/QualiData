@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # Backend API
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@db:5432/masterdatacleaner}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app
+
+  # Frontend
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    command: pnpm dev --host
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - .:/app
+      - /app/node_modules
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=masterdatacleaner
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
