@@ -180,7 +180,7 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Setup user registration (email/password)
 - [x] Setup user login
 - [x] Add password reset flow
-- [ ] Add OAuth providers (Google, GitHub)
+- [x] Add OAuth providers (Google, GitHub)
 - [x] Implement JWT token management
 - [x] Create user model and migrations
 
@@ -205,8 +205,8 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] CSV export
 - [x] Excel export
 - [x] JSON export
-- [ ] Clipboard import (paste CSV)
-- [ ] Clipboard export (copy to clipboard)
+- [x] Clipboard import (paste CSV)
+- [x] Clipboard export (copy to clipboard)
 
 ---
 
