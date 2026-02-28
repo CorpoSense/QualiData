@@ -37,6 +37,10 @@
             </b-button>
 
             <p class="has-text-centered mt-4">
+              <router-link to="/forgot-password">Forgot your password?</router-link>
+            </p>
+
+            <p class="has-text-centered mt-2">
               <a @click="activeTab = 'register'">Don't have an account? Sign up</a>
             </p>
           </b-form>

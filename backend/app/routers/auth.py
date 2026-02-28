@@ -50,6 +50,15 @@ class Token(BaseModel):
     token_type: str
 
 
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+
+
 class TokenData(BaseModel):
     email: Optional[str] = None
 
@@ -180,3 +189,77 @@ async def login(
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
     """Get current user info."""
     return current_user
+
+
+# In-memory store for password reset tokens (use Redis in production)
+password_reset_tokens: dict = {}
+
+
+@router.post("/password-reset-request")
+async def request_password_reset(
+    request: PasswordResetRequest,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Request password reset - sends email with reset token."""
+    result = await session.execute(
+        select(User).where(User.email == request.email)
+    )
+    user = result.scalar_one_or_none()
+    
+    # Always return success to prevent email enumeration
+    # In production, you'd send an actual email
+    
+    if user:
+        # Generate reset token
+        reset_token = jwt.encode(
+            {"sub": user.email, "type": "password_reset"},
+            settings.SECRET_KEY,
+            algorithm=ALGORITHM
+        )
+        password_reset_tokens[reset_token] = user.id
+        
+        # In production, send email with reset link:
+        # reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+        # await send_email(user.email, "Password Reset", f"Click here: {reset_link}")
+        print(f"Password reset token for {user.email}: {reset_token}")
+    
+    return {"message": "If the email exists, a password reset link has been sent"}
+
+
+@router.post("/password-reset-confirm")
+async def confirm_password_reset(
+    request: PasswordResetConfirm,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Confirm password reset with token and new password."""
+    try:
+        payload = jwt.decode(
+            request.token,
+            settings.SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+        if payload.get("type") != "password_reset":
+            raise HTTPException(status_code=400, detail="Invalid token")
+        
+        email = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+    
+    # Find user
+    result = await session.execute(
+        select(User).where(User.email == email)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update password
+    user.hashed_password = get_password_hash(request.new_password)
+    await session.commit()
+    
+    # Clean up token
+    if request.token in password_reset_tokens:
+        del password_reset_tokens[request.token]
+    
+    return {"message": "Password reset successful"}
