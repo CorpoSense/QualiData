@@ -240,7 +240,7 @@ Track progress for the MasterDataCleaner SaaS project.
 #### Preview System
 - [x] Implement preview endpoint
 - [x] Add row count options (25, 50, 100)
-- [ ] Create scrollable data table
+- [x] Create scrollable data table
 - [x] Display summary statistics
 
 #### Operation History
