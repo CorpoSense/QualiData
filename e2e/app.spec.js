@@ -1,6 +1,6 @@
 // End-to-end tests for MasterDataCleaner
 
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 test.describe('MasterDataCleaner E2E', () => {
   test.beforeEach(async ({ page }) => {
