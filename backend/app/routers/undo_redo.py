@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
-from app.db.models import Dataset, Project, User, OperationHistory
+from app.db.models import Dataset, OperationHistory, Project, User
 from app.routers.auth import get_current_active_user
 
 router = APIRouter(tags=["dataset-operations"])
@@ -38,23 +38,23 @@ async def undo_operation(
 ):
     """Undo the last operation on a dataset."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    
+
     # Find the last applied operation that hasn't been undone
     result = await session.execute(
         select(OperationHistory)
         .where(
             OperationHistory.dataset_id == dataset_id,
-            OperationHistory.is_applied == True,
-            OperationHistory.is_undone == False
+            OperationHistory.is_applied is True,
+            OperationHistory.is_undone is False
         )
         .order_by(OperationHistory.created_at.desc())
         .limit(1)
     )
     operation = result.scalar_one_or_none()
-    
+
     if not operation:
         return OperationResponse(status="success", message="No operations to undo")
-    
+
     # Restore from before_snapshot
     if operation.before_snapshot:
         if "columns" in operation.before_snapshot:
@@ -63,14 +63,14 @@ async def undo_operation(
             dataset.preview_data = operation.before_snapshot.get("data")
         if "row_count" in operation.before_snapshot:
             dataset.row_count = operation.before_snapshot.get("row_count", len(dataset.preview_data) if dataset.preview_data else 0)
-    
+
     # Mark as undone
     operation.is_undone = False  # Keep as applied but mark for redo
-    
+
     await session.commit()
-    
+
     return OperationResponse(
-        status="success", 
+        status="success",
         message=f"Undone: {operation.operation_type}"
     )
 
@@ -83,23 +83,23 @@ async def redo_operation(
 ):
     """Redo the last undone operation on a dataset."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    
+
     # Find the last undone operation
     result = await session.execute(
         select(OperationHistory)
         .where(
             OperationHistory.dataset_id == dataset_id,
-            OperationHistory.is_applied == True,
-            OperationHistory.is_undone == False
+            OperationHistory.is_applied is True,
+            OperationHistory.is_undone is False
         )
         .order_by(OperationHistory.created_at.desc())
         .limit(1)
     )
     operation = result.scalar_one_or_none()
-    
+
     if not operation:
         return OperationResponse(status="success", message="No operations to redo")
-    
+
     # Restore from after_snapshot
     if operation.after_snapshot:
         if "columns" in operation.after_snapshot:
@@ -108,10 +108,10 @@ async def redo_operation(
             dataset.preview_data = operation.after_snapshot.get("data")
         if "row_count" in operation.after_snapshot:
             dataset.row_count = operation.after_snapshot.get("row_count", len(dataset.preview_data) if dataset.preview_data else 0)
-    
+
     await session.commit()
-    
+
     return OperationResponse(
-        status="success", 
+        status="success",
         message=f"Redone: {operation.operation_type}"
     )

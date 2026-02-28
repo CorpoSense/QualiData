@@ -1,14 +1,16 @@
 """Initial migration - Create MasterDataCleaner tables
 
 Revision ID: 21b545f994e8
-Revises: 
+Revises:
 Create Date: 2026-02-26 13:24:54.987002
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
+
+import sqlalchemy as sa
 
 from alembic import op
-import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '21b545f994e8'
@@ -35,7 +37,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
-    
+
     # Projects table
     op.create_table('projects',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -50,7 +52,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_projects_user_id'), 'projects', ['owner_id'], unique=False)
-    
+
     # Datasets table
     op.create_table('datasets',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -69,7 +71,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_datasets_project_id'), 'datasets', ['project_id'], unique=False)
-    
+
     # Operation history table
     op.create_table('operation_history',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -87,7 +89,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_operation_history_created_at'), 'operation_history', ['created_at'], unique=False)
     op.create_index(op.f('ix_operation_history_project_id'), 'operation_history', ['dataset_id'], unique=False)
-    
+
     # Agents table
     op.create_table('agents',
     sa.Column('id', sa.Integer(), nullable=False),

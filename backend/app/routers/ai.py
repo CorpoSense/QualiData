@@ -5,14 +5,14 @@ from fastapi import APIRouter, HTTPException
 from app.models.schemas import (
     AnalyzeDataRequest,
     AnalyzeDataResponse,
-    SuggestFixRequest,
-    SuggestFixResponse,
-    GenerateCodeRequest,
-    GenerateCodeResponse,
     ChatRequest,
     ChatResponse,
-    ProvidersListResponse,
+    GenerateCodeRequest,
+    GenerateCodeResponse,
     ProviderInfo,
+    ProvidersListResponse,
+    SuggestFixRequest,
+    SuggestFixResponse,
 )
 from app.services.ai_provider import AIProvider, list_providers
 from app.services.cleaner import DataCleaningAssistant
@@ -43,7 +43,7 @@ async def get_providers():
 async def analyze_data(request: AnalyzeDataRequest):
     """
     Analyze data and get cleaning recommendations.
-    
+
     Requires appropriate API key environment variable for the chosen provider:
     - openai: OPENAI_API_KEY
     - anthropic: ANTHROPIC_API_KEY
@@ -57,12 +57,12 @@ async def analyze_data(request: AnalyzeDataRequest):
         provider=provider,
         model=request.model,
     )
-    
+
     try:
         analysis = await assistant.analyze_data(request.data_summary)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
     return AnalyzeDataResponse(
         analysis=analysis,
         provider=provider.value,
@@ -78,12 +78,12 @@ async def suggest_fix(request: SuggestFixRequest):
         provider=provider,
         model=request.model,
     )
-    
+
     try:
         suggestion = await assistant.suggest_fix(request.issue_description)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
     return SuggestFixResponse(
         suggestion=suggestion,
         provider=provider.value,
@@ -99,7 +99,7 @@ async def generate_code(request: GenerateCodeRequest):
         provider=provider,
         model=request.model,
     )
-    
+
     try:
         code = await assistant.generate_code(
             request.task_description,
@@ -107,7 +107,7 @@ async def generate_code(request: GenerateCodeRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
     return GenerateCodeResponse(
         code=code,
         provider=provider.value,
@@ -123,12 +123,12 @@ async def chat(request: ChatRequest):
         provider=provider,
         model=request.model,
     )
-    
+
     try:
         response = await assistant.chat(request.message)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
     return ChatResponse(
         response=response,
         provider=provider.value,

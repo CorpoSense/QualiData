@@ -20,13 +20,13 @@ async def client():
 async def test_list_providers(client):
     """Test listing AI providers."""
     response = await client.get("/api/ai/providers")
-    
+
     assert response.status_code == 200
     data = response.json()
-    
+
     assert "providers" in data
     providers = data["providers"]
-    
+
     # Check that we have the expected providers
     provider_names = [p["provider"] for p in providers]
     assert "openai" in provider_names
@@ -48,6 +48,6 @@ async def test_analyze_invalid_provider(client):
             "data_summary": "test data",
         }
     )
-    
+
     assert response.status_code == 400
     assert "Invalid provider" in response.json()["detail"]

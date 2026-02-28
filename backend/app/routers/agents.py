@@ -1,6 +1,7 @@
 """Agent routes for AI configuration management."""
 
-from typing import Optional, List
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -51,7 +52,7 @@ class AgentResponse(BaseModel):
 
 
 class AgentListResponse(BaseModel):
-    agents: List[AgentResponse]
+    agents: list[AgentResponse]
     total: int
 
 
@@ -87,7 +88,7 @@ async def list_agents(
 ):
     """List all agents for current user."""
     query = select(Agent)
-    
+
     if include_templates:
         # Include templates (is_template=True) or user's own agents
         query = query.where(
@@ -95,10 +96,10 @@ async def list_agents(
         )
     else:
         query = query.where(Agent.owner_id == current_user.id)
-    
+
     result = await session.execute(query)
     agents = result.scalars().all()
-    
+
     return {"agents": agents, "total": len(agents)}
 
 
@@ -112,7 +113,7 @@ async def list_templates(
         select(Agent).where(Agent.is_template)
     )
     agents = result.scalars().all()
-    
+
     return {"agents": agents, "total": len(agents)}
 
 
@@ -127,20 +128,20 @@ async def get_agent(
         select(Agent).where(Agent.id == agent_id)
     )
     agent = result.scalar_one_or_none()
-    
+
     if not agent:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Agent not found"
         )
-    
+
     # Allow access if owner or if it's a template
     if agent.owner_id != current_user.id and not agent.is_template:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied"
         )
-    
+
     return agent
 
 
@@ -159,13 +160,13 @@ async def update_agent(
         )
     )
     agent = result.scalar_one_or_none()
-    
+
     if not agent:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Agent not found"
         )
-    
+
     if agent_data.name is not None:
         agent.name = agent_data.name
     if agent_data.description is not None:
@@ -178,10 +179,10 @@ async def update_agent(
         agent.temperature = agent_data.temperature
     if agent_data.system_prompt is not None:
         agent.system_prompt = agent_data.system_prompt
-    
+
     await session.commit()
     await session.refresh(agent)
-    
+
     return agent
 
 
@@ -199,16 +200,16 @@ async def delete_agent(
         )
     )
     agent = result.scalar_one_or_none()
-    
+
     if not agent:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Agent not found"
         )
-    
+
     await session.delete(agent)
     await session.commit()
-    
+
     return None
 
 
@@ -223,22 +224,22 @@ async def use_agent(
         select(Agent).where(Agent.id == agent_id)
     )
     agent = result.scalar_one_or_none()
-    
+
     if not agent:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Agent not found"
         )
-    
+
     # Allow usage if owner or if it's a template
     if agent.owner_id != current_user.id and not agent.is_template:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied"
         )
-    
+
     agent.usage_count += 1
     await session.commit()
     await session.refresh(agent)
-    
+
     return agent

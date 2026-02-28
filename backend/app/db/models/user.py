@@ -1,11 +1,13 @@
 """User model for authentication and account management."""
 
-from datetime import datetime
-from typing import Optional
-from sqlalchemy import String, Boolean, DateTime, Enum as SQLEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 import enum
 import uuid
+from datetime import datetime
+from typing import Optional
+
+from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
 
@@ -19,50 +21,50 @@ class UserRole(str, enum.Enum):
 
 class User(Base):
     """User account model."""
-    
+
     __tablename__ = "users"
-    
+
     id: Mapped[str] = mapped_column(
-        String(36), 
-        primary_key=True, 
+        String(36),
+        primary_key=True,
         default=lambda: str(uuid.uuid4())
     )
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    
+
     # Role and tier
     role: Mapped[UserRole] = mapped_column(
-        SQLEnum(UserRole), 
+        SQLEnum(UserRole),
         default=UserRole.FREE,
         nullable=False
     )
-    
+
     # OAuth providers
     google_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
     github_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
-    
+
     # Usage tracking
     storage_used_bytes: Mapped[int] = mapped_column(default=0)
     api_calls_this_month: Mapped[int] = mapped_column(default=0)
-    
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    
+
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
-    
+
     # Relationships
     projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
     agents = relationship("Agent", back_populates="user", cascade="all, delete-orphan")
-    
+
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"
-    
+
     @property
     def tier_limits(self) -> dict:
         """Get tier limits based on role."""

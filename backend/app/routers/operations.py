@@ -1,6 +1,7 @@
 """Dataset operations routes - pandas-based data cleaning."""
 
-from typing import Optional, List
+from typing import Optional
+
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -8,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
-from app.db.models import Dataset, Project, User, OperationHistory
+from app.db.models import Dataset, OperationHistory, Project, User
 from app.routers.auth import get_current_active_user
 
 router = APIRouter(tags=["dataset-operations"])
@@ -22,7 +23,7 @@ class AddColumnRequest(BaseModel):
 
 
 class RemoveColumnsRequest(BaseModel):
-    columns: List[str]
+    columns: list[str]
 
 
 class RenameColumnRequest(BaseModel):
@@ -31,7 +32,7 @@ class RenameColumnRequest(BaseModel):
 
 
 class MergeColumnsRequest(BaseModel):
-    columns: List[str]
+    columns: list[str]
     new_column: str
     delimiter: str = ""
 
@@ -39,7 +40,7 @@ class MergeColumnsRequest(BaseModel):
 class SplitColumnRequest(BaseModel):
     column: str
     delimiter: str
-    new_columns: List[str]
+    new_columns: list[str]
 
 
 class DuplicateColumnRequest(BaseModel):
@@ -48,13 +49,13 @@ class DuplicateColumnRequest(BaseModel):
 
 
 class ReorderColumnsRequest(BaseModel):
-    columns: List[str]
+    columns: list[str]
 
 
 class OperationResponse(BaseModel):
     status: str
     message: str
-    columns: Optional[List[dict]] = None
+    columns: Optional[list[dict]] = None
 
 
 def get_dataset_with_owner_check(dataset_id: int, user_id: int, session: AsyncSession):

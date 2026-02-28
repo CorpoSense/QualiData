@@ -1,13 +1,14 @@
 """Additional dataset operations - filter, sort, deduplicate, find-replace, type conversion."""
 
-from typing import Optional, List, Any
+from typing import Any, Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
-from app.db.models import Dataset, Project, User, OperationHistory
+from app.db.models import Dataset, OperationHistory, Project, User
 from app.routers.auth import get_current_active_user
 
 router = APIRouter(tags=["dataset-operations"])
@@ -26,7 +27,7 @@ class SortDataRequest(BaseModel):
 
 
 class RemoveDuplicatesRequest(BaseModel):
-    columns: Optional[List[str]] = None  # If None, use all columns
+    columns: Optional[list[str]] = None  # If None, use all columns
 
 
 class FindReplaceRequest(BaseModel):
@@ -44,7 +45,7 @@ class ChangeTypeRequest(BaseModel):
 class OperationResponse(BaseModel):
     status: str
     message: str
-    columns: Optional[List[dict]] = None
+    columns: Optional[list[dict]] = None
     row_count: Optional[int] = None
 
 
@@ -68,9 +69,9 @@ def apply_filter(df, column: str, operator: str, value: Any):
     """Apply filter operator to dataframe."""
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
-    
+
     col = df[column]
-    
+
     if operator == "eq":
         return df[col == value]
     elif operator == "neq":
@@ -103,23 +104,23 @@ async def filter_rows(dataset_id: int, request: FilterRowsRequest, current_user:
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     import pandas as pd
     df = pd.DataFrame(dataset.preview_data)
     before_row_count = len(df)
-    
+
     df = apply_filter(df, request.column, request.operator, request.value)
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
     before = {"columns": dataset.columns, "row_count": before_row_count}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
-    
+
     save_operation(dataset_id, "filter_rows", request.dict(), before, after, session)
     await session.commit()
-    
+
     return OperationResponse(status="success", message=f"Filtered to {len(df)} rows", columns=dataset.columns, row_count=len(df))
 
 
@@ -128,24 +129,24 @@ async def sort_data(dataset_id: int, request: SortDataRequest, current_user: Use
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     import pandas as pd
     df = pd.DataFrame(dataset.preview_data)
-    
+
     if request.column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{request.column}' not found")
-    
+
     df = df.sort_values(by=request.column, ascending=request.ascending)
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    
+
     save_operation(dataset_id, "sort_data", request.dict(), before, after, session)
     await session.commit()
-    
+
     return OperationResponse(status="success", message=f"Sorted by '{request.column}'", columns=dataset.columns)
 
 
@@ -154,28 +155,28 @@ async def remove_duplicates(dataset_id: int, request: RemoveDuplicatesRequest, c
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     import pandas as pd
     df = pd.DataFrame(dataset.preview_data)
     before_count = len(df)
-    
+
     if request.columns:
         df = df.drop_duplicates(subset=request.columns)
     else:
         df = df.drop_duplicates()
-    
+
     duplicates_removed = before_count - len(df)
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
     before = {"columns": dataset.columns, "row_count": before_count}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
-    
+
     save_operation(dataset_id, "remove_duplicates", request.dict(), before, after, session)
     await session.commit()
-    
+
     return OperationResponse(status="success", message=f"Removed {duplicates_removed} duplicates", columns=dataset.columns, row_count=len(df))
 
 
@@ -184,29 +185,29 @@ async def find_replace(dataset_id: int, request: FindReplaceRequest, current_use
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     import pandas as pd
     df = pd.DataFrame(dataset.preview_data)
-    
+
     if request.column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{request.column}' not found")
-    
+
     before_count = (df[request.column].astype(str) == request.find).sum()
-    
+
     if request.use_regex:
         df[request.column] = df[request.column].astype(str).str.replace(request.find, request.replace, regex=True)
     else:
         df[request.column] = df[request.column].astype(str).str.replace(request.find, request.replace, regex=False)
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    
+
     save_operation(dataset_id, "find_replace", request.dict(), before, after, session)
     await session.commit()
-    
+
     return OperationResponse(status="success", message=f"Replaced {before_count} occurrences", columns=dataset.columns)
 
 
@@ -215,13 +216,13 @@ async def change_type(dataset_id: int, request: ChangeTypeRequest, current_user:
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     import pandas as pd
     df = pd.DataFrame(dataset.preview_data)
-    
+
     if request.column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{request.column}' not found")
-    
+
     # Convert type
     try:
         if request.target_type == "string":
@@ -238,14 +239,14 @@ async def change_type(dataset_id: int, request: ChangeTypeRequest, current_user:
             raise HTTPException(status_code=400, detail=f"Unknown type: {request.target_type}")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Conversion failed: {str(e)}")
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    
+
     save_operation(dataset_id, "change_type", request.dict(), before, after, session)
     await session.commit()
-    
+
     return OperationResponse(status="success", message=f"Changed '{request.column}' to {request.target_type}", columns=dataset.columns)

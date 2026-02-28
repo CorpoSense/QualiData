@@ -1,12 +1,13 @@
 """Missing values operations."""
 
-from typing import Optional, Any, List
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
-from app.db.models import Dataset, Project, User, OperationHistory
+from app.db.models import User
 from app.routers.auth import get_current_active_user
 from app.routers.operations import get_dataset_with_owner_check, save_operation
 
@@ -14,7 +15,7 @@ router = APIRouter(tags=["dataset-operations"])
 
 
 class FillNaRequest(BaseModel):
-    columns: Optional[List[str]] = None  # If None, fill all columns
+    columns: Optional[list[str]] = None  # If None, fill all columns
     value: Optional[str] = None  # Value to fill with
     method: str = "constant"  # constant, mean, median, mode, forward, backward, drop
 
@@ -22,7 +23,7 @@ class FillNaRequest(BaseModel):
 class OperationResponse(BaseModel):
     status: str
     message: str
-    columns: Optional[List[dict]] = None
+    columns: Optional[list[dict]] = None
     row_count: Optional[int] = None
 
 
@@ -35,21 +36,21 @@ async def fill_na(
 ):
     """Fill missing values in dataset."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    
+
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     import pandas as pd
     df = pd.DataFrame(dataset.preview_data)
     before_count = df.isna().sum().sum()
-    
+
     # Select columns to fill
     cols = request.columns if request.columns else df.columns.tolist()
-    
+
     for col in cols:
         if col not in df.columns:
             continue
-            
+
         if request.method == "constant":
             fill_value = request.value if request.value is not None else ""
             df[col] = df[col].fillna(fill_value)
@@ -69,24 +70,24 @@ async def fill_na(
             df = df.dropna(subset=[col])
         else:
             raise HTTPException(status_code=400, detail=f"Unknown method: {request.method}")
-    
+
     after_count = df.isna().sum().sum()
     filled_count = before_count - after_count
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
     before = {"columns": dataset.columns, "row_count": len(dataset.preview_data)}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
-    
+
     save_operation(dataset_id, "fillna", request.dict(), before, after, session)
     await session.commit()
-    
+
     return OperationResponse(
-        status="success", 
+        status="success",
         message=f"Filled {filled_count} missing values using {request.method}",
-        columns=dataset.columns, 
+        columns=dataset.columns,
         row_count=len(df)
     )
 
@@ -94,7 +95,7 @@ async def fill_na(
 @router.post("/api/datasets/{dataset_id}/operations/dropna", response_model=OperationResponse)
 async def drop_na(
     dataset_id: int,
-    columns: Optional[List[str]] = None,
+    columns: Optional[list[str]] = None,
     how: str = "any",  # any or all
     thresh: Optional[int] = None,
     current_user: User = Depends(get_current_active_user),
@@ -102,35 +103,35 @@ async def drop_na(
 ):
     """Drop rows with missing values."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    
+
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     import pandas as pd
     df = pd.DataFrame(dataset.preview_data)
     before_count = len(df)
-    
+
     if thresh:
         df = df.dropna(thresh=thresh)
     else:
         df = df.dropna(how=how, subset=columns)
-    
+
     rows_dropped = before_count - len(df)
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
     before = {"columns": dataset.columns, "row_count": before_count}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
-    
+
     save_operation(dataset_id, "dropna", {"columns": columns, "how": how, "thresh": thresh}, before, after, session)
     await session.commit()
-    
+
     return OperationResponse(
-        status="success", 
+        status="success",
         message=f"Dropped {rows_dropped} rows with missing values",
-        columns=dataset.columns, 
+        columns=dataset.columns,
         row_count=len(df)
     )
 
@@ -145,16 +146,16 @@ async def string_operations(
 ):
     """Apply string operations to columns."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    
+
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     import pandas as pd
     df = pd.DataFrame(dataset.preview_data)
-    
+
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
-    
+
     if operation == "strip":
         df[column] = df[column].astype(str).str.strip()
     elif operation == "upper":
@@ -167,18 +168,18 @@ async def string_operations(
         df[column] = df[column].astype(str).str.capitalize()
     else:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    
+
     save_operation(dataset_id, "string_operations", {"column": column, "operation": operation}, before, after, session)
     await session.commit()
-    
+
     return OperationResponse(
-        status="success", 
+        status="success",
         message=f"Applied '{operation}' to column '{column}'",
         columns=dataset.columns
     )

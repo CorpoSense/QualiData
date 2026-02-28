@@ -1,9 +1,10 @@
 """Dataset routes for import/export."""
 
 import io
-from typing import Optional, List
+from typing import Optional
+
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -50,12 +51,12 @@ class ColumnInfo(BaseModel):
 
 
 class DatasetPreviewResponse(BaseModel):
-    columns: List[ColumnInfo]
-    preview_data: List[dict]
+    columns: list[ColumnInfo]
+    preview_data: list[dict]
     row_count: int
 
 
-def detect_columns(df: pd.DataFrame) -> List[dict]:
+def detect_columns(df: pd.DataFrame) -> list[dict]:
     """Detect column names and types from DataFrame."""
     columns = []
     for col in df.columns:
@@ -75,7 +76,7 @@ def detect_columns(df: pd.DataFrame) -> List[dict]:
     return columns
 
 
-def get_preview_data(df: pd.DataFrame, max_rows: int = 10) -> List[dict]:
+def get_preview_data(df: pd.DataFrame, max_rows: int = 10) -> list[dict]:
     """Get preview data from DataFrame."""
     return df.head(max_rows).to_dict(orient='records')
 
@@ -104,11 +105,11 @@ async def import_dataset(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found"
         )
-    
+
     # Read file content
     content = await file.read()
     file_size = len(content)
-    
+
     # Determine file type
     filename = file.filename or ""
     if filename.endswith('.csv'):
@@ -125,16 +126,16 @@ async def import_dataset(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unsupported file type. Use CSV, Excel, or JSON."
         )
-    
+
     # Get column info and preview
     columns = detect_columns(df)
     preview_data = get_preview_data(df)
     row_count = len(df)
-    
+
     # Use filename as name if not provided
     if not name:
         name = filename
-    
+
     # Create dataset record
     dataset = Dataset(
         name=name,
@@ -148,14 +149,14 @@ async def import_dataset(
         row_count=row_count,
     )
     session.add(dataset)
-    
+
     # Update project stats
     project.row_count += row_count
     project.storage_bytes += file_size
-    
+
     await session.commit()
     await session.refresh(dataset)
-    
+
     return dataset
 
 
@@ -171,13 +172,13 @@ async def preview_dataset(
         select(Dataset).where(Dataset.id == dataset_id)
     )
     dataset = result.scalar_one_or_none()
-    
+
     if not dataset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Dataset not found"
         )
-    
+
     # Verify ownership via project
     project_result = await session.execute(
         select(Project).where(
@@ -190,10 +191,10 @@ async def preview_dataset(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied"
         )
-    
+
     # Apply limit to preview data
     preview_data = (dataset.preview_data or [])[:limit]
-    
+
     return {
         "columns": dataset.columns or [],
         "preview_data": preview_data,
@@ -214,13 +215,13 @@ async def export_dataset(
         select(Dataset).where(Dataset.id == dataset_id)
     )
     dataset = result.scalar_one_or_none()
-    
+
     if not dataset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Dataset not found"
         )
-    
+
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
@@ -233,16 +234,16 @@ async def export_dataset(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied"
         )
-    
+
     # Reconstruct DataFrame from preview (simplified - in production, store full data)
     if not dataset.preview_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No data to export"
         )
-    
+
     df = pd.DataFrame(dataset.preview_data)
-    
+
     # Export to requested format
     if format == "csv":
         output = io.StringIO()
@@ -273,7 +274,7 @@ async def export_dataset(
         )
 
 
-@router.get("", response_model=List[DatasetResponse])
+@router.get("", response_model=list[DatasetResponse])
 async def list_datasets(
     project_id: int,
     current_user: User = Depends(get_current_active_user),
@@ -292,12 +293,12 @@ async def list_datasets(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found"
         )
-    
+
     datasets_result = await session.execute(
         select(Dataset).where(Dataset.project_id == project_id)
     )
     datasets = datasets_result.scalars().all()
-    
+
     return datasets
 
 
@@ -312,13 +313,13 @@ async def get_dataset(
         select(Dataset).where(Dataset.id == dataset_id)
     )
     dataset = result.scalar_one_or_none()
-    
+
     if not dataset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Dataset not found"
         )
-    
+
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
@@ -331,7 +332,7 @@ async def get_dataset(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied"
         )
-    
+
     return dataset
 
 
@@ -346,13 +347,13 @@ async def delete_dataset(
         select(Dataset).where(Dataset.id == dataset_id)
     )
     dataset = result.scalar_one_or_none()
-    
+
     if not dataset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Dataset not found"
         )
-    
+
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
@@ -366,12 +367,12 @@ async def delete_dataset(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied"
         )
-    
+
     # Update project stats
     project.row_count -= dataset.row_count
     project.storage_bytes -= dataset.file_size
-    
+
     await session.delete(dataset)
     await session.commit()
-    
+
     return None

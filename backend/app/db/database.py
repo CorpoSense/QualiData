@@ -3,6 +3,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+
 from app.config import get_settings
 
 settings = get_settings()
@@ -27,12 +28,12 @@ def get_async_engine():
             async_database_url = database_url.replace("mysql://", "mysql+aiomysql://")
         else:
             async_database_url = database_url
-        
+
         # Handle SSL for Aiven
         if "sslmode" in async_database_url:
             # asyncpg uses different SSL parameter
             async_database_url = async_database_url.replace("?sslmode=require", "?ssl=require")
-        
+
         _async_engine = create_async_engine(
             async_database_url,
             echo=settings.debug,
@@ -56,7 +57,7 @@ def get_sync_engine():
             sync_database_url = database_url.replace("mysql+aiomysql://", "mysql://")
         else:
             sync_database_url = database_url
-        
+
         _sync_engine = create_engine(
             sync_database_url,
             echo=settings.debug,

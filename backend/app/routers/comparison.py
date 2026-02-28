@@ -1,13 +1,14 @@
 """Before/After comparison for operations."""
 
-from typing import Optional, List, Dict, Any
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
-from app.db.models import Dataset, Project, User, OperationHistory
+from app.db.models import Dataset, OperationHistory, Project, User
 from app.routers.auth import get_current_active_user
 
 router = APIRouter(tags=["comparison"])
@@ -17,9 +18,9 @@ class ComparisonResponse(BaseModel):
     status: str
     operation_id: int
     operation_type: str
-    before_columns: List[dict]
-    after_columns: List[dict]
-    changes_summary: Dict[str, Any]
+    before_columns: list[dict]
+    after_columns: list[dict]
+    changes_summary: dict[str, Any]
 
 
 @router.get("/api/datasets/{dataset_id}/compare/{operation_id}", response_model=ComparisonResponse)
@@ -35,10 +36,10 @@ async def compare_operation(
         select(Dataset).where(Dataset.id == dataset_id)
     )
     dataset = result.scalar_one_or_none()
-    
+
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
-    
+
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
@@ -48,7 +49,7 @@ async def compare_operation(
     )
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     # Get operation
     op_result = await session.execute(
         select(OperationHistory).where(
@@ -57,13 +58,13 @@ async def compare_operation(
         )
     )
     operation = op_result.scalar_one_or_none()
-    
+
     if not operation:
         raise HTTPException(status_code=404, detail="Operation not found")
-    
+
     before = operation.before_snapshot or {}
     after = operation.after_snapshot or {}
-    
+
     # Calculate changes summary
     changes = {
         "columns_added": [],
@@ -71,27 +72,27 @@ async def compare_operation(
         "columns_renamed": [],
         "rows_changed": 0
     }
-    
+
     before_cols = set(c["name"] for c in before.get("columns", []))
     after_cols = set(c["name"] for c in after.get("columns", []))
-    
+
     changes["columns_added"] = list(after_cols - before_cols)
     changes["columns_removed"] = list(before_cols - after_cols)
-    
+
     # Check for renamed columns
     before_cols_list = {c["name"]: c for c in before.get("columns", [])}
     after_cols_list = {c["name"]: c for c in after.get("columns", [])}
-    
+
     for col_name in before_cols & after_cols:
         if before_cols_list[col_name] != after_cols_list[col_name]:
             changes["columns_renamed"].append({
                 "from": col_name,
                 "to": col_name
             })
-    
+
     if "row_count" in before and "row_count" in after:
         changes["rows_changed"] = after["row_count"] - before.get("row_count", 0)
-    
+
     return ComparisonResponse(
         status="success",
         operation_id=operation.id,
@@ -102,7 +103,7 @@ async def compare_operation(
     )
 
 
-@router.get("/api/datasets/{dataset_id}/history/{limit}", response_model=List[Dict])
+@router.get("/api/datasets/{dataset_id}/history/{limit}", response_model=list[dict])
 async def get_operation_history_summary(
     dataset_id: int,
     limit: int = 10,
@@ -115,10 +116,10 @@ async def get_operation_history_summary(
         select(Dataset).where(Dataset.id == dataset_id)
     )
     dataset = result.scalar_one_or_none()
-    
+
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
-    
+
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
@@ -128,7 +129,7 @@ async def get_operation_history_summary(
     )
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     # Get operations
     ops_result = await session.execute(
         select(OperationHistory)
@@ -137,7 +138,7 @@ async def get_operation_history_summary(
         .limit(limit)
     )
     operations = ops_result.scalars().all()
-    
+
     return [
         {
             "id": op.id,

@@ -1,9 +1,10 @@
 """Project routes."""
 
-from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
@@ -39,7 +40,7 @@ class ProjectResponse(BaseModel):
 
 
 class ProjectListResponse(BaseModel):
-    projects: List[ProjectResponse]
+    projects: list[ProjectResponse]
     total: int
     page: int
     page_size: int
@@ -75,22 +76,22 @@ async def list_projects(
     """List all projects for current user."""
     # Build query
     query = select(Project).where(Project.owner_id == current_user.id)
-    
+
     if search:
         query = query.where(Project.name.ilike(f"%{search}%"))
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await session.execute(count_query)
     total = total_result.scalar() or 0
-    
+
     # Paginate
     offset = (page - 1) * page_size
     query = query.offset(offset).limit(page_size).order_by(Project.updated_at.desc())
-    
+
     result = await session.execute(query)
     projects = result.scalars().all()
-    
+
     return {
         "projects": projects,
         "total": total,
@@ -113,13 +114,13 @@ async def get_project(
         )
     )
     project = result.scalar_one_or_none()
-    
+
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found"
         )
-    
+
     return project
 
 
@@ -138,21 +139,21 @@ async def update_project(
         )
     )
     project = result.scalar_one_or_none()
-    
+
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found"
         )
-    
+
     if project_data.name is not None:
         project.name = project_data.name
     if project_data.description is not None:
         project.description = project_data.description
-    
+
     await session.commit()
     await session.refresh(project)
-    
+
     return project
 
 
@@ -170,14 +171,14 @@ async def delete_project(
         )
     )
     project = result.scalar_one_or_none()
-    
+
     if not project:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found"
         )
-    
+
     await session.delete(project)
     await session.commit()
-    
+
     return None

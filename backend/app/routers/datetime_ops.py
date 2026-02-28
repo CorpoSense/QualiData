@@ -1,6 +1,7 @@
 """Date/time operations for datasets."""
 
-from typing import Optional, List
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +17,7 @@ router = APIRouter(tags=["dataset-operations"])
 class OperationResponse(BaseModel):
     status: str
     message: str
-    columns: Optional[List[dict]] = None
+    columns: Optional[list[dict]] = None
 
 
 @router.post("/api/datasets/{dataset_id}/operations/parse-datetime", response_model=OperationResponse)
@@ -30,35 +31,35 @@ async def parse_datetime(
 ):
     """Parse datetime column to standard format."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    
+
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     import pandas as pd
     df = pd.DataFrame(dataset.preview_data)
-    
+
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
-    
+
     try:
         if input_format:
             df[column] = pd.to_datetime(df[column], format=input_format, errors='coerce')
         else:
             df[column] = pd.to_datetime(df[column], errors='coerce')
-        
+
         df[column] = df[column].dt.strftime(output_format)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse datetime: {str(e)}")
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    
+
     save_operation(dataset_id, "parse_datetime", {"column": column, "input_format": input_format, "output_format": output_format}, before, after, session)
     await session.commit()
-    
+
     return OperationResponse(status="success", message=f"Parsed '{column}' to datetime", columns=dataset.columns)
 
 
@@ -66,28 +67,28 @@ async def parse_datetime(
 async def extract_datetime_parts(
     dataset_id: int,
     column: str,
-    parts: List[str] = ["year", "month", "day"],
+    parts: list[str] = ["year", "month", "day"],
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session)
 ):
     """Extract datetime parts (year, month, day, hour, etc.) into separate columns."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    
+
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     import pandas as pd
     df = pd.DataFrame(dataset.preview_data)
-    
+
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
-    
+
     # Parse datetime if not already
     try:
         dt = pd.to_datetime(df[column], errors='coerce')
     except Exception:
         raise HTTPException(status_code=400, detail=f"Column '{column}' is not a datetime column")
-    
+
     valid_parts = {"year", "month", "day", "hour", "minute", "second", "weekday", "quarter"}
     for part in parts:
         if part not in valid_parts:
@@ -108,16 +109,16 @@ async def extract_datetime_parts(
             df[f"{column}_weekday"] = dt.dt.weekday
         elif part == "quarter":
             df[f"{column}_quarter"] = dt.dt.quarter
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    
+
     save_operation(dataset_id, "extract_datetime", {"column": column, "parts": parts}, before, after, session)
     await session.commit()
-    
+
     return OperationResponse(status="success", message=f"Extracted {parts} from '{column}'", columns=dataset.columns)
 
 

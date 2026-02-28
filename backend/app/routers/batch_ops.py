@@ -1,6 +1,7 @@
 """Batch AI processing operations."""
 
-from typing import Optional, List
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +14,7 @@ router = APIRouter(tags=["ai-operations"])
 
 
 class BatchProcessRequest(BaseModel):
-    columns: List[str]
+    columns: list[str]
     instruction: str
     output_column: Optional[str] = None
     batch_size: int = Field(default=50, ge=1, le=500)
@@ -30,7 +31,7 @@ class BatchProgressResponse(BaseModel):
     status: str  # pending, processing, completed, failed
     processed: int
     total: int
-    results: Optional[List[dict]] = None
+    results: Optional[list[dict]] = None
 
 
 # In-memory job tracking (in production, use Redis/database)
@@ -46,17 +47,17 @@ async def ai_batch_process(
 ):
     """Process multiple columns with AI in batches."""
     from sqlalchemy import select
-    from app.routers.datasets import detect_columns, get_preview_data
-    
+
+
     # Get dataset
     result = await session.execute(
         select(Dataset).where(Dataset.id == dataset_id)
     )
     dataset = result.scalar_one_or_none()
-    
+
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
-    
+
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
@@ -66,22 +67,22 @@ async def ai_batch_process(
     )
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to process")
-    
+
     import pandas as pd
     df = pd.DataFrame(dataset.preview_data)
-    
+
     # Validate columns
     for col in request.columns:
         if col not in df.columns:
             raise HTTPException(status_code=400, detail=f"Column '{col}' not found")
-    
+
     # Create job
     import uuid
     job_id = str(uuid.uuid4())
-    
+
     BATCH_JOBS[job_id] = {
         "status": "pending",
         "processed": 0,
@@ -91,7 +92,7 @@ async def ai_batch_process(
         "columns": request.columns,
         "dataset_id": dataset_id,
     }
-    
+
     return BatchProcessResponse(
         status="success",
         job_id=job_id,
@@ -109,9 +110,9 @@ async def get_batch_progress(
     """Get progress of batch AI job."""
     if job_id not in BATCH_JOBS:
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     job = BATCH_JOBS[job_id]
-    
+
     return BatchProgressResponse(
         job_id=job_id,
         status=job["status"],
@@ -132,16 +133,17 @@ async def ai_cross_row_context(
 ):
     """Apply AI with cross-row context (grouped operations)."""
     from sqlalchemy import select
+
     from app.routers.datasets import detect_columns, get_preview_data
-    
+
     result = await session.execute(
         select(Dataset).where(Dataset.id == dataset_id)
     )
     dataset = result.scalar_one_or_none()
-    
+
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
-    
+
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
@@ -151,16 +153,16 @@ async def ai_cross_row_context(
     )
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data")
-    
+
     import pandas as pd
     df = pd.DataFrame(dataset.preview_data)
-    
+
     if column not in df.columns or group_by not in df.columns:
         raise HTTPException(status_code=400, detail="Invalid columns")
-    
+
     # Apply grouping operation
     if operation == "count":
         df[f"{column}_count"] = df.groupby(group_by)[column].transform("count")
@@ -172,16 +174,16 @@ async def ai_cross_row_context(
         df[f"{column}_mean"] = df.groupby(group_by)[column].transform("mean")
     else:
         raise HTTPException(status_code=400, detail=f"Invalid operation: {operation}")
-    
+
     # Update dataset
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
-    
+
     await session.commit()
-    
+
     import uuid
     job_id = str(uuid.uuid4())
-    
+
     return BatchProcessResponse(
         status="success",
         job_id=job_id,

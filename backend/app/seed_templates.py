@@ -1,9 +1,7 @@
 """Seed data for pre-built agent templates."""
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.models import Agent
 from app.db.database import AsyncSessionLocal
-
+from app.db.models import Agent
 
 DEFAULT_AGENTS = [
     {
@@ -13,7 +11,7 @@ DEFAULT_AGENTS = [
         "model": "gpt-4o-mini",
         "temperature": 0.3,
         "system_prompt": """You are a data cleaning assistant specializing in email normalization.
-        
+
 For each email address:
 1. Convert to lowercase
 2. Trim any leading/trailing whitespace
@@ -105,19 +103,19 @@ async def seed_agent_templates():
         # Check if templates already exist
         from sqlalchemy import select
         result = await session.execute(
-            select(Agent).where(Agent.is_template == True)
+            select(Agent).where(Agent.is_template is True)
         )
         existing = result.scalars().all()
-        
+
         if existing:
             print(f"Agent templates already exist ({len(existing)}), skipping seed.")
             return
-        
+
         # Create templates
         for agent_data in DEFAULT_AGENTS:
             agent = Agent(**agent_data)
             session.add(agent)
-        
+
         await session.commit()
         print(f"Seeded {len(DEFAULT_AGENTS)} agent templates.")
 

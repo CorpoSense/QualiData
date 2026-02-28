@@ -2,7 +2,28 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import health, ai, auth, projects, datasets, operations, operations_extra, agents, missing_values, undo_redo, datetime_ops, structural_ops, ai_operations, batch_ops, profiling, notifications, comparison, assistant, rate_limit, cell_ops
+from app.routers import (
+    agents,
+    ai,
+    ai_operations,
+    assistant,
+    auth,
+    batch_ops,
+    cell_ops,
+    comparison,
+    datasets,
+    datetime_ops,
+    health,
+    missing_values,
+    notifications,
+    operations,
+    operations_extra,
+    profiling,
+    projects,
+    rate_limit,
+    structural_ops,
+    undo_redo,
+)
 
 settings = get_settings()
 
@@ -15,7 +36,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         debug=settings.debug,
     )
-    
+
     # CORS middleware for Vue frontend
     app.add_middleware(
         CORSMiddleware,
@@ -24,7 +45,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # Include routers
     app.include_router(health.router, prefix="/api")
     app.include_router(ai.router, prefix="/api")
@@ -46,7 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(assistant.router, prefix="/api")
     app.include_router(rate_limit.router, prefix="/api")
     app.include_router(cell_ops.router, prefix="/api")
-    
+
     return app
 
 

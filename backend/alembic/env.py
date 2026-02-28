@@ -5,10 +5,11 @@ import os
 import sys
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+
+from alembic import context
 
 # Add the app directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -31,18 +32,18 @@ if database_url.startswith("postgresql://"):
     import urllib.parse
     parsed = urllib.parse.urlparse(database_url)
     query = urllib.parse.parse_qs(parsed.query)
-    
+
     # Remove sslmode from query
     sslmode = query.pop('sslmode', ['require'])[0]
-    
+
     # Rebuild URL without sslmode
     new_query = urllib.parse.urlencode(query, doseq=True)
     new_path = parsed.path
     if new_query:
         new_path = f"{parsed.path}?{new_query}"
-    
+
     database_url = f"postgresql+asyncpg://{parsed.netloc}{new_path}"
-    
+
     # Store sslmode for later use
     _ssl_mode = sslmode
 
