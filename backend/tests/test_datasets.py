@@ -6,8 +6,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Mock database before importing app
-with patch('app.db.database.get_async_session_maker'):
-    with patch('app.db.database.get_sync_session_maker'):
+with patch("app.db.database.get_async_session_maker"):
+    with patch("app.db.database.get_sync_session_maker"):
         from app.main import app
 
 
@@ -19,10 +19,7 @@ class TestDatasetRoutes:
 
     def test_import_endpoint_exists(self):
         """Test that import endpoint exists."""
-        response = client.post(
-            "/api/datasets/import",
-            data={"project_id": 1}
-        )
+        response = client.post("/api/datasets/import", data={"project_id": 1})
         # Should fail auth, not 404
         assert response.status_code in [401, 422, 500]
 
@@ -51,11 +48,9 @@ class TestCSVImport:
 
         from app.routers.datasets import detect_columns
 
-        df = pd.DataFrame({
-            "name": ["Alice", "Bob"],
-            "age": [25, 30],
-            "score": [85.5, 92.0]
-        })
+        df = pd.DataFrame(
+            {"name": ["Alice", "Bob"], "age": [25, 30], "score": [85.5, 92.0]}
+        )
 
         columns = detect_columns(df)
 
@@ -71,10 +66,7 @@ class TestCSVImport:
 
         from app.routers.datasets import get_preview_data
 
-        df = pd.DataFrame({
-            "name": ["Alice", "Bob", "Charlie"],
-            "age": [25, 30, 35]
-        })
+        df = pd.DataFrame({"name": ["Alice", "Bob", "Charlie"], "age": [25, 30, 35]})
 
         preview = get_preview_data(df, max_rows=2)
 
@@ -92,11 +84,13 @@ class TestJSONImport:
 
         from app.routers.datasets import detect_columns
 
-        df = pd.DataFrame({
-            "id": [1, 2, 3],
-            "active": [True, False, True],
-            "created": ["2024-01-01", "2024-01-02", "2024-01-03"]
-        })
+        df = pd.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "active": [True, False, True],
+                "created": ["2024-01-01", "2024-01-02", "2024-01-03"],
+            }
+        )
 
         columns = detect_columns(df)
 
@@ -115,10 +109,7 @@ class TestProjectRoutes:
 
     def test_projects_create_requires_auth(self):
         """Test that project creation requires authentication."""
-        response = client.post(
-            "/api/projects",
-            json={"name": "Test Project"}
-        )
+        response = client.post("/api/projects", json={"name": "Test Project"})
         assert response.status_code in [401, 422, 500]
 
 
@@ -127,7 +118,7 @@ class TestAuthRoutes:
 
     def test_routes_exist(self):
         """Test auth routes are registered."""
-        routes = [r.path for r in app.routes if hasattr(r, 'path')]
+        routes = [r.path for r in app.routes if hasattr(r, "path")]
         assert "/api/auth/register" in routes
         assert "/api/auth/login" in routes
         assert "/api/auth/me" in routes

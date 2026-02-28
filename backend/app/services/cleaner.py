@@ -55,10 +55,12 @@ class DataCleaningAssistant:
         Returns:
             Analysis and recommendations
         """
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT),
-            ("human", "Analyze this data and recommend cleaning steps:\n\n{data}"),
-        ])
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", SYSTEM_PROMPT),
+                ("human", "Analyze this data and recommend cleaning steps:\n\n{data}"),
+            ]
+        )
 
         chain = prompt | self.llm
         response = await chain.ainvoke({"data": data_summary})
@@ -74,16 +76,20 @@ class DataCleaningAssistant:
         Returns:
             Suggested fix
         """
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT),
-            ("human", "How should I fix this data quality issue?\n\n{issue}"),
-        ])
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", SYSTEM_PROMPT),
+                ("human", "How should I fix this data quality issue?\n\n{issue}"),
+            ]
+        )
 
         chain = prompt | self.llm
         response = await chain.ainvoke({"issue": issue_description})
         return response.content
 
-    async def generate_code(self, task_description: str, language: str = "python") -> str:
+    async def generate_code(
+        self, task_description: str, language: str = "python"
+    ) -> str:
         """
         Generate code for a data cleaning task.
 
@@ -94,10 +100,15 @@ class DataCleaningAssistant:
         Returns:
             Generated code
         """
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT),
-            ("human", "Generate {language} code for this data cleaning task:\n\n{task}"),
-        ])
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", SYSTEM_PROMPT),
+                (
+                    "human",
+                    "Generate {language} code for this data cleaning task:\n\n{task}",
+                ),
+            ]
+        )
 
         chain = prompt | self.llm
         response = await chain.ainvoke({"language": language, "task": task_description})

@@ -36,14 +36,12 @@ class ProfilingResponse(BaseModel):
 async def profile_columns(
     dataset_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Get detailed profile of all columns in a dataset."""
     from sqlalchemy import select
 
-    result = await session.execute(
-        select(Dataset).where(Dataset.id == dataset_id)
-    )
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
 
     if not dataset:
@@ -52,8 +50,7 @@ async def profile_columns(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id,
-            Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.owner_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -92,24 +89,37 @@ async def profile_columns(
 
         # Numeric stats
         if pd.api.types.is_numeric_dtype(col_data):
-            stats.update({
-                "min": float(col_data.min()) if not pd.isna(col_data.min()) else None,
-                "max": float(col_data.max()) if not pd.isna(col_data.max()) else None,
-                "mean": float(col_data.mean()) if not pd.isna(col_data.mean()) else None,
-                "median": float(col_data.median()) if not pd.isna(col_data.median()) else None,
-                "std": float(col_data.std()) if not pd.isna(col_data.std()) else None,
-            })
+            stats.update(
+                {
+                    "min": (
+                        float(col_data.min()) if not pd.isna(col_data.min()) else None
+                    ),
+                    "max": (
+                        float(col_data.max()) if not pd.isna(col_data.max()) else None
+                    ),
+                    "mean": (
+                        float(col_data.mean()) if not pd.isna(col_data.mean()) else None
+                    ),
+                    "median": (
+                        float(col_data.median())
+                        if not pd.isna(col_data.median())
+                        else None
+                    ),
+                    "std": (
+                        float(col_data.std()) if not pd.isna(col_data.std()) else None
+                    ),
+                }
+            )
 
         # Categorical stats
         if unique_count < 50:  # Low cardinality = might be categorical
             value_counts = col_data.value_counts().head(5)
             stats["top_values"] = [
-                {"value": str(v), "count": int(c)}
-                for v, c in value_counts.items()
+                {"value": str(v), "count": int(c)} for v, c in value_counts.items()
             ]
 
         # String stats
-        if col_data.dtype == 'object':
+        if col_data.dtype == "object":
             stats["avg_length"] = float(col_data.astype(str).str.len().mean())
             stats["min_length"] = int(col_data.astype(str).str.len().min())
             stats["max_length"] = int(col_data.astype(str).str.len().max())
@@ -128,21 +138,19 @@ async def profile_columns(
         # Sample values
         sample = col_data.dropna().head(5).tolist()
 
-        profiles.append(ColumnProfile(
-            name=col,
-            dtype=str(col_data.dtype),
-            total_rows=total_rows,
-            null_count=null_count,
-            null_percent=round(null_percent, 2),
-            unique_count=unique_count,
-            unique_percent=round(unique_percent, 2),
-            quality_score=round(quality_score, 1),
-            sample_values=sample,
-            stats=stats
-        ))
+        profiles.append(
+            ColumnProfile(
+                name=col,
+                dtype=str(col_data.dtype),
+                total_rows=total_rows,
+                null_count=null_count,
+                null_percent=round(null_percent, 2),
+                unique_count=unique_count,
+                unique_percent=round(unique_percent, 2),
+                quality_score=round(quality_score, 1),
+                sample_values=sample,
+                stats=stats,
+            )
+        )
 
-    return ProfilingResponse(
-        status="success",
-        columns=profiles,
-        total_rows=total_rows
-    )
+    return ProfilingResponse(status="success", columns=profiles, total_rows=total_rows)

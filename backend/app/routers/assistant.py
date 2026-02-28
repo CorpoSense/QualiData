@@ -36,7 +36,7 @@ class WizardResponse(BaseModel):
 async def analyze_dataset(
     request: AnalysisRequest,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Step 1: Analyze the dataset and provide insights."""
     from sqlalchemy import select
@@ -52,8 +52,7 @@ async def analyze_dataset(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id,
-            Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.owner_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -73,38 +72,45 @@ async def analyze_dataset(
     null_counts = df.isnull().sum()
     high_null_cols = null_counts[null_counts > len(df) * 0.2].index.tolist()
     if high_null_cols:
-        insights.append({
-            "type": "warning",
-            "message": f"Columns with high null rates: {', '.join(high_null_cols)}"
-        })
+        insights.append(
+            {
+                "type": "warning",
+                "message": f"Columns with high null rates: {', '.join(high_null_cols)}",
+            }
+        )
 
     # Check for duplicates
     dup_count = df.duplicated().sum()
     if dup_count > 0:
-        insights.append({
-            "type": "info",
-            "message": f"Found {dup_count} duplicate rows"
-        })
+        insights.append(
+            {"type": "info", "message": f"Found {dup_count} duplicate rows"}
+        )
 
     # Check for potential issues
     for col in df.columns:
-        if df[col].dtype == 'object':
+        if df[col].dtype == "object":
             unique = df[col].nunique()
             if unique == len(df):
-                insights.append({
-                    "type": "info",
-                    "message": f"Column '{col}' has all unique values - might be IDs"
-                })
+                insights.append(
+                    {
+                        "type": "info",
+                        "message": f"Column '{col}' has all unique values - might be IDs",
+                    }
+                )
 
     steps = [
         WizardStep(
             step=1,
             title="Analysis Complete",
             description="We've analyzed your dataset. Here are the findings:",
-            options=[
-                {"label": insight["message"], "type": insight["type"]}
-                for insight in insights
-            ] if insights else [{"label": "No major issues found", "type": "success"}]
+            options=(
+                [
+                    {"label": insight["message"], "type": insight["type"]}
+                    for insight in insights
+                ]
+                if insights
+                else [{"label": "No major issues found", "type": "success"}]
+            ),
         ),
         WizardStep(
             step=2,
@@ -114,15 +120,15 @@ async def analyze_dataset(
                 {"value": "remove_nulls", "label": "Remove rows with missing values"},
                 {"value": "remove_duplicates", "label": "Remove duplicate rows"},
                 {"value": "standardize", "label": "Standardize text values"},
-                {"value": "custom", "label": "Custom operation"}
-            ]
+                {"value": "custom", "label": "Custom operation"},
+            ],
         ),
         WizardStep(
             step=3,
             title="Review & Confirm",
             description="Review your selections and confirm:",
-            options=[]
-        )
+            options=[],
+        ),
     ]
 
     return WizardResponse(
@@ -135,8 +141,8 @@ async def analyze_dataset(
             "dataset_name": dataset.name,
             "row_count": dataset.row_count,
             "column_count": len(dataset.columns) if dataset.columns else 0,
-            "insights": insights
-        }
+            "insights": insights,
+        },
     )
 
 
@@ -145,14 +151,12 @@ async def get_suggestions(
     dataset_id: int,
     operation_type: str,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Step 2: Get operation suggestions based on selected type."""
     from sqlalchemy import select
 
-    result = await session.execute(
-        select(Dataset).where(Dataset.id == dataset_id)
-    )
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
 
     if not dataset:
@@ -167,20 +171,20 @@ async def get_suggestions(
             {"value": "drop_columns", "label": "Drop columns with high null rate"},
             {"value": "fill_mean", "label": "Fill numeric nulls with mean"},
             {"value": "fill_mode", "label": "Fill with most common value (mode)"},
-            {"value": "fill_custom", "label": "Fill with custom value"}
+            {"value": "fill_custom", "label": "Fill with custom value"},
         ]
     elif operation_type == "standardize":
         suggestions = [
             {"value": "trim", "label": "Trim whitespace"},
             {"value": "lowercase", "label": "Convert to lowercase"},
             {"value": "uppercase", "label": "Convert to uppercase"},
-            {"value": "titlecase", "label": "Convert to title case"}
+            {"value": "titlecase", "label": "Convert to title case"},
         ]
     else:
         suggestions = [
             {"value": "filter", "label": "Filter rows"},
             {"value": "transform", "label": "Transform values"},
-            {"value": "add_column", "label": "Add calculated column"}
+            {"value": "add_column", "label": "Add calculated column"},
         ]
 
     steps = [
@@ -188,14 +192,14 @@ async def get_suggestions(
             step=2,
             title=f"Options for {operation_type}",
             description="Select an option:",
-            options=suggestions
+            options=suggestions,
         ),
         WizardStep(
             step=3,
             title="Review & Confirm",
             description="Review your selections and confirm:",
-            options=[]
-        )
+            options=[],
+        ),
     ]
 
     return WizardResponse(
@@ -203,10 +207,7 @@ async def get_suggestions(
         current_step=2,
         total_steps=3,
         steps=steps,
-        data={
-            "operation_type": operation_type,
-            "suggestions": suggestions
-        }
+        data={"operation_type": operation_type, "suggestions": suggestions},
     )
 
 
@@ -215,7 +216,7 @@ async def execute_operation(
     dataset_id: int,
     operation: dict[str, Any],
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Step 3: Execute the selected operation."""
     # This would call the appropriate operation endpoint
@@ -228,6 +229,6 @@ async def execute_operation(
         steps=[],
         data={
             "message": f"Operation queued for dataset {dataset_id}",
-            "operation": operation
-        }
+            "operation": operation,
+        },
     )

@@ -23,13 +23,11 @@ class CellUpdate(BaseModel):
 async def update_cell(
     dataset_id: int,
     update: CellUpdate,
-    current_user = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    current_user=Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Update a single cell value."""
-    result = await session.execute(
-        select(Dataset).where(Dataset.id == dataset_id)
-    )
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
 
     if not dataset:
@@ -43,7 +41,9 @@ async def update_cell(
 
     # Validate column
     if update.column not in df.columns:
-        raise HTTPException(status_code=400, detail=f"Column '{update.column}' not found")
+        raise HTTPException(
+            status_code=400, detail=f"Column '{update.column}' not found"
+        )
 
     # Validate row index
     if update.row_index < 0 or update.row_index >= len(df):
@@ -53,11 +53,11 @@ async def update_cell(
     df.at[update.row_index, update.column] = update.value
 
     # Save back
-    dataset.preview_data = df.to_dict(orient='records')
+    dataset.preview_data = df.to_dict(orient="records")
     await session.commit()
 
     return {
         "status": "success",
         "message": f"Updated cell at row {update.row_index}, column '{update.column}'",
-        "old_value": dataset.preview_data[update.row_index].get(update.column)
+        "old_value": dataset.preview_data[update.row_index].get(update.column),
     }

@@ -27,9 +27,7 @@ class RateLimiter:
             self.requests[user_id] = []
 
         # Clean old requests
-        self.requests[user_id] = [
-            t for t in self.requests[user_id] if t > minute_ago
-        ]
+        self.requests[user_id] = [t for t in self.requests[user_id] if t > minute_ago]
 
         # Check limit
         limit = self.provider_limits.get(provider, {}).get("requests_per_minute", 60)
@@ -67,8 +65,8 @@ def check_rate_limit(user_id: int, provider: str = "openai"):
             detail={
                 "error": "Rate limit exceeded",
                 "provider": provider,
-                "retry_after": "60 seconds"
-            }
+                "retry_after": "60 seconds",
+            },
         )
 
 
@@ -77,5 +75,7 @@ def get_rate_limit_info(user_id: int, provider: str = "openai") -> dict:
     return {
         "provider": provider,
         "remaining": rate_limiter.get_remaining(user_id, provider),
-        "limit": rate_limiter.provider_limits.get(provider, {}).get("requests_per_minute", 60)
+        "limit": rate_limiter.provider_limits.get(provider, {}).get(
+            "requests_per_minute", 60
+        ),
     }

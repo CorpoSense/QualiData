@@ -102,9 +102,8 @@ async def seed_agent_templates():
     async with AsyncSessionLocal() as session:
         # Check if templates already exist
         from sqlalchemy import select
-        result = await session.execute(
-            select(Agent).where(Agent.is_template is True)
-        )
+
+        result = await session.execute(select(Agent).where(Agent.is_template is True))
         existing = result.scalars().all()
 
         if existing:
@@ -122,4 +121,5 @@ async def seed_agent_templates():
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(seed_agent_templates())

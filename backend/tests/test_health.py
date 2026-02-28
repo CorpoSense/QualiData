@@ -22,4 +22,5 @@ async def test_health_check_timestamp_is_iso_format(client):
 
     # Should be parseable as ISO format
     from datetime import datetime
+
     datetime.fromisoformat(data["timestamp"])

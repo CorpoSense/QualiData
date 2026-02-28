@@ -23,7 +23,9 @@ def get_async_engine():
         # Convert to async URL
         database_url = settings.database_url
         if database_url.startswith("postgresql://"):
-            async_database_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
+            async_database_url = database_url.replace(
+                "postgresql://", "postgresql+asyncpg://"
+            )
         elif database_url.startswith("mysql://"):
             async_database_url = database_url.replace("mysql://", "mysql+aiomysql://")
         else:
@@ -32,7 +34,9 @@ def get_async_engine():
         # Handle SSL for Aiven
         if "sslmode" in async_database_url:
             # asyncpg uses different SSL parameter
-            async_database_url = async_database_url.replace("?sslmode=require", "?ssl=require")
+            async_database_url = async_database_url.replace(
+                "?sslmode=require", "?ssl=require"
+            )
 
         _async_engine = create_async_engine(
             async_database_url,
@@ -52,7 +56,9 @@ def get_sync_engine():
     if _sync_engine is None:
         database_url = settings.database_url
         if database_url.startswith("postgresql+asyncpg://"):
-            sync_database_url = database_url.replace("postgresql+asyncpg://", "postgresql://")
+            sync_database_url = database_url.replace(
+                "postgresql+asyncpg://", "postgresql://"
+            )
         elif database_url.startswith("mysql+aiomysql://"):
             sync_database_url = database_url.replace("mysql+aiomysql://", "mysql://")
         else:

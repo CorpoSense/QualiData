@@ -18,8 +18,10 @@ async def get_rate_limit_status(current_user: User = Depends(get_current_active_
         providers[provider] = {
             "name": provider.capitalize(),
             "remaining": rate_limiter.get_remaining(current_user.id, provider),
-            "limit": rate_limiter.provider_limits.get(provider, {}).get("requests_per_minute", 60),
-            "resetsAt": None  # Would calculate actual reset time in production
+            "limit": rate_limiter.provider_limits.get(provider, {}).get(
+                "requests_per_minute", 60
+            ),
+            "resetsAt": None,  # Would calculate actual reset time in production
         }
 
     return {"providers": providers}
@@ -27,12 +29,13 @@ async def get_rate_limit_status(current_user: User = Depends(get_current_active_
 
 @router.get("/status/{provider}")
 async def get_provider_rate_limit(
-    provider: str,
-    current_user: User = Depends(get_current_active_user)
+    provider: str, current_user: User = Depends(get_current_active_user)
 ):
     """Get rate limit status for a specific provider."""
     return {
         "provider": provider,
         "remaining": rate_limiter.get_remaining(current_user.id, provider),
-        "limit": rate_limiter.provider_limits.get(provider, {}).get("requests_per_minute", 60),
+        "limit": rate_limiter.provider_limits.get(provider, {}).get(
+            "requests_per_minute", 60
+        ),
     }

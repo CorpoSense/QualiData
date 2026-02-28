@@ -11,5 +11,5 @@ async def health_check():
     return {
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
-        "service": "MasterDataCleaner API"
+        "service": "MasterDataCleaner API",
     }

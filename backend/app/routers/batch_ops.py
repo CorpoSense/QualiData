@@ -43,16 +43,13 @@ async def ai_batch_process(
     dataset_id: int,
     request: BatchProcessRequest,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Process multiple columns with AI in batches."""
     from sqlalchemy import select
 
-
     # Get dataset
-    result = await session.execute(
-        select(Dataset).where(Dataset.id == dataset_id)
-    )
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
 
     if not dataset:
@@ -61,8 +58,7 @@ async def ai_batch_process(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id,
-            Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.owner_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -72,6 +68,7 @@ async def ai_batch_process(
         raise HTTPException(status_code=400, detail="No data to process")
 
     import pandas as pd
+
     df = pd.DataFrame(dataset.preview_data)
 
     # Validate columns
@@ -81,6 +78,7 @@ async def ai_batch_process(
 
     # Create job
     import uuid
+
     job_id = str(uuid.uuid4())
 
     BATCH_JOBS[job_id] = {
@@ -96,16 +94,18 @@ async def ai_batch_process(
     return BatchProcessResponse(
         status="success",
         job_id=job_id,
-        message=f"Batch job started for {len(request.columns)} columns, {len(df)} rows"
+        message=f"Batch job started for {len(request.columns)} columns, {len(df)} rows",
     )
 
 
-@router.get("/api/datasets/{dataset_id}/ai-batch/{job_id}", response_model=BatchProgressResponse)
+@router.get(
+    "/api/datasets/{dataset_id}/ai-batch/{job_id}", response_model=BatchProgressResponse
+)
 async def get_batch_progress(
     dataset_id: int,
     job_id: str,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Get progress of batch AI job."""
     if job_id not in BATCH_JOBS:
@@ -118,27 +118,27 @@ async def get_batch_progress(
         status=job["status"],
         processed=job["processed"],
         total=job["total"],
-        results=job.get("results", [])[:10]  # Return first 10 results
+        results=job.get("results", [])[:10],  # Return first 10 results
     )
 
 
-@router.post("/api/datasets/{dataset_id}/ai-cross-row", response_model=BatchProcessResponse)
+@router.post(
+    "/api/datasets/{dataset_id}/ai-cross-row", response_model=BatchProcessResponse
+)
 async def ai_cross_row_context(
     dataset_id: int,
     column: str,
     group_by: str,
     operation: str,  # count, concat, sum, mean
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Apply AI with cross-row context (grouped operations)."""
     from sqlalchemy import select
 
     from app.routers.datasets import detect_columns, get_preview_data
 
-    result = await session.execute(
-        select(Dataset).where(Dataset.id == dataset_id)
-    )
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
 
     if not dataset:
@@ -147,8 +147,7 @@ async def ai_cross_row_context(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id,
-            Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.owner_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -158,6 +157,7 @@ async def ai_cross_row_context(
         raise HTTPException(status_code=400, detail="No data")
 
     import pandas as pd
+
     df = pd.DataFrame(dataset.preview_data)
 
     if column not in df.columns or group_by not in df.columns:
@@ -167,7 +167,9 @@ async def ai_cross_row_context(
     if operation == "count":
         df[f"{column}_count"] = df.groupby(group_by)[column].transform("count")
     elif operation == "concat":
-        df[f"{column}_concat"] = df.groupby(group_by)[column].transform(lambda x: ", ".join(x.astype(str)))
+        df[f"{column}_concat"] = df.groupby(group_by)[column].transform(
+            lambda x: ", ".join(x.astype(str))
+        )
     elif operation == "sum":
         df[f"{column}_sum"] = df.groupby(group_by)[column].transform("sum")
     elif operation == "mean":
@@ -182,10 +184,11 @@ async def ai_cross_row_context(
     await session.commit()
 
     import uuid
+
     job_id = str(uuid.uuid4())
 
     return BatchProcessResponse(
         status="success",
         job_id=job_id,
-        message=f"Applied {operation} grouped by {group_by}"
+        message=f"Applied {operation} grouped by {group_by}",
     )

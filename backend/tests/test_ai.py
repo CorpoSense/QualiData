@@ -10,8 +10,7 @@ async def client():
     """Create an async test client."""
     app = create_app()
     async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test"
+        transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         yield client
 
@@ -46,7 +45,7 @@ async def test_analyze_invalid_provider(client):
         json={
             "provider": "invalid_provider",
             "data_summary": "test data",
-        }
+        },
     )
 
     assert response.status_code == 400

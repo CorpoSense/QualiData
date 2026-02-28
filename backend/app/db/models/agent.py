@@ -16,15 +16,13 @@ class Agent(Base):
     __tablename__ = "agents"
 
     id: Mapped[str] = mapped_column(
-        String(36),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     user_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
     # Agent configuration
@@ -32,7 +30,9 @@ class Agent(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # AI Provider settings
-    provider: Mapped[str] = mapped_column(String(50), default="openai")  # openai, anthropic, google, etc.
+    provider: Mapped[str] = mapped_column(
+        String(50), default="openai"
+    )  # openai, anthropic, google, etc.
     model: Mapped[str] = mapped_column(String(100), default="gpt-4o-mini")
 
     # Prompts
@@ -48,7 +48,9 @@ class Agent(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     # Relationships
     user = relationship("User", back_populates="agents")

@@ -61,7 +61,7 @@ class AgentListResponse(BaseModel):
 async def create_agent(
     agent_data: AgentCreate,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Create a new AI agent configuration."""
     agent = Agent(
@@ -84,16 +84,14 @@ async def create_agent(
 async def list_agents(
     include_templates: bool = False,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """List all agents for current user."""
     query = select(Agent)
 
     if include_templates:
         # Include templates (is_template=True) or user's own agents
-        query = query.where(
-            (Agent.owner_id == current_user.id) | (Agent.is_template)
-        )
+        query = query.where((Agent.owner_id == current_user.id) | (Agent.is_template))
     else:
         query = query.where(Agent.owner_id == current_user.id)
 
@@ -106,12 +104,10 @@ async def list_agents(
 @router.get("/templates", response_model=AgentListResponse)
 async def list_templates(
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """List available agent templates."""
-    result = await session.execute(
-        select(Agent).where(Agent.is_template)
-    )
+    result = await session.execute(select(Agent).where(Agent.is_template))
     agents = result.scalars().all()
 
     return {"agents": agents, "total": len(agents)}
@@ -121,25 +117,21 @@ async def list_templates(
 async def get_agent(
     agent_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Get a specific agent."""
-    result = await session.execute(
-        select(Agent).where(Agent.id == agent_id)
-    )
+    result = await session.execute(select(Agent).where(Agent.id == agent_id))
     agent = result.scalar_one_or_none()
 
     if not agent:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Agent not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found"
         )
 
     # Allow access if owner or if it's a template
     if agent.owner_id != current_user.id and not agent.is_template:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
         )
 
     return agent
@@ -150,21 +142,17 @@ async def update_agent(
     agent_id: int,
     agent_data: AgentUpdate,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Update an agent."""
     result = await session.execute(
-        select(Agent).where(
-            Agent.id == agent_id,
-            Agent.owner_id == current_user.id
-        )
+        select(Agent).where(Agent.id == agent_id, Agent.owner_id == current_user.id)
     )
     agent = result.scalar_one_or_none()
 
     if not agent:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Agent not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found"
         )
 
     if agent_data.name is not None:
@@ -190,21 +178,17 @@ async def update_agent(
 async def delete_agent(
     agent_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Delete an agent."""
     result = await session.execute(
-        select(Agent).where(
-            Agent.id == agent_id,
-            Agent.owner_id == current_user.id
-        )
+        select(Agent).where(Agent.id == agent_id, Agent.owner_id == current_user.id)
     )
     agent = result.scalar_one_or_none()
 
     if not agent:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Agent not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found"
         )
 
     await session.delete(agent)
@@ -217,25 +201,21 @@ async def delete_agent(
 async def use_agent(
     agent_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Increment usage count for an agent."""
-    result = await session.execute(
-        select(Agent).where(Agent.id == agent_id)
-    )
+    result = await session.execute(select(Agent).where(Agent.id == agent_id))
     agent = result.scalar_one_or_none()
 
     if not agent:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Agent not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Agent not found"
         )
 
     # Allow usage if owner or if it's a template
     if agent.owner_id != current_user.id and not agent.is_template:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
         )
 
     agent.usage_count += 1

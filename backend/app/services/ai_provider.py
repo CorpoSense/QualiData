@@ -15,6 +15,7 @@ from langchain_openrouter import ChatOpenRouter
 
 class AIProvider(str, Enum):
     """Supported AI providers."""
+
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GOOGLE = "google"

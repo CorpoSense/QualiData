@@ -28,7 +28,7 @@ def _get_provider(provider_name: str) -> AIProvider:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid provider: {provider_name}. "
-            f"Valid providers: {[p.value for p in AIProvider]}"
+            f"Valid providers: {[p.value for p in AIProvider]}",
         )
 
 

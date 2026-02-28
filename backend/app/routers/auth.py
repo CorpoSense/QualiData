@@ -85,7 +85,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -101,9 +101,7 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
 
-    result = await session.execute(
-        select(User).where(User.email == token_data.email)
-    )
+    result = await session.execute(select(User).where(User.email == token_data.email))
     user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception
@@ -111,7 +109,7 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> User:
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
@@ -119,18 +117,19 @@ async def get_current_active_user(
 
 
 # Routes
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserCreate, session: AsyncSession = Depends(get_async_session)):
+@router.post(
+    "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+)
+async def register(
+    user_data: UserCreate, session: AsyncSession = Depends(get_async_session)
+):
     """Register a new user."""
     # Check if user exists
-    result = await session.execute(
-        select(User).where(User.email == user_data.email)
-    )
+    result = await session.execute(select(User).where(User.email == user_data.email))
     existing_user = result.scalar_one_or_none()
     if existing_user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
 
     # Create new user
@@ -151,12 +150,10 @@ async def register(user_data: UserCreate, session: AsyncSession = Depends(get_as
 @router.post("/login", response_model=Token)
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Login and get access token."""
-    result = await session.execute(
-        select(User).where(User.email == form_data.username)
-    )
+    result = await session.execute(select(User).where(User.email == form_data.username))
     user = result.scalar_one_or_none()
 
     if not user or not verify_password(form_data.password, user.hashed_password or ""):
@@ -168,8 +165,7 @@ async def login(
 
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
         )
 
     # Update last login
@@ -197,13 +193,10 @@ password_reset_tokens: dict = {}
 
 @router.post("/password-reset-request")
 async def request_password_reset(
-    request: PasswordResetRequest,
-    session: AsyncSession = Depends(get_async_session)
+    request: PasswordResetRequest, session: AsyncSession = Depends(get_async_session)
 ):
     """Request password reset - sends email with reset token."""
-    result = await session.execute(
-        select(User).where(User.email == request.email)
-    )
+    result = await session.execute(select(User).where(User.email == request.email))
     user = result.scalar_one_or_none()
 
     # Always return success to prevent email enumeration
@@ -214,7 +207,7 @@ async def request_password_reset(
         reset_token = jwt.encode(
             {"sub": user.email, "type": "password_reset"},
             settings.SECRET_KEY,
-            algorithm=ALGORITHM
+            algorithm=ALGORITHM,
         )
         password_reset_tokens[reset_token] = user.id
 
@@ -228,16 +221,11 @@ async def request_password_reset(
 
 @router.post("/password-reset-confirm")
 async def confirm_password_reset(
-    request: PasswordResetConfirm,
-    session: AsyncSession = Depends(get_async_session)
+    request: PasswordResetConfirm, session: AsyncSession = Depends(get_async_session)
 ):
     """Confirm password reset with token and new password."""
     try:
-        payload = jwt.decode(
-            request.token,
-            settings.SECRET_KEY,
-            algorithms=[ALGORITHM]
-        )
+        payload = jwt.decode(request.token, settings.SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != "password_reset":
             raise HTTPException(status_code=400, detail="Invalid token")
 
@@ -246,9 +234,7 @@ async def confirm_password_reset(
         raise HTTPException(status_code=400, detail="Invalid or expired token")
 
     # Find user
-    result = await session.execute(
-        select(User).where(User.email == email)
-    )
+    result = await session.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -296,14 +282,13 @@ async def oauth_redirect(provider: str):
 
 @router.get("/oauth/callback/{provider}", response_model=Token)
 async def oauth_callback(
-    provider: str,
-    code: str,
-    session: AsyncSession = Depends(get_async_session)
+    provider: str, code: str, session: AsyncSession = Depends(get_async_session)
 ):
     """Handle OAuth callback and return JWT token."""
     if provider == "google":
         # Exchange code for token
         import httpx
+
         token_res = await httpx.AsyncClient().post(
             "https://oauth2.googleapis.com/token",
             data={
@@ -311,8 +296,8 @@ async def oauth_callback(
                 "client_secret": settings.google_client_secret or "",
                 "code": code,
                 "grant_type": "authorization_code",
-                "redirect_uri": f"{settings.cors_origins[0]}/oauth/callback/google"
-            }
+                "redirect_uri": f"{settings.cors_origins[0]}/oauth/callback/google",
+            },
         )
         if token_res.status_code != 200:
             raise HTTPException(status_code=400, detail="Failed to exchange code")
@@ -322,7 +307,7 @@ async def oauth_callback(
         # Get user info
         user_res = await httpx.AsyncClient().get(
             "https://www.googleapis.com/oauth2/v2/userinfo",
-            headers={"Authorization": f"Bearer {access_token}"}
+            headers={"Authorization": f"Bearer {access_token}"},
         )
         user_data = user_res.json()
         email = user_data.get("email")
@@ -330,15 +315,16 @@ async def oauth_callback(
 
     elif provider == "github":
         import httpx
+
         # Exchange code for token
         token_res = await httpx.AsyncClient().post(
             "https://github.com/login/oauth/access_token",
             data={
                 "client_id": settings.github_client_id or "",
                 "client_secret": settings.github_client_secret or "",
-                "code": code
+                "code": code,
             },
-            headers={"Accept": "application/json"}
+            headers={"Accept": "application/json"},
         )
         if token_res.status_code != 200:
             raise HTTPException(status_code=400, detail="Failed to exchange code")
@@ -348,7 +334,7 @@ async def oauth_callback(
         # Get user info
         user_res = await httpx.AsyncClient().get(
             "https://api.github.com/user",
-            headers={"Authorization": f"Bearer {access_token}"}
+            headers={"Authorization": f"Bearer {access_token}"},
         )
         user_data = user_res.json()
         email = user_data.get("email")
@@ -358,7 +344,7 @@ async def oauth_callback(
         if not email:
             email_res = await httpx.AsyncClient().get(
                 "https://api.github.com/user/emails",
-                headers={"Authorization": f"Bearer {access_token}"}
+                headers={"Authorization": f"Bearer {access_token}"},
             )
             emails = email_res.json()
             primary = next((e for e in emails if e.get("primary")), None)
@@ -367,9 +353,7 @@ async def oauth_callback(
         raise HTTPException(status_code=400, detail="Unsupported provider")
 
     # Find or create user
-    result = await session.execute(
-        select(User).where(User.email == email)
-    )
+    result = await session.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
     if not user:

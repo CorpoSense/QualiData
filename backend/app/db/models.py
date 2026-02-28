@@ -24,7 +24,9 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    email: Mapped[str] = mapped_column(
+        String(255), unique=True, index=True, nullable=False
+    )
     hashed_password: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
@@ -43,11 +45,17 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    last_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_login: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationships
-    projects: Mapped[list["Project"]] = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
-    agents: Mapped[list["Agent"]] = relationship("Agent", back_populates="owner", cascade="all, delete-orphan")
+    projects: Mapped[list["Project"]] = relationship(
+        "Project", back_populates="owner", cascade="all, delete-orphan"
+    )
+    agents: Mapped[list["Agent"]] = relationship(
+        "Agent", back_populates="owner", cascade="all, delete-orphan"
+    )
 
 
 class Project(Base):
@@ -60,7 +68,9 @@ class Project(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Foreign keys
-    owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    owner_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
 
     # Stats
     row_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -76,7 +86,9 @@ class Project(Base):
 
     # Relationships
     owner: Mapped["User"] = relationship("User", back_populates="projects")
-    datasets: Mapped[list["Dataset"]] = relationship("Dataset", back_populates="project", cascade="all, delete-orphan")
+    datasets: Mapped[list["Dataset"]] = relationship(
+        "Dataset", back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class Dataset(Base):
@@ -91,17 +103,23 @@ class Dataset(Base):
     # File info
     file_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     file_size: Mapped[int] = mapped_column(Integer, default=0)
-    file_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # csv, xlsx, json, etc.
+    file_type: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )  # csv, xlsx, json, etc.
 
     # Data preview (stored as JSON)
     preview_data: Mapped[Optional[JSON]] = mapped_column(JSON, nullable=True)
-    columns: Mapped[Optional[JSON]] = mapped_column(JSON, nullable=True)  # Column names and types
+    columns: Mapped[Optional[JSON]] = mapped_column(
+        JSON, nullable=True
+    )  # Column names and types
 
     # Row count
     row_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # Foreign keys
-    project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.id"), nullable=False)
+    project_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("projects.id"), nullable=False
+    )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -126,7 +144,9 @@ class OperationHistory(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
     # Operation details
-    operation_type: Mapped[str] = mapped_column(String(100), nullable=False)  # add_column, rename, etc.
+    operation_type: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )  # add_column, rename, etc.
     operation_params: Mapped[Optional[JSON]] = mapped_column(JSON, nullable=True)
     operation_result: Mapped[Optional[JSON]] = mapped_column(JSON, nullable=True)
 
@@ -139,7 +159,9 @@ class OperationHistory(Base):
     is_undone: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Foreign keys
-    dataset_id: Mapped[int] = mapped_column(Integer, ForeignKey("datasets.id"), nullable=False)
+    dataset_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("datasets.id"), nullable=False
+    )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -172,7 +194,9 @@ class Agent(Base):
     usage_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # Foreign keys
-    owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    owner_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

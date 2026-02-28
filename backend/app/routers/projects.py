@@ -51,7 +51,7 @@ class ProjectListResponse(BaseModel):
 async def create_project(
     project_data: ProjectCreate,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Create a new project."""
     project = Project(
@@ -71,7 +71,7 @@ async def list_projects(
     page_size: int = Query(10, ge=1, le=100),
     search: Optional[str] = Query(None),
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """List all projects for current user."""
     # Build query
@@ -92,33 +92,26 @@ async def list_projects(
     result = await session.execute(query)
     projects = result.scalars().all()
 
-    return {
-        "projects": projects,
-        "total": total,
-        "page": page,
-        "page_size": page_size
-    }
+    return {"projects": projects, "total": total, "page": page, "page_size": page_size}
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(
     project_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Get a specific project."""
     result = await session.execute(
         select(Project).where(
-            Project.id == project_id,
-            Project.owner_id == current_user.id
+            Project.id == project_id, Project.owner_id == current_user.id
         )
     )
     project = result.scalar_one_or_none()
 
     if not project:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
 
     return project
@@ -129,21 +122,19 @@ async def update_project(
     project_id: int,
     project_data: ProjectUpdate,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Update a project."""
     result = await session.execute(
         select(Project).where(
-            Project.id == project_id,
-            Project.owner_id == current_user.id
+            Project.id == project_id, Project.owner_id == current_user.id
         )
     )
     project = result.scalar_one_or_none()
 
     if not project:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
 
     if project_data.name is not None:
@@ -161,21 +152,19 @@ async def update_project(
 async def delete_project(
     project_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Delete a project."""
     result = await session.execute(
         select(Project).where(
-            Project.id == project_id,
-            Project.owner_id == current_user.id
+            Project.id == project_id, Project.owner_id == current_user.id
         )
     )
     project = result.scalar_one_or_none()
 
     if not project:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
 
     await session.delete(project)

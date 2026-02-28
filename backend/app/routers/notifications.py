@@ -42,7 +42,7 @@ NOTIFICATIONS: dict[int, list[dict]] = {}
 async def list_notifications(
     unread_only: bool = False,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Get all notifications for current user."""
     user_id = current_user.id
@@ -68,18 +68,19 @@ async def list_notifications(
                 message=n["message"],
                 type=n["type"],
                 read=n.get("read", False),
-                created_at=n["created_at"]
+                created_at=n["created_at"],
             )
             for n in notifications[:50]  # Limit to 50
         ],
-        unread_count=unread_count
+        unread_count=unread_count,
     )
 
 
-@router.post("/api/notifications/{notification_id}/read", response_model=NotificationResponse)
+@router.post(
+    "/api/notifications/{notification_id}/read", response_model=NotificationResponse
+)
 async def mark_read(
-    notification_id: str,
-    current_user: User = Depends(get_current_active_user)
+    notification_id: str, current_user: User = Depends(get_current_active_user)
 ):
     """Mark a notification as read."""
     user_id = current_user.id
@@ -96,16 +97,14 @@ async def mark_read(
                 message=n["message"],
                 type=n["type"],
                 read=n.get("read", False),
-                created_at=n["created_at"]
+                created_at=n["created_at"],
             )
 
     raise HTTPException(status_code=404, detail="Notification not found")
 
 
 @router.post("/api/notifications/read-all")
-async def mark_all_read(
-    current_user: User = Depends(get_current_active_user)
-):
+async def mark_all_read(current_user: User = Depends(get_current_active_user)):
     """Mark all notifications as read."""
     user_id = current_user.id
 
@@ -118,8 +117,7 @@ async def mark_all_read(
 
 @router.delete("/api/notifications/{notification_id}")
 async def delete_notification(
-    notification_id: str,
-    current_user: User = Depends(get_current_active_user)
+    notification_id: str, current_user: User = Depends(get_current_active_user)
 ):
     """Delete a notification."""
     user_id = current_user.id
@@ -127,15 +125,15 @@ async def delete_notification(
     if user_id not in NOTIFICATIONS:
         raise HTTPException(status_code=404, detail="Notification not found")
 
-    NOTIFICATIONS[user_id] = [n for n in NOTIFICATIONS[user_id] if n["id"] != notification_id]
+    NOTIFICATIONS[user_id] = [
+        n for n in NOTIFICATIONS[user_id] if n["id"] != notification_id
+    ]
 
     return {"status": "success", "message": "Notification deleted"}
 
 
 @router.delete("/api/notifications")
-async def clear_notifications(
-    current_user: User = Depends(get_current_active_user)
-):
+async def clear_notifications(current_user: User = Depends(get_current_active_user)):
     """Clear all notifications."""
     user_id = current_user.id
     NOTIFICATIONS[user_id] = []
@@ -145,10 +143,7 @@ async def clear_notifications(
 
 # Helper function to create notifications (can be called from other endpoints)
 async def create_notification(
-    user_id: int,
-    title: str,
-    message: str,
-    type: str = "info"
+    user_id: int, title: str, message: str, type: str = "info"
 ):
     """Create a notification for a user."""
     if user_id not in NOTIFICATIONS:
@@ -160,7 +155,7 @@ async def create_notification(
         "message": message,
         "type": type,
         "read": False,
-        "created_at": datetime.utcnow().isoformat()
+        "created_at": datetime.utcnow().isoformat(),
     }
 
     NOTIFICATIONS[user_id].append(notification)

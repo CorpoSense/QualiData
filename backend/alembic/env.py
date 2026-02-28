@@ -30,11 +30,12 @@ if database_url.startswith("postgresql://"):
     # Parse and reconstruct URL for asyncpg
     # Remove sslmode from query string and add as connect_args
     import urllib.parse
+
     parsed = urllib.parse.urlparse(database_url)
     query = urllib.parse.parse_qs(parsed.query)
 
     # Remove sslmode from query
-    sslmode = query.pop('sslmode', ['require'])[0]
+    sslmode = query.pop("sslmode", ["require"])[0]
 
     # Rebuild URL without sslmode
     new_query = urllib.parse.urlencode(query, doseq=True)

@@ -16,15 +16,13 @@ class Project(Base):
     __tablename__ = "projects"
 
     id: Mapped[str] = mapped_column(
-        String(36),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     user_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -41,12 +39,18 @@ class Project(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     # Relationships
     user = relationship("User", back_populates="projects")
-    datasets = relationship("Dataset", back_populates="project", cascade="all, delete-orphan")
-    operations = relationship("OperationHistory", back_populates="project", cascade="all, delete-orphan")
+    datasets = relationship(
+        "Dataset", back_populates="project", cascade="all, delete-orphan"
+    )
+    operations = relationship(
+        "OperationHistory", back_populates="project", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Project(id={self.id}, name={self.name}, rows={self.row_count})>"
@@ -58,15 +62,13 @@ class Dataset(Base):
     __tablename__ = "datasets"
 
     id: Mapped[str] = mapped_column(
-        String(36),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     project_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
     # Serialized data (JSON format for pandas DataFrame)
@@ -92,20 +94,22 @@ class OperationHistory(Base):
     __tablename__ = "operation_history"
 
     id: Mapped[str] = mapped_column(
-        String(36),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4())
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     project_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
-        index=True
+        index=True,
     )
 
     # Operation details
-    operation_type: Mapped[str] = mapped_column(String(50), nullable=False)  # standard, cleaning, ai
-    operation_name: Mapped[str] = mapped_column(String(100), nullable=False)  # e.g., "strip", "ai_clean"
+    operation_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # standard, cleaning, ai
+    operation_name: Mapped[str] = mapped_column(
+        String(100), nullable=False
+    )  # e.g., "strip", "ai_clean"
     operation_config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     # Affected columns
@@ -115,7 +119,9 @@ class OperationHistory(Base):
     snapshot_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     # Timestamp
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, index=True
+    )
 
     # Relationships
     project = relationship("Project", back_populates="operations")

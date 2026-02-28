@@ -23,18 +23,19 @@ class ComparisonResponse(BaseModel):
     changes_summary: dict[str, Any]
 
 
-@router.get("/api/datasets/{dataset_id}/compare/{operation_id}", response_model=ComparisonResponse)
+@router.get(
+    "/api/datasets/{dataset_id}/compare/{operation_id}",
+    response_model=ComparisonResponse,
+)
 async def compare_operation(
     dataset_id: int,
     operation_id: int,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Get before/after comparison for an operation."""
     # Get dataset
-    result = await session.execute(
-        select(Dataset).where(Dataset.id == dataset_id)
-    )
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
 
     if not dataset:
@@ -43,8 +44,7 @@ async def compare_operation(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id,
-            Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.owner_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -54,7 +54,7 @@ async def compare_operation(
     op_result = await session.execute(
         select(OperationHistory).where(
             OperationHistory.id == operation_id,
-            OperationHistory.dataset_id == dataset_id
+            OperationHistory.dataset_id == dataset_id,
         )
     )
     operation = op_result.scalar_one_or_none()
@@ -70,7 +70,7 @@ async def compare_operation(
         "columns_added": [],
         "columns_removed": [],
         "columns_renamed": [],
-        "rows_changed": 0
+        "rows_changed": 0,
     }
 
     before_cols = set(c["name"] for c in before.get("columns", []))
@@ -85,10 +85,7 @@ async def compare_operation(
 
     for col_name in before_cols & after_cols:
         if before_cols_list[col_name] != after_cols_list[col_name]:
-            changes["columns_renamed"].append({
-                "from": col_name,
-                "to": col_name
-            })
+            changes["columns_renamed"].append({"from": col_name, "to": col_name})
 
     if "row_count" in before and "row_count" in after:
         changes["rows_changed"] = after["row_count"] - before.get("row_count", 0)
@@ -99,7 +96,7 @@ async def compare_operation(
         operation_type=operation.operation_type,
         before_columns=before.get("columns", []),
         after_columns=after.get("columns", []),
-        changes_summary=changes
+        changes_summary=changes,
     )
 
 
@@ -108,13 +105,11 @@ async def get_operation_history_summary(
     dataset_id: int,
     limit: int = 10,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Get summary of recent operations."""
     # Get dataset
-    result = await session.execute(
-        select(Dataset).where(Dataset.id == dataset_id)
-    )
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
 
     if not dataset:
@@ -123,8 +118,7 @@ async def get_operation_history_summary(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id,
-            Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.owner_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -145,7 +139,7 @@ async def get_operation_history_summary(
             "type": op.operation_type,
             "params": op.operation_params,
             "created_at": op.created_at.isoformat() if op.created_at else None,
-            "is_undone": op.is_undone
+            "is_undone": op.is_undone,
         }
         for op in operations
     ]

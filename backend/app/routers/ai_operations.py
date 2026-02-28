@@ -37,16 +37,13 @@ async def ai_clean_column(
     dataset_id: int,
     request: AICleaningRequest,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Apply AI cleaning to a column based on natural language instruction."""
     from sqlalchemy import select
 
-
     # Get dataset
-    result = await session.execute(
-        select(Dataset).where(Dataset.id == dataset_id)
-    )
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
 
     if not dataset:
@@ -55,8 +52,7 @@ async def ai_clean_column(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id,
-            Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.owner_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -66,10 +62,13 @@ async def ai_clean_column(
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
+
     df = pd.DataFrame(dataset.preview_data)
 
     if request.column not in df.columns:
-        raise HTTPException(status_code=400, detail=f"Column '{request.column}' not found")
+        raise HTTPException(
+            status_code=400, detail=f"Column '{request.column}' not found"
+        )
 
     # Get the column data as a list
     column_data = df[request.column].head(request.batch_size).tolist()
@@ -81,7 +80,7 @@ async def ai_clean_column(
     return AICleaningResponse(
         status="success",
         message=f"AI cleaning request queued for column '{request.column}' with instruction: {request.instruction}",
-        results=[{"value": v, "status": "pending"} for v in column_data]
+        results=[{"value": v, "status": "pending"} for v in column_data],
     )
 
 
@@ -90,14 +89,12 @@ async def ai_analyze_column(
     dataset_id: int,
     column: str,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Get AI analysis and suggestions for a column."""
     from sqlalchemy import select
 
-    result = await session.execute(
-        select(Dataset).where(Dataset.id == dataset_id)
-    )
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
 
     if not dataset:
@@ -106,8 +103,7 @@ async def ai_analyze_column(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id,
-            Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.owner_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -117,6 +113,7 @@ async def ai_analyze_column(
         raise HTTPException(status_code=400, detail="No data to analyze")
 
     import pandas as pd
+
     df = pd.DataFrame(dataset.preview_data)
 
     if column not in df.columns:
@@ -135,21 +132,27 @@ async def ai_analyze_column(
 
     # Add numeric stats if applicable
     if pd.api.types.is_numeric_dtype(col_data):
-        analysis.update({
-            "min": float(col_data.min()) if not pd.isna(col_data.min()) else None,
-            "max": float(col_data.max()) if not pd.isna(col_data.max()) else None,
-            "mean": float(col_data.mean()) if not pd.isna(col_data.mean()) else None,
-            "median": float(col_data.median()) if not pd.isna(col_data.median()) else None,
-        })
+        analysis.update(
+            {
+                "min": float(col_data.min()) if not pd.isna(col_data.min()) else None,
+                "max": float(col_data.max()) if not pd.isna(col_data.max()) else None,
+                "mean": (
+                    float(col_data.mean()) if not pd.isna(col_data.mean()) else None
+                ),
+                "median": (
+                    float(col_data.median()) if not pd.isna(col_data.median()) else None
+                ),
+            }
+        )
 
     return AICleaningResponse(
-        status="success",
-        message=f"Analysis for column '{column}'",
-        results=[analysis]
+        status="success", message=f"Analysis for column '{column}'", results=[analysis]
     )
 
 
-@router.post("/api/datasets/{dataset_id}/ai-json-clean", response_model=AICleaningResponse)
+@router.post(
+    "/api/datasets/{dataset_id}/ai-json-clean", response_model=AICleaningResponse
+)
 async def ai_clean_json(
     dataset_id: int,
     column: str,
@@ -157,14 +160,12 @@ async def ai_clean_json(
     output_column: Optional[str] = None,
     batch_size: int = 10,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Apply AI cleaning with structured JSON output."""
     from sqlalchemy import select
 
-    result = await session.execute(
-        select(Dataset).where(Dataset.id == dataset_id)
-    )
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
 
     if not dataset:
@@ -172,8 +173,7 @@ async def ai_clean_json(
 
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id,
-            Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.owner_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -181,7 +181,6 @@ async def ai_clean_json(
 
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data")
-
 
     import pandas as pd
 
@@ -197,11 +196,13 @@ async def ai_clean_json(
     # In production, this would call the AI with JSON schema
     results = []
     for val in column_data:
-        results.append({
-            "original": str(val),
-            "cleaned": str(val).strip().lower() if val else "",
-            "valid": True
-        })
+        results.append(
+            {
+                "original": str(val),
+                "cleaned": str(val).strip().lower() if val else "",
+                "valid": True,
+            }
+        )
 
     # Create output column
     out_col = output_column or f"{column}_cleaned"
@@ -209,6 +210,7 @@ async def ai_clean_json(
 
     # Update dataset
     from app.routers.datasets import detect_columns, get_preview_data
+
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
 
@@ -221,6 +223,6 @@ async def ai_clean_json(
         json_output={
             "instruction": instruction,
             "processed": len(results),
-            "output_column": out_col
-        }
+            "output_column": out_col,
+        },
     )

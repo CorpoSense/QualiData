@@ -27,12 +27,14 @@ class OperationResponse(BaseModel):
     row_count: Optional[int] = None
 
 
-@router.post("/api/datasets/{dataset_id}/operations/fillna", response_model=OperationResponse)
+@router.post(
+    "/api/datasets/{dataset_id}/operations/fillna", response_model=OperationResponse
+)
 async def fill_na(
     dataset_id: int,
     request: FillNaRequest,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Fill missing values in dataset."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
@@ -41,6 +43,7 @@ async def fill_na(
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
+
     df = pd.DataFrame(dataset.preview_data)
     before_count = df.isna().sum().sum()
 
@@ -69,12 +72,15 @@ async def fill_na(
         elif request.method == "drop":
             df = df.dropna(subset=[col])
         else:
-            raise HTTPException(status_code=400, detail=f"Unknown method: {request.method}")
+            raise HTTPException(
+                status_code=400, detail=f"Unknown method: {request.method}"
+            )
 
     after_count = df.isna().sum().sum()
     filled_count = before_count - after_count
 
     from app.routers.datasets import detect_columns, get_preview_data
+
     before = {"columns": dataset.columns, "row_count": len(dataset.preview_data)}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
@@ -88,18 +94,20 @@ async def fill_na(
         status="success",
         message=f"Filled {filled_count} missing values using {request.method}",
         columns=dataset.columns,
-        row_count=len(df)
+        row_count=len(df),
     )
 
 
-@router.post("/api/datasets/{dataset_id}/operations/dropna", response_model=OperationResponse)
+@router.post(
+    "/api/datasets/{dataset_id}/operations/dropna", response_model=OperationResponse
+)
 async def drop_na(
     dataset_id: int,
     columns: Optional[list[str]] = None,
     how: str = "any",  # any or all
     thresh: Optional[int] = None,
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Drop rows with missing values."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
@@ -108,6 +116,7 @@ async def drop_na(
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
+
     df = pd.DataFrame(dataset.preview_data)
     before_count = len(df)
 
@@ -119,30 +128,41 @@ async def drop_na(
     rows_dropped = before_count - len(df)
 
     from app.routers.datasets import detect_columns, get_preview_data
+
     before = {"columns": dataset.columns, "row_count": before_count}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
 
-    save_operation(dataset_id, "dropna", {"columns": columns, "how": how, "thresh": thresh}, before, after, session)
+    save_operation(
+        dataset_id,
+        "dropna",
+        {"columns": columns, "how": how, "thresh": thresh},
+        before,
+        after,
+        session,
+    )
     await session.commit()
 
     return OperationResponse(
         status="success",
         message=f"Dropped {rows_dropped} rows with missing values",
         columns=dataset.columns,
-        row_count=len(df)
+        row_count=len(df),
     )
 
 
-@router.post("/api/datasets/{dataset_id}/operations/string-operations", response_model=OperationResponse)
+@router.post(
+    "/api/datasets/{dataset_id}/operations/string-operations",
+    response_model=OperationResponse,
+)
 async def string_operations(
     dataset_id: int,
     column: str,
     operation: str,  # strip, upper, lower, title, capitalize
     current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Apply string operations to columns."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
@@ -151,6 +171,7 @@ async def string_operations(
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
+
     df = pd.DataFrame(dataset.preview_data)
 
     if column not in df.columns:
@@ -170,16 +191,24 @@ async def string_operations(
         raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
 
     from app.routers.datasets import detect_columns, get_preview_data
+
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
 
-    save_operation(dataset_id, "string_operations", {"column": column, "operation": operation}, before, after, session)
+    save_operation(
+        dataset_id,
+        "string_operations",
+        {"column": column, "operation": operation},
+        before,
+        after,
+        session,
+    )
     await session.commit()
 
     return OperationResponse(
         status="success",
         message=f"Applied '{operation}' to column '{column}'",
-        columns=dataset.columns
+        columns=dataset.columns,
     )
