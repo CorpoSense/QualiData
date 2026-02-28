@@ -91,13 +91,36 @@ jobs:
         working-directory: ./backend
         run: black --check .
 
-  # E2E tests - temporarily disabled (Vite dev server startup issues in CI)
-  # To re-enable: remove the 'if: false' line below
   e2e-tests:
     runs-on: ubuntu-latest
-    if: false
     
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      
+      - name: Install dependencies
+        run: pnpm install
+      
+      - name: Build for production
+        run: pnpm build
+      
+      - name: Start preview server in background
+        run: |
+          pnpm preview --port 3000 &
+          sleep 10
+      
+      - name: Test server responds
+        run: curl -s -o /dev/null -w "%{http_code}" http://localhost:3000
       - name: Checkout repository
         uses: actions/checkout@v4
       
