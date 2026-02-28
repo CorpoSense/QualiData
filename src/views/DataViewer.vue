@@ -24,6 +24,12 @@
           <b-button size="is-small" type="is-success" @click="showCompare = true" icon-left="compare">
             Compare
           </b-button>
+          <b-button size="is-small" type="is-warning" outlined @click="showClipboardImport = true" icon-left="content-paste">
+            Paste
+          </b-button>
+          <b-button size="is-small" type="is-warning" outlined @click="copyToClipboard" icon-left="content-copy">
+            Copy
+          </b-button>
         </div>
       </div>
 
@@ -272,6 +278,7 @@ const limit = ref(25)
 const searchQuery = ref('')
 const showProfile = ref(false)
 const showCompare = ref(false)
+const showClipboardImport = ref(false)
 const showFillnaModal = ref(false)
 const showAiModal = ref(false)
 const profileData = ref(null)
@@ -285,6 +292,8 @@ const canUndo = ref(false)
 const canRedo = ref(false)
 const operating = ref(false)
 const aiInstruction = ref('')
+const clipboardData = ref('')
+const clipboardDatasetName = ref('')
 
 const filteredData = computed(() => {
   if (!searchQuery.value) return data.value
@@ -559,6 +568,74 @@ async function applyAiClean() {
   }
 }
 
+async function importFromClipboard() {
+  if (!clipboardData.value.trim()) return
+  
+  operating.value = true
+  try {
+    // Create a blob from the clipboard data
+    const blob = new Blob([clipboardData.value], { type: 'text/csv' })
+    const file = new File([blob], 'clipboard.csv', { type: 'text/csv' })
+    
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('project_id', props.projectId || 1) // Would need to pass projectId
+    if (clipboardDatasetName.value) {
+      formData.append('name', clipboardDatasetName.value)
+    }
+    
+    const res = await fetch(`${apiUrl}/api/datasets/import`, {
+      method: 'POST',
+      body: formData,
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    
+    if (res.ok) {
+      showToast('Data imported successfully', 'is-success')
+      showClipboardImport.value = false
+      clipboardData.value = ''
+      clipboardDatasetName.value = ''
+      await refreshData()
+    } else {
+      throw new Error('Import failed')
+    }
+  } catch (e) {
+    showToast(e.message, 'is-danger')
+  } finally {
+    operating.value = false
+  }
+}
+
+async function copyToClipboard() {
+  if (!data.value || data.value.length === 0) {
+    showToast('No data to copy', 'is-warning')
+    return
+  }
+  
+  try {
+    // Convert data to CSV format
+    const headers = Object.keys(data.value[0])
+    const csvRows = [
+      headers.join(','),
+      ...data.value.map(row => 
+        headers.map(header => {
+          const val = row[header]
+          // Escape quotes and wrap in quotes if contains comma
+          if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
+            return `"${val.replace(/"/g, '""')}"`
+          }
+          return val ?? ''
+        }).join(',')
+      )
+    ]
+    
+    await navigator.clipboard.writeText(csvRows.join('\n'))
+    showToast('Data copied to clipboard', 'is-success')
+  } catch (e) {
+    showToast('Failed to copy: ' + e.message, 'is-danger')
+  }
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleDateString()
@@ -589,6 +666,35 @@ function formatDate(dateStr) {
         Fill
       </b-button>
       <b-button @click="showFillnaModal = false">Cancel</b-button>
+    </footer>
+  </div>
+</b-modal>
+
+<!-- Clipboard Import Modal -->
+<b-modal v-model="showClipboardImport" :has-modal-card="true">
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">Import from Clipboard</p>
+      <button class="delete" @click="showClipboardImport = false"></button>
+    </header>
+    <section class="modal-card-body">
+      <b-field label="Paste CSV Data">
+        <b-input 
+          v-model="clipboardData" 
+          type="textarea" 
+          placeholder="Paste your CSV data here..."
+          :rows="10"
+        ></b-input>
+      </b-field>
+      <b-field label="Dataset Name">
+        <b-input v-model="clipboardDatasetName" placeholder="My Dataset"></b-input>
+      </b-field>
+    </section>
+    <footer class="modal-card-foot">
+      <b-button type="is-primary" :loading="operating" @click="importFromClipboard">
+        Import
+      </b-button>
+      <b-button @click="showClipboardImport = false">Cancel</b-button>
     </footer>
   </div>
 </b-modal>
