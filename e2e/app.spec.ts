@@ -1,4 +1,4 @@
-"""End-to-end tests for MasterDataCleaner."""
+// End-to-end tests for MasterDataCleaner
 
 import { test, expect } from '@playwright/test'
 
