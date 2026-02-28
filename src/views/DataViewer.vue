@@ -1,8 +1,8 @@
 <template>
   <div class="data-viewer">
-    <!-- Toolbar -->
+    <!-- Operations Toolbar -->
     <div class="box mb-3">
-      <div class="is-flex is-justify-content-space-between is-align-items-center">
+      <div class="is-flex is-justify-content-space-between is-align-items-center mb-3">
         <div class="is-flex is-align-items-center">
           <b-field class="mb-0 mr-3">
             <b-select v-model="limit" size="is-small">
@@ -11,7 +11,7 @@
               <option :value="100">100 rows</option>
             </b-select>
           </b-field>
-          <b-button size="is-small" @click="refreshData" icon-left="refresh"></b-button>
+          <b-button size="is-small" @click="refreshData" icon-left="refresh">Refresh</b-button>
         </div>
         
         <div class="is-flex is-align-items-center">
@@ -26,6 +26,129 @@
           </b-button>
         </div>
       </div>
+
+      <!-- Operation Buttons -->
+      <div class="operations-bar">
+        <b-dropdown>
+          <button class="button is-small" slot="trigger">
+            <b-icon icon="eraser"></b-icon>
+            <span>Missing Values</span>
+            <b-icon icon="menu-down"></b-icon>
+          </button>
+          <b-dropdown-item @click="applyOperation('fillna', { method: 'drop' })">
+            <b-icon icon="trash-can-outline" size="is-small"></b-icon>
+            Drop rows with nulls
+          </b-dropdown-item>
+          <b-dropdown-item @click="showFillnaModal = true">
+            <b-icon icon="pencil-outline" size="is-small"></b-icon>
+            Fill with value...
+          </b-dropdown-item>
+          <b-dropdown-item @click="applyOperation('fillna', { method: 'forward' })">
+            <b-icon icon="arrow-down" size="is-small"></b-icon>
+            Forward fill
+          </b-dropdown-item>
+          <b-dropdown-item @click="applyOperation('fillna', { method: 'backward' })">
+            <b-icon icon="arrow-up" size="is-small"></b-icon>
+            Backward fill
+          </b-dropdown-item>
+        </b-dropdown>
+
+        <b-dropdown>
+          <button class="button is-small" slot="trigger">
+            <b-icon icon="format-text"></b-icon>
+            <span>String Ops</span>
+            <b-icon icon="menu-down"></b-icon>
+          </button>
+          <b-dropdown-item @click="applyStringOp('strip')">
+            <b-icon icon="format-clear" size="is-small"></b-icon>
+            Trim whitespace
+          </b-dropdown-item>
+          <b-dropdown-item @click="applyStringOp('lower')">
+            <b-icon icon="format-letter-case-lower" size="is-small"></b-icon>
+            Lowercase
+          </b-dropdown-item>
+          <b-dropdown-item @click="applyStringOp('upper')">
+            <b-icon icon="format-letter-case-upper" size="is-small"></b-icon>
+            Uppercase
+          </b-dropdown-item>
+          <b-dropdown-item @click="applyStringOp('title')">
+            <b-icon icon="format-letter-case" size="is-small"></b-icon>
+            Title case
+          </b-dropdown-item>
+          <b-dropdown-item @click="applyStringOp('capitalize')">
+            <b-icon icon="format-letter-spacing" size="is-small"></b-icon>
+            Capitalize
+          </b-dropdown-item>
+        </b-dropdown>
+
+        <b-dropdown>
+          <button class="button is-small" slot="trigger">
+            <b-icon icon="calendar"></b-icon>
+            <span>Date Ops</span>
+            <b-icon icon="menu-down"></b-icon>
+          </button>
+          <b-dropdown-item @click="applyDatetimeOp('parse-datetime')">
+            <b-icon icon="calendar-clock" size="is-small"></b-icon>
+            Parse datetime
+          </b-dropdown-item>
+          <b-dropdown-item @click="applyDatetimeOp('extract-year')">
+            <b-icon icon="calendar-blank" size="is-small"></b-icon>
+            Extract year
+          </b-dropdown-item>
+          <b-dropdown-item @click="applyDatetimeOp('extract-month')">
+            <b-icon icon="calendar-month" size="is-small"></b-icon>
+            Extract month
+          </b-dropdown-item>
+          <b-dropdown-item @click="applyDatetimeOp('extract-day')">
+            <b-icon icon="calendar-blank-outline" size="is-small"></b-icon>
+            Extract day
+          </b-dropdown-item>
+        </b-dropdown>
+
+        <b-dropdown>
+          <button class="button is-small" slot="trigger">
+            <b-icon icon="content-copy"></b-icon>
+            <span>Structure</span>
+            <b-icon icon="menu-down"></b-icon>
+          </button>
+          <b-dropdown-item @click="applyStructuralOp('fix-case')">
+            <b-icon icon="format-letter-case" size="is-small"></b-icon>
+            Fix case errors
+          </b-dropdown-item>
+          <b-dropdown-item @click="applyStructuralOp('trim-whitespace')">
+            <b-icon icon="format-clear" size="is-small"></b-icon>
+            Trim whitespace
+          </b-dropdown-item>
+          <b-dropdown-item @click="applyStructuralOp('fix-typos')">
+            <b-icon icon="spellcheck" size="is-small"></b-icon>
+            Fix typos
+          </b-dropdown-item>
+          <b-dropdown-item @click="applyStructuralOp('standardize-values')">
+            <b-icon icon="format-list-bulleted" size="is-small"></b-icon>
+            Standardize values
+          </b-dropdown-item>
+        </b-dropdown>
+
+        <b-button size="is-small" type="is-primary" @click="showAiModal = true" icon-left="robot">
+          AI Clean
+        </b-button>
+
+        <div class="is-flex is-align-items-center ml-auto">
+          <b-button size="is-small" type="is-warning" :disabled="!canUndo" @click="undo" icon-left="undo">
+            Undo
+          </b-button>
+          <b-button size="is-small" type="is-warning" :disabled="!canRedo" @click="redo" icon-left="redo">
+            Redo
+          </b-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column Selection -->
+    <div v-if="selectedColumn" class="notification is-info is-light mb-3 py-2">
+      <b-icon icon="table-column"></b-icon>
+      <span class="ml-2">Operating on column: <strong>{{ selectedColumn }}</strong></span>
+      <b-button class="is-small is-light ml-2" @click="selectedColumn = null">Clear</b-button>
     </div>
 
     <!-- Data Table -->
@@ -149,11 +272,19 @@ const limit = ref(25)
 const searchQuery = ref('')
 const showProfile = ref(false)
 const showCompare = ref(false)
+const showFillnaModal = ref(false)
+const showAiModal = ref(false)
 const profileData = ref(null)
 const comparing = ref(false)
 const compareOpId = ref(null)
 const nullCount = ref(0)
 const duplicateCount = ref(0)
+const selectedColumn = ref(null)
+const fillValue = ref('')
+const canUndo = ref(false)
+const canRedo = ref(false)
+const operating = ref(false)
+const aiInstruction = ref('')
 
 const filteredData = computed(() => {
   if (!searchQuery.value) return data.value
@@ -233,14 +364,277 @@ function handleCellClick(row) {
   // Could open cell editor
 }
 
+async function applyOperation(endpoint, params) {
+  const col = selectedColumn.value || columns.value[0]?.name
+  if (!col) return
+  
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/operations/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ column: col, ...params })
+    })
+    
+    if (res.ok) {
+      showToast('Operation applied successfully', 'is-success')
+      await refreshData()
+    } else {
+      const err = await res.json()
+      showToast(err.detail || 'Operation failed', 'is-danger')
+    }
+  } catch (e) {
+    showToast(e.message, 'is-danger')
+  } finally {
+    operating.value = false
+  }
+}
+
+async function applyStringOp(operation) {
+  const col = selectedColumn.value || columns.value[0]?.name
+  if (!col) return
+  
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/operations/string-operations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ column: col, operation })
+    })
+    
+    if (res.ok) {
+      showToast('String operation applied', 'is-success')
+      await refreshData()
+    } else {
+      const err = await res.json()
+      showToast(err.detail || 'Operation failed', 'is-danger')
+    }
+  } catch (e) {
+    showToast(e.message, 'is-danger')
+  } finally {
+    operating.value = false
+  }
+}
+
+async function applyDatetimeOp(operation) {
+  const col = selectedColumn.value || columns.value[0]?.name
+  if (!col) return
+  
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/operations/datetime-operations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ column: col, operation })
+    })
+    
+    if (res.ok) {
+      showToast('Datetime operation applied', 'is-success')
+      await refreshData()
+    } else {
+      const err = await res.json()
+      showToast(err.detail || 'Operation failed', 'is-danger')
+    }
+  } catch (e) {
+    showToast(e.message, 'is-danger')
+  } finally {
+    operating.value = false
+  }
+}
+
+async function applyStructuralOp(operation) {
+  const col = selectedColumn.value || columns.value[0]?.name
+  if (!col) return
+  
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/operations/structural`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ column: col, operation })
+    })
+    
+    if (res.ok) {
+      showToast('Structural operation applied', 'is-success')
+      await refreshData()
+    } else {
+      const err = await res.json()
+      showToast(err.detail || 'Operation failed', 'is-danger')
+    }
+  } catch (e) {
+    showToast(e.message, 'is-danger')
+  } finally {
+    operating.value = false
+  }
+}
+
+async function undo() {
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/operations/undo`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) {
+      showToast('Undo successful', 'is-success')
+      await refreshData()
+    }
+  } catch (e) {
+    showToast(e.message, 'is-danger')
+  } finally {
+    operating.value = false
+  }
+}
+
+async function redo() {
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/operations/redo`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) {
+      showToast('Redo successful', 'is-success')
+      await refreshData()
+    }
+  } catch (e) {
+    showToast(e.message, 'is-danger')
+  } finally {
+    operating.value = false
+  }
+}
+
+function showToast(message, type) {
+  // Buefy toast will be available globally
+  if (typeof window !== 'undefined' && window.$buefy) {
+    window.$buefy.toast.open({ message, type })
+  } else {
+    alert(message)
+  }
+}
+
+async function applyAiClean() {
+  const col = selectedColumn.value || columns.value[0]?.name
+  if (!col || !aiInstruction.value) return
+  
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/ai-clean`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ 
+        column: col, 
+        instruction: aiInstruction.value,
+        batch_size: 10
+      })
+    })
+    
+    if (res.ok) {
+      showToast('AI cleaning applied', 'is-success')
+      showAiModal.value = false
+      await refreshData()
+    } else {
+      const err = await res.json()
+      showToast(err.detail || 'AI cleaning failed', 'is-danger')
+    }
+  } catch (e) {
+    showToast(e.message, 'is-danger')
+  } finally {
+    operating.value = false
+  }
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleDateString()
 }
 </script>
 
+<!-- FillNA Modal -->
+<b-modal v-model="showFillnaModal" :has-modal-card="true">
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">Fill Missing Values</p>
+      <button class="delete" @click="showFillnaModal = false"></button>
+    </header>
+    <section class="modal-card-body">
+      <b-field label="Column">
+        <b-select v-model="selectedColumn" expanded>
+          <option v-for="col in columns" :key="col.field" :value="col.field">
+            {{ col.label }}
+          </option>
+        </b-select>
+      </b-field>
+      <b-field label="Fill Value">
+        <b-input v-model="fillValue" placeholder="Enter value or leave empty for empty string"></b-input>
+      </b-field>
+    </section>
+    <footer class="modal-card-foot">
+      <b-button type="is-primary" :loading="operating" @click="applyOperation('fillna', { method: 'constant', fill_value: fillValue })">
+        Fill
+      </b-button>
+      <b-button @click="showFillnaModal = false">Cancel</b-button>
+    </footer>
+  </div>
+</b-modal>
+
+<!-- AI Clean Modal -->
+<b-modal v-model="showAiModal" :has-modal-card="true">
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">AI-Powered Cleaning</p>
+      <button class="delete" @click="showAiModal = false"></button>
+    </header>
+    <section class="modal-card-body">
+      <b-field label="Column">
+        <b-select v-model="selectedColumn" expanded>
+          <option v-for="col in columns" :key="col.field" :value="col.field">
+            {{ col.label }}
+          </option>
+        </b-select>
+      </b-field>
+      <b-field label="Instruction">
+        <b-input v-model="aiInstruction" type="textarea" placeholder="Describe what you want the AI to do..."></b-input>
+      </b-field>
+    </section>
+    <footer class="modal-card-foot">
+      <b-button type="is-primary" :loading="operating" @click="applyAiClean">
+        Apply AI Cleaning
+      </b-button>
+      <b-button @click="showAiModal = false">Cancel</b-button>
+    </footer>
+  </div>
+</b-modal>
+
 <style scoped>
 .table-container {
   overflow: auto;
+}
+
+.operations-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.operations-bar .button {
+  height: auto;
+  padding: 0.25em 0.75em;
 }
 </style>
