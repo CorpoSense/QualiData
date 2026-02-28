@@ -63,11 +63,12 @@
         </div>
         <div v-else class="columns is-multiline">
           <div v-for="dataset in datasets" :key="dataset.id" class="column is-4">
-            <div class="box dataset-card" @click="selectDataset(dataset)">
+            <div class="box dataset-card">
               <div class="is-flex is-justify-content-space-between is-align-items-start mb-2">
                 <h3 class="title is-6 mb-0">{{ dataset.name }}</h3>
                 <b-dropdown position="is-bottom-right" @click.stop>
                   <b-button icon-left="dots-vertical" size="is-small" slot="trigger"></b-button>
+                  <b-dropdown-item @click="viewDataset(dataset)">View Data</b-dropdown-item>
                   <b-dropdown-item @click="previewDataset(dataset)">Preview</b-dropdown-item>
                   <b-dropdown-item @click="exportDataset(dataset)">Export</b-dropdown-item>
                   <b-dropdown-item @click="profileDataset(dataset)" class="has-text-info">Profile</b-dropdown-item>
@@ -164,9 +165,10 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const projectId = route.params.id
@@ -289,6 +291,10 @@ function exportDataset(dataset) {
 
 function selectDataset(dataset) {
   selectedDataset.value = dataset
+}
+
+function viewDataset(dataset) {
+  router.push(`/projects/${projectId}/dataset/${dataset.id}`)
 }
 
 function formatNumber(num) {

@@ -5,6 +5,7 @@ import Login from '@/views/Login.vue'
 import Dashboard from '@/views/Dashboard.vue'
 import Projects from '@/views/Projects.vue'
 import ProjectDetail from '@/views/ProjectDetail.vue'
+import DataViewer from '@/views/DataViewer.vue'
 import Assistant from '@/views/Assistant.vue'
 
 const routes = [
@@ -13,6 +14,7 @@ const routes = [
   { path: '/dashboard', component: Dashboard },
   { path: '/projects', component: Projects },
   { path: '/projects/:id', component: ProjectDetail },
+  { path: '/projects/:id/dataset/:datasetId', component: DataViewer },
   { path: '/assistant', component: Assistant },
 ]
 
