@@ -166,14 +166,14 @@
       <b-table
         v-else
         :data="filteredData"
-        :columns="columns"
+        :columns="tableColumns"
         :per-page="limit"
         paginated
         sticky-header
         :height="'500px'"
         :narrowed="true"
         :loading="loading"
-        @click="handleCellClick"
+        @cell-click="handleCellClick"
       >
         <template #empty>
           <div class="has-text-centered py-4">
@@ -281,6 +281,7 @@ const showCompare = ref(false)
 const showClipboardImport = ref(false)
 const showFillnaModal = ref(false)
 const showAiModal = ref(false)
+const showEditCellModal = ref(false)
 const profileData = ref(null)
 const comparing = ref(false)
 const compareOpId = ref(null)
@@ -294,6 +295,8 @@ const operating = ref(false)
 const aiInstruction = ref('')
 const clipboardData = ref('')
 const clipboardDatasetName = ref('')
+const editingCell = ref(null)
+const editValue = ref('')
 
 const filteredData = computed(() => {
   if (!searchQuery.value) return data.value
@@ -301,6 +304,13 @@ const filteredData = computed(() => {
   return data.value.filter(row => 
     Object.values(row).some(val => String(val).toLowerCase().includes(q))
   )
+})
+
+const tableColumns = computed(() => {
+  return columns.value.map(col => ({
+    ...col,
+    clickable: true
+  }))
 })
 
 onMounted(async () => {
@@ -369,8 +379,15 @@ async function loadComparison() {
   }
 }
 
-function handleCellClick(row) {
-  // Could open cell editor
+function handleCellClick(row, column, event) {
+  // Open cell edit modal
+  editingCell.value = {
+    row: { ...row },
+    column: column.field,
+    value: row[column.field]
+  }
+  editValue.value = row[column.field]
+  showEditCellModal.value = true
 }
 
 async function applyOperation(endpoint, params) {
@@ -636,6 +653,38 @@ async function copyToClipboard() {
   }
 }
 
+async function saveCellEdit() {
+  if (!editingCell.value) return
+  
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/operations/update-cell`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        row_index: data.value.findIndex(r => r.id === editingCell.value.row.id),
+        column: editingCell.value.column,
+        value: editValue.value
+      })
+    })
+    
+    if (res.ok) {
+      showToast('Cell updated successfully', 'is-success')
+      showEditCellModal.value = false
+      await refreshData()
+    } else {
+      throw new Error('Update failed')
+    }
+  } catch (e) {
+    showToast(e.message, 'is-danger')
+  } finally {
+    operating.value = false
+  }
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleDateString()
@@ -723,6 +772,33 @@ function formatDate(dateStr) {
         Apply AI Cleaning
       </b-button>
       <b-button @click="showAiModal = false">Cancel</b-button>
+    </footer>
+  </div>
+</b-modal>
+
+<!-- Edit Cell Modal -->
+<b-modal v-model="showEditCellModal" :has-modal-card="true">
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">Edit Cell</p>
+      <button class="delete" @click="showEditCellModal = false"></button>
+    </header>
+    <section class="modal-card-body">
+      <b-field label="Column">
+        <b-input :value="editingCell?.column" disabled></b-input>
+      </b-field>
+      <b-field label="Current Value">
+        <b-input :value="editingCell?.value" disabled></b-input>
+      </b-field>
+      <b-field label="New Value">
+        <b-input v-model="editValue" placeholder="Enter new value"></b-input>
+      </b-field>
+    </section>
+    <footer class="modal-card-foot">
+      <b-button type="is-primary" :loading="operating" @click="saveCellEdit">
+        Save
+      </b-button>
+      <b-button @click="showEditCellModal = false">Cancel</b-button>
     </footer>
   </div>
 </b-modal>

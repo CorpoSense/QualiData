@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql://user:password@host:port/database?sslmode=require"
     
+    # Connection Pool Settings
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_pool_timeout: int = 30
+    db_pool_recycle: int = 3600
+    
     # AI Provider Keys
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None

@@ -44,6 +44,11 @@
       </div>
     </div>
 
+    <!-- API Usage -->
+    <div class="box mb-5">
+      <RateLimitStatus />
+    </div>
+
     <!-- Recent Projects -->
     <div class="box">
       <div class="is-flex is-justify-content-space-between is-align-items-center mb-4">
@@ -129,6 +134,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import RateLimitStatus from '@/components/RateLimitStatus.vue'
 
 const router = useRouter()
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
