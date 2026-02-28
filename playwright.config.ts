@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: './e2e',
@@ -16,12 +16,4 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'pnpm dev --host 0.0.0.0',
-    port: 3000,
-    timeout: 180000,
-    reuseExistingServer: false,
-    stdout: 'pipe',
-    stderr: 'pipe',
-  },
 })
