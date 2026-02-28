@@ -188,7 +188,7 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Configure PostgreSQL connection
 - [x] Setup SQLAlchemy models (User, Project, Dataset, OperationHistory, Agent)
 - [x] Run Alembic migrations to create tables
-- [ ] Implement connection pooling
+- [x] Implement connection pooling
 - [ ] Add MySQL support (optional)
 
 #### Project Management
@@ -242,6 +242,7 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Add row count options (25, 50, 100)
 - [x] Create scrollable data table
 - [x] Display summary statistics
+- [x] Inline cell editing
 
 #### Operation History
 - [x] Create operation history model
@@ -280,7 +281,7 @@ Track progress for the MasterDataCleaner SaaS project.
 #### Rate Limiting & Observability
 - [x] Implement global sleep between requests
 - [x] Add per-provider rate limits
-- [ ] Display quota warnings
+- [x] Display quota warnings
 - [ ] Integrate LangSmith observability
 - [ ] Track API usage per user
 
