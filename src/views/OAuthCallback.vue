@@ -11,8 +11,8 @@
 import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-const route = router = useRouter useRoute()
-const()
+const route = useRoute()
+const router = useRouter()
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 onMounted(async () => {
