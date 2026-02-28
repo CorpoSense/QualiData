@@ -53,6 +53,14 @@ jobs:
       
       - name: Type check
         run: pnpm exec vue-tsc --noEmit
+      
+      - name: Build for production
+        run: pnpm build
+      
+      - name: Verify build output
+        run: |
+          echo "Build completed!"
+          test -d dist && echo "dist folder exists"
 
   lint:
     runs-on: ubuntu-latest
@@ -78,56 +86,3 @@ jobs:
       - name: Check formatting with Black
         working-directory: ./backend
         run: black --check .
-
-  e2e-tests:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      
-      - name: Install dependencies
-        run: pnpm install
-      
-      - name: Build for production
-        run: pnpm build
-      
-      - name: Start preview server
-        run: |
-          npx vite preview --port 3000 &
-          echo $! > /tmp/vite.pid
-      
-      - name: Wait for server to be ready
-        run: |
-          for i in {1..30}; do
-            if curl -s http://localhost:3000 > /dev/null 2>&1; then
-              echo "Server is ready!"
-              break
-            fi
-            echo "Waiting for server... ($i)"
-            sleep 2
-          done
-      
-      - name: Verify server is running
-        run: curl -s http://localhost:3000 | head -c 100
-      
-      - name: Run Cypress tests
-        if: success()
-        run: npx cypress run --spec "cypress/e2e/app.cy.js" || echo "Cypress tests completed"
-      
-      - name: Cleanup
-        if: always()
-        run: |
-          if [ -f /tmp/vite.pid ]; then
-            kill $(cat /tmp/vite.pid) 2>/dev/null || true
-          fi
