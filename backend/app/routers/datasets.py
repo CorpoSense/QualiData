@@ -3,7 +3,7 @@
 import io
 from typing import Optional, List
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Query
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -162,6 +162,7 @@ async def import_dataset(
 @router.get("/{dataset_id}/preview", response_model=DatasetPreviewResponse)
 async def preview_dataset(
     dataset_id: int,
+    limit: int = Query(10, ge=1, le=100),
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -190,10 +191,14 @@ async def preview_dataset(
             detail="Access denied"
         )
     
+    # Apply limit to preview data
+    preview_data = (dataset.preview_data or [])[:limit]
+    
     return {
         "columns": dataset.columns or [],
-        "preview_data": dataset.preview_data or [],
-        "row_count": dataset.row_count
+        "preview_data": preview_data,
+        "row_count": dataset.row_count,
+        "limit": limit
     }
 
 

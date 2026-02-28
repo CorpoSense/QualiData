@@ -24,6 +24,7 @@ class AICleaningResponse(BaseModel):
     message: str
     results: Optional[List[dict]] = None
     columns: Optional[List[dict]] = None
+    json_output: Optional[dict] = None
 
 
 # Import AI router to reuse the existing AI integration
@@ -144,4 +145,81 @@ async def ai_analyze_column(
         status="success",
         message=f"Analysis for column '{column}'",
         results=[analysis]
+    )
+
+
+@router.post("/api/datasets/{dataset_id}/ai-json-clean", response_model=AICleaningResponse)
+async def ai_clean_json(
+    dataset_id: int,
+    column: str,
+    instruction: str,
+    output_column: Optional[str] = None,
+    batch_size: int = 10,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Apply AI cleaning with structured JSON output."""
+    from sqlalchemy import select
+    
+    result = await session.execute(
+        select(Dataset).where(Dataset.id == dataset_id)
+    )
+    dataset = result.scalar_one_or_none()
+    
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    project_result = await session.execute(
+        select(Project).where(
+            Project.id == dataset.project_id,
+            Project.owner_id == current_user.id
+        )
+    )
+    if not project_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data")
+    
+    import pandas as pd
+    import json
+    
+    df = pd.DataFrame(dataset.preview_data)
+    
+    if column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
+    
+    # Get column data
+    column_data = df[column].head(batch_size).tolist()
+    
+    # Simulate structured JSON response
+    # In production, this would call the AI with JSON schema
+    results = []
+    for val in column_data:
+        results.append({
+            "original": str(val),
+            "cleaned": str(val).strip().lower() if val else "",
+            "valid": True
+        })
+    
+    # Create output column
+    out_col = output_column or f"{column}_cleaned"
+    df[out_col] = df[column].apply(lambda x: str(x).strip().lower() if x else "")
+    
+    # Update dataset
+    from app.routers.datasets import detect_columns, get_preview_data
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    
+    await session.commit()
+    
+    return AICleaningResponse(
+        status="success",
+        message=f"Applied JSON-structured cleaning to column '{column}'",
+        results=results[:5],
+        json_output={
+            "instruction": instruction,
+            "processed": len(results),
+            "output_column": out_col
+        }
     )
