@@ -9,6 +9,7 @@ import DataViewer from '@/views/DataViewer.vue'
 import Assistant from '@/views/Assistant.vue'
 import ForgotPassword from '@/views/ForgotPassword.vue'
 import ResetPassword from '@/views/ResetPassword.vue'
+import OAuthCallback from '@/views/OAuthCallback.vue'
 
 const routes = [
   { path: '/', component: Home },
@@ -20,6 +21,7 @@ const routes = [
   { path: '/assistant', component: Assistant },
   { path: '/forgot-password', component: ForgotPassword },
   { path: '/reset-password', component: ResetPassword },
+  { path: '/oauth/callback/:provider', component: OAuthCallback },
 ]
 
 const router = createRouter({

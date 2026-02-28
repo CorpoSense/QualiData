@@ -44,6 +44,31 @@
               <a @click="activeTab = 'register'">Don't have an account? Sign up</a>
             </p>
           </b-form>
+
+          <!-- OAuth Options -->
+          <div class="mt-4">
+            <p class="has-text-centered has-text-grey is-size-7 mb-2">Or continue with</p>
+            <div class="buttons is-centered">
+              <b-button 
+                type="is-white" 
+                outlined
+                @click="oauthLogin('google')"
+                :disabled="!oauthEnabled"
+              >
+                <b-icon icon="google"></b-icon>
+                <span>Google</span>
+              </b-button>
+              <b-button 
+                type="is-dark" 
+                outlined
+                @click="oauthLogin('github')"
+                :disabled="!oauthEnabled"
+              >
+                <b-icon icon="github"></b-icon>
+                <span>GitHub</span>
+              </b-button>
+            </div>
+          </div>
         </b-tab-item>
 
         <b-tab-item label="Sign Up" value="register">
@@ -119,6 +144,7 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const oauthEnabled = ref(true) // Set to false if OAuth not configured
 
 const activeTab = ref('login')
 const loading = ref(false)
@@ -205,6 +231,12 @@ async function handleRegister() {
   } finally {
     loading.value = false
   }
+}
+
+function oauthLogin(provider) {
+  // In production, this would redirect to the OAuth provider
+  // For now, we'll redirect to the OAuth route
+  window.location.href = `${apiUrl}/api/auth/oauth/${provider}`
 }
 </script>
 

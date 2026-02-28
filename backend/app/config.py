@@ -25,6 +25,12 @@ class Settings(BaseSettings):
     deepseek_api_key: Optional[str] = None
     openrouter_api_key: Optional[str] = None
     
+    # OAuth
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    github_client_id: Optional[str] = None
+    github_client_secret: Optional[str] = None
+    
     # Billing (Lago)
     lago_api_key: Optional[str] = None
     lago_webhook_secret: Optional[str] = None

@@ -263,3 +263,134 @@ async def confirm_password_reset(
         del password_reset_tokens[request.token]
     
     return {"message": "Password reset successful"}
+
+
+# OAuth Routes
+from app.config import get_settings
+
+settings = get_settings()
+
+
+@router.get("/oauth/{provider}")
+async def oauth_redirect(provider: str):
+    """Redirect to OAuth provider."""
+    if provider == "google":
+        redirect_uri = f"{settings.cors_origins[0]}/oauth/callback/google"
+        auth_url = (
+            "https://accounts.google.com/o/oauth2/v2/auth?"
+            f"client_id={settings.google_client_id or ''}&"
+            f"redirect_uri={redirect_uri}&"
+            "response_type=code&"
+            "scope=openid email profile"
+        )
+    elif provider == "github":
+        redirect_uri = f"{settings.cors_origins[0]}/oauth/callback/github"
+        auth_url = (
+            f"https://github.com/login/oauth/authorize?"
+            f"client_id={settings.github_client_id or ''}&"
+            f"redirect_uri={redirect_uri}&"
+            "scope=read:user user:email"
+        )
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported provider")
+    
+    return {"auth_url": auth_url}
+
+
+@router.get("/oauth/callback/{provider}", response_model=Token)
+async def oauth_callback(
+    provider: str,
+    code: str,
+    session: AsyncSession = Depends(get_async_session)
+):
+    """Handle OAuth callback and return JWT token."""
+    if provider == "google":
+        # Exchange code for token
+        import httpx
+        token_res = await httpx.AsyncClient().post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "client_id": settings.google_client_id or "",
+                "client_secret": settings.google_client_secret or "",
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": f"{settings.cors_origins[0]}/oauth/callback/google"
+            }
+        )
+        if token_res.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to exchange code")
+        
+        access_token = token_res.json().get("access_token")
+        
+        # Get user info
+        user_res = await httpx.AsyncClient().get(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        user_data = user_res.json()
+        email = user_data.get("email")
+        name = user_data.get("name")
+        
+    elif provider == "github":
+        import httpx
+        # Exchange code for token
+        token_res = await httpx.AsyncClient().post(
+            "https://github.com/login/oauth/access_token",
+            data={
+                "client_id": settings.github_client_id or "",
+                "client_secret": settings.github_client_secret or "",
+                "code": code
+            },
+            headers={"Accept": "application/json"}
+        )
+        if token_res.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to exchange code")
+        
+        access_token = token_res.json().get("access_token")
+        
+        # Get user info
+        user_res = await httpx.AsyncClient().get(
+            "https://api.github.com/user",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        user_data = user_res.json()
+        email = user_data.get("email")
+        name = user_data.get("name")
+        
+        # Get email if not public
+        if not email:
+            email_res = await httpx.AsyncClient().get(
+                "https://api.github.com/user/emails",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            emails = email_res.json()
+            primary = next((e for e in emails if e.get("primary")), None)
+            email = primary.get("email") if primary else emails[0].get("email")
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported provider")
+    
+    # Find or create user
+    result = await session.execute(
+        select(User).where(User.email == email)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        # Create new user
+        user = User(
+            email=email,
+            hashed_password=get_password_hash(None),  # No password for OAuth
+            full_name=name,
+            is_active=True,
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+    
+    # Generate JWT
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
