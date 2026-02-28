@@ -98,7 +98,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
       
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -107,6 +106,12 @@ jobs:
       
       - name: Install dependencies
         run: pnpm install
+      
+      - name: Build for production
+        run: pnpm build
+      
+      - name: Install serve
+        run: npm install -g serve
       
       - name: Build for production
         run: pnpm build
