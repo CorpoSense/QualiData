@@ -179,9 +179,9 @@ Track progress for the MasterDataCleaner SaaS project.
 #### Authentication
 - [x] Setup user registration (email/password)
 - [x] Setup user login
+- [x] Add password reset flow
 - [ ] Add OAuth providers (Google, GitHub)
 - [x] Implement JWT token management
-- [ ] Add password reset flow
 - [x] Create user model and migrations
 
 #### Database Setup
