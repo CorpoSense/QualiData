@@ -98,13 +98,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
       
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install
       
       - name: Build for production
-        run: npm run build
+        run: pnpm build
       
       - name: Install serve
         run: npm install -g serve
@@ -115,7 +120,7 @@ jobs:
           sleep 5
       
       - name: Install Cypress
-        run: npm install cypress
+        run: pnpm add -D cypress
       
       - name: Run Cypress
         run: npx cypress run --spec "cypress/e2e/app.cy.js"
