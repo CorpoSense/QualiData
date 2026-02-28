@@ -17,9 +17,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev',
+    command: 'pnpm dev --host 0.0.0.0',
     port: 3000,
     timeout: 180000,
     reuseExistingServer: false,
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
 })
