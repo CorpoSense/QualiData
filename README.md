@@ -203,7 +203,7 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Excel (.xlsx, .xls) import
 - [x] JSON import
 - [x] CSV export
-- [ ] Excel export
+- [x] Excel export
 - [x] JSON export
 - [ ] Clipboard import (paste CSV)
 - [ ] Clipboard export (copy to clipboard)
@@ -239,9 +239,9 @@ Track progress for the MasterDataCleaner SaaS project.
 
 #### Preview System
 - [x] Implement preview endpoint
-- [ ] Add row count options (25, 50, 100)
+- [x] Add row count options (25, 50, 100)
 - [ ] Create scrollable data table
-- [ ] Display summary statistics
+- [x] Display summary statistics
 
 #### Operation History
 - [x] Create operation history model
@@ -274,12 +274,12 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Add column selection for context
 - [x] Support summary statistics for agent
 - [x] Implement cross-row context option
-- [ ] Handle structured JSON output
-- [ ] Add progress tracking
+- [x] Handle structured JSON output
+- [x] Add progress tracking
 
 #### Rate Limiting & Observability
-- [ ] Implement global sleep between requests
-- [ ] Add per-provider rate limits
+- [x] Implement global sleep between requests
+- [x] Add per-provider rate limits
 - [ ] Display quota warnings
 - [ ] Integrate LangSmith observability
 - [ ] Track API usage per user
