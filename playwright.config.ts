@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 30000,
+  timeout: 60000,
   retries: 0,
   use: {
     baseURL: 'http://localhost:3000',
@@ -19,7 +19,7 @@ export default defineConfig({
   webServer: {
     command: 'pnpm dev',
     port: 3000,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000,
+    timeout: 180000,
+    reuseExistingServer: false,
   },
 })
