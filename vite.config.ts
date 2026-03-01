@@ -19,7 +19,7 @@ export default defineConfig({
   plugins: [
     vue({
       compilerOptions: {
-        isCustomElement: (tag) => tag.startsWith('b-') || tag.includes('modal') || tag.includes('dropdown')
+        isCustomElement: (tag) => tag.startsWith('b-') && !['b-modal', 'b-dropdown'].includes(tag)
       }
     }),
   ],
