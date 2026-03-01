@@ -20,6 +20,9 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
       
+      - name: Install pytest-cov
+        run: pip install pytest-cov
+      
       - name: Install dependencies
         working-directory: ./backend
         run: |
@@ -29,7 +32,14 @@ jobs:
       - name: Run tests with pytest
         working-directory: ./backend
         run: |
-          pytest -v --tb=short
+          pytest -v --tb=short --cov=app --cov-report=term-missing --cov-report=html
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: backend/htmlcov
+          retention-days: 7
 
   frontend-tests:
     runs-on: ubuntu-latest

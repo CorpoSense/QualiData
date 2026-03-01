@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "backend": "cd backend && . .venv/bin/activate && uvicorn app.main:app --reload --port 8000",
     "test:backend": "cd backend && . .venv/bin/activate && pytest -v",
+    "test:backend:coverage": "cd backend && . .venv/bin/activate && pytest --cov=app --cov-report=term-missing --cov-report=html",
     "test:e2e": "playwright test",
     "test": "pnpm test:backend",
     "clean": "rm -rf ./dist",
