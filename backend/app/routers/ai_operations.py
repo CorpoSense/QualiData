@@ -1,7 +1,5 @@
 """AI-powered data cleaning operations."""
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,15 +15,15 @@ class AICleaningRequest(BaseModel):
     column: str
     instruction: str
     batch_size: int = Field(default=10, ge=1, le=100)
-    agent_id: Optional[int] = None
+    agent_id: int | None = None
 
 
 class AICleaningResponse(BaseModel):
     status: str
     message: str
-    results: Optional[list[dict]] = None
-    columns: Optional[list[dict]] = None
-    json_output: Optional[dict] = None
+    results: list[dict] | None = None
+    columns: list[dict] | None = None
+    json_output: dict | None = None
 
 
 # Import AI router to reuse the existing AI integration
@@ -157,7 +155,7 @@ async def ai_clean_json(
     dataset_id: int,
     column: str,
     instruction: str,
-    output_column: Optional[str] = None,
+    output_column: str | None = None,
     batch_size: int = 10,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),

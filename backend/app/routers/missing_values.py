@@ -1,7 +1,5 @@
 """Missing values operations."""
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,16 +13,16 @@ router = APIRouter(tags=["dataset-operations"])
 
 
 class FillNaRequest(BaseModel):
-    columns: Optional[list[str]] = None  # If None, fill all columns
-    value: Optional[str] = None  # Value to fill with
+    columns: list[str] | None = None  # If None, fill all columns
+    value: str | None = None  # Value to fill with
     method: str = "constant"  # constant, mean, median, mode, forward, backward, drop
 
 
 class OperationResponse(BaseModel):
     status: str
     message: str
-    columns: Optional[list[dict]] = None
-    row_count: Optional[int] = None
+    columns: list[dict] | None = None
+    row_count: int | None = None
 
 
 @router.post(
@@ -103,9 +101,9 @@ async def fill_na(
 )
 async def drop_na(
     dataset_id: int,
-    columns: Optional[list[str]] = None,
+    columns: list[str] | None = None,
     how: str = "any",  # any or all
-    thresh: Optional[int] = None,
+    thresh: int | None = None,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):

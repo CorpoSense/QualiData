@@ -1,7 +1,5 @@
 """Agent routes for AI configuration management."""
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -17,31 +15,31 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 # Pydantic schemas
 class AgentCreate(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     provider: str = "openai"
-    model: Optional[str] = None
+    model: str | None = None
     temperature: float = Field(default=0.3, ge=0, le=2)
-    system_prompt: Optional[str] = None
+    system_prompt: str | None = None
     is_template: bool = False
 
 
 class AgentUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    provider: Optional[str] = None
-    model: Optional[str] = None
-    temperature: Optional[float] = Field(default=None, ge=0, le=2)
-    system_prompt: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
+    provider: str | None = None
+    model: str | None = None
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    system_prompt: str | None = None
 
 
 class AgentResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str]
+    description: str | None
     provider: str
-    model: Optional[str]
+    model: str | None
     temperature: float
-    system_prompt: Optional[str]
+    system_prompt: str | None
     is_template: bool
     usage_count: int
     owner_id: int

@@ -1,7 +1,5 @@
 """Dataset operations routes - pandas-based data cleaning."""
 
-from typing import Optional
-
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -18,8 +16,8 @@ router = APIRouter(tags=["dataset-operations"])
 # Operation schemas
 class AddColumnRequest(BaseModel):
     column_name: str
-    default_value: Optional[str] = None
-    formula: Optional[str] = None
+    default_value: str | None = None
+    formula: str | None = None
 
 
 class RemoveColumnsRequest(BaseModel):
@@ -55,7 +53,7 @@ class ReorderColumnsRequest(BaseModel):
 class OperationResponse(BaseModel):
     status: str
     message: str
-    columns: Optional[list[dict]] = None
+    columns: list[dict] | None = None
 
 
 def get_dataset_with_owner_check(dataset_id: int, user_id: int, session: AsyncSession):

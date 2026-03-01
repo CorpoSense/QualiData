@@ -2,7 +2,6 @@
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import JSON, BigInteger, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -26,13 +25,13 @@ class Project(Base):
     )
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Dataset metadata
     row_count: Mapped[int] = mapped_column(Integer, default=0)
     column_count: Mapped[int] = mapped_column(Integer, default=0)
     storage_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
-    schema_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    schema_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Status
     is_saved: Mapped[bool] = mapped_column(default=False)
@@ -72,8 +71,8 @@ class Dataset(Base):
     )
 
     # Serialized data (JSON format for pandas DataFrame)
-    data_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    schema_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    data_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    schema_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Version tracking
     version: Mapped[int] = mapped_column(Integer, default=1)
@@ -110,13 +109,13 @@ class OperationHistory(Base):
     operation_name: Mapped[str] = mapped_column(
         String(100), nullable=False
     )  # e.g., "strip", "ai_clean"
-    operation_config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    operation_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Affected columns
-    columns_affected: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    columns_affected: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     # Snapshot for undo (serialized DataFrame state)
-    snapshot_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    snapshot_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Timestamp
     created_at: Mapped[datetime] = mapped_column(

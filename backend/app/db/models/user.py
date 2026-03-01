@@ -3,7 +3,6 @@
 import enum
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy import Enum as SQLEnum
@@ -31,9 +30,9 @@ class User(Base):
     email: Mapped[str] = mapped_column(
         String(255), unique=True, index=True, nullable=False
     )
-    password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # Role and tier
     role: Mapped[UserRole] = mapped_column(
@@ -41,10 +40,10 @@ class User(Base):
     )
 
     # OAuth providers
-    google_id: Mapped[Optional[str]] = mapped_column(
+    google_id: Mapped[str | None] = mapped_column(
         String(255), unique=True, nullable=True
     )
-    github_id: Mapped[Optional[str]] = mapped_column(
+    github_id: Mapped[str | None] = mapped_column(
         String(255), unique=True, nullable=True
     )
 
@@ -57,7 +56,7 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
-    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

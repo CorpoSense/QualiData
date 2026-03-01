@@ -1,7 +1,5 @@
 """Date/time operations for datasets."""
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +15,7 @@ router = APIRouter(tags=["dataset-operations"])
 class OperationResponse(BaseModel):
     status: str
     message: str
-    columns: Optional[list[dict]] = None
+    columns: list[dict] | None = None
 
 
 @router.post(
@@ -27,7 +25,7 @@ class OperationResponse(BaseModel):
 async def parse_datetime(
     dataset_id: int,
     column: str,
-    input_format: Optional[str] = None,
+    input_format: str | None = None,
     output_format: str = "%Y-%m-%d %H:%M:%S",
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),

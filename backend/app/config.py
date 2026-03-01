@@ -1,5 +1,4 @@
 from functools import lru_cache
-from typing import Optional
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -26,7 +25,10 @@ class Settings(BaseSettings):
         if not v:
             raise ValueError("DATABASE_URL cannot be empty")
         # Check for placeholder values
-        if "host:port" in v or v == "postgresql://user:password@host:port/database?sslmode=require":
+        if (
+            "host:port" in v
+            or v == "postgresql://user:password@host:port/database?sslmode=require"
+        ):
             raise ValueError(
                 "DATABASE_URL contains placeholder values. "
                 "Please set a valid DATABASE_URL environment variable."
@@ -40,22 +42,22 @@ class Settings(BaseSettings):
     db_pool_recycle: int = 3600
 
     # AI Provider Keys
-    openai_api_key: Optional[str] = None
-    anthropic_api_key: Optional[str] = None
-    google_api_key: Optional[str] = None
-    groq_api_key: Optional[str] = None
-    deepseek_api_key: Optional[str] = None
-    openrouter_api_key: Optional[str] = None
+    openai_api_key: str | None = None
+    anthropic_api_key: str | None = None
+    google_api_key: str | None = None
+    groq_api_key: str | None = None
+    deepseek_api_key: str | None = None
+    openrouter_api_key: str | None = None
 
     # OAuth
-    google_client_id: Optional[str] = None
-    google_client_secret: Optional[str] = None
-    github_client_id: Optional[str] = None
-    github_client_secret: Optional[str] = None
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    github_client_id: str | None = None
+    github_client_secret: str | None = None
 
     # Billing (Lago)
-    lago_api_key: Optional[str] = None
-    lago_webhook_secret: Optional[str] = None
+    lago_api_key: str | None = None
+    lago_webhook_secret: str | None = None
 
 
 @lru_cache

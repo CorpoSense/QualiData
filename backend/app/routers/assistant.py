@@ -1,6 +1,6 @@
 """Assistant wizard for guided data cleaning."""
 
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -21,7 +21,7 @@ class WizardStep(BaseModel):
     step: int
     title: str
     description: str
-    options: Optional[list[dict[str, Any]]] = None
+    options: list[dict[str, Any]] | None = None
 
 
 class WizardResponse(BaseModel):

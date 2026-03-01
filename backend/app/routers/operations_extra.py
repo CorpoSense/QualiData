@@ -1,6 +1,6 @@
 """Additional dataset operations - filter, sort, deduplicate, find-replace, type conversion."""
 
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -18,7 +18,7 @@ router = APIRouter(tags=["dataset-operations"])
 class FilterRowsRequest(BaseModel):
     column: str
     operator: str  # eq, neq, gt, gte, lt, lte, contains, startswith, endswith, isnull, notnull
-    value: Optional[Any] = None
+    value: Any | None = None
 
 
 class SortDataRequest(BaseModel):
@@ -27,7 +27,7 @@ class SortDataRequest(BaseModel):
 
 
 class RemoveDuplicatesRequest(BaseModel):
-    columns: Optional[list[str]] = None  # If None, use all columns
+    columns: list[str] | None = None  # If None, use all columns
 
 
 class FindReplaceRequest(BaseModel):
@@ -45,8 +45,8 @@ class ChangeTypeRequest(BaseModel):
 class OperationResponse(BaseModel):
     status: str
     message: str
-    columns: Optional[list[dict]] = None
-    row_count: Optional[int] = None
+    columns: list[dict] | None = None
+    row_count: int | None = None
 
 
 def get_dataset_with_owner_check(dataset_id: int, user_id: int, session: AsyncSession):

@@ -2,7 +2,6 @@
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -27,7 +26,7 @@ class Agent(Base):
 
     # Agent configuration
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # AI Provider settings
     provider: Mapped[str] = mapped_column(
@@ -36,8 +35,8 @@ class Agent(Base):
     model: Mapped[str] = mapped_column(String(100), default="gpt-4o-mini")
 
     # Prompts
-    system_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    prompt_template: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    prompt_template: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Generation settings
     temperature: Mapped[float] = mapped_column(Float, default=0.3)

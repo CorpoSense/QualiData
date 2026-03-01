@@ -1,7 +1,5 @@
 """Pydantic models for API request/response schemas."""
 
-from typing import Optional
-
 from pydantic import BaseModel
 
 
@@ -9,15 +7,15 @@ class AIProviderRequest(BaseModel):
     """Request model for AI provider configuration."""
 
     provider: str = "openai"
-    model: Optional[str] = None
+    model: str | None = None
     temperature: float = 0.3
 
 
 class AnalyzeDataRequest(BaseModel):
     """Request model for data analysis."""
 
-    provider: Optional[str] = "openai"
-    model: Optional[str] = None
+    provider: str | None = "openai"
+    model: str | None = None
     data_summary: str
 
 
@@ -32,8 +30,8 @@ class AnalyzeDataResponse(BaseModel):
 class SuggestFixRequest(BaseModel):
     """Request model for fix suggestions."""
 
-    provider: Optional[str] = "openai"
-    model: Optional[str] = None
+    provider: str | None = "openai"
+    model: str | None = None
     issue_description: str
 
 
@@ -48,8 +46,8 @@ class SuggestFixResponse(BaseModel):
 class GenerateCodeRequest(BaseModel):
     """Request model for code generation."""
 
-    provider: Optional[str] = "openai"
-    model: Optional[str] = None
+    provider: str | None = "openai"
+    model: str | None = None
     task_description: str
     language: str = "python"
 
@@ -65,8 +63,8 @@ class GenerateCodeResponse(BaseModel):
 class ChatRequest(BaseModel):
     """Request model for general chat."""
 
-    provider: Optional[str] = "openai"
-    model: Optional[str] = None
+    provider: str | None = "openai"
+    model: str | None = None
     message: str
 
 

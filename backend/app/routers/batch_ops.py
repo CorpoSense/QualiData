@@ -1,7 +1,5 @@
 """Batch AI processing operations."""
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +14,7 @@ router = APIRouter(tags=["ai-operations"])
 class BatchProcessRequest(BaseModel):
     columns: list[str]
     instruction: str
-    output_column: Optional[str] = None
+    output_column: str | None = None
     batch_size: int = Field(default=50, ge=1, le=500)
 
 
@@ -31,7 +29,7 @@ class BatchProgressResponse(BaseModel):
     status: str  # pending, processing, completed, failed
     processed: int
     total: int
-    results: Optional[list[dict]] = None
+    results: list[dict] | None = None
 
 
 # In-memory job tracking (in production, use Redis/database)

@@ -1,7 +1,6 @@
 """Dataset routes for import/export."""
 
 import io
-from typing import Optional
 
 import pandas as pd
 from fastapi import (
@@ -28,26 +27,26 @@ router = APIRouter(prefix="/datasets", tags=["datasets"])
 # Pydantic schemas
 class DatasetCreate(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     project_id: int
 
 
 class DatasetUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
 
 
 class DatasetResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str]
+    description: str | None
     project_id: int
-    file_name: Optional[str]
+    file_name: str | None
     file_size: int
-    file_type: Optional[str]
+    file_type: str | None
     row_count: int
-    columns: Optional[dict]
-    preview_data: Optional[list]
+    columns: dict | None
+    preview_data: list | None
     created_at: str
 
     class Config:
@@ -95,8 +94,8 @@ def get_preview_data(df: pd.DataFrame, max_rows: int = 10) -> list[dict]:
 async def import_dataset(
     file: UploadFile = File(...),
     project_id: int = Form(...),
-    name: Optional[str] = Form(None),
-    description: Optional[str] = Form(None),
+    name: str | None = Form(None),
+    description: str | None = Form(None),
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):

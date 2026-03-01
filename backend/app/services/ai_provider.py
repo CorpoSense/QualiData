@@ -1,7 +1,6 @@
 """AI Provider configuration and factory."""
 
 from enum import Enum
-from typing import Optional
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -39,7 +38,7 @@ DEFAULT_MODELS = {
 
 def get_chat_model(
     provider: AIProvider,
-    model: Optional[str] = None,
+    model: str | None = None,
     temperature: float = 0.7,
     **kwargs,
 ) -> BaseChatModel:

@@ -1,7 +1,5 @@
 """AI-powered data cleaning assistant."""
 
-from typing import Optional
-
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -30,7 +28,7 @@ class DataCleaningAssistant:
     def __init__(
         self,
         provider: AIProvider = AIProvider.OPENAI,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.3,
     ):
         """

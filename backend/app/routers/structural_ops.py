@@ -1,7 +1,5 @@
 """Structural error fixing operations."""
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +15,7 @@ router = APIRouter(tags=["dataset-operations"])
 class OperationResponse(BaseModel):
     status: str
     message: str
-    columns: Optional[list[dict]] = None
+    columns: list[dict] | None = None
 
 
 @router.post(
@@ -79,7 +77,7 @@ async def fix_case(
 )
 async def trim_whitespace(
     dataset_id: int,
-    columns: Optional[list[str]] = None,
+    columns: list[str] | None = None,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):

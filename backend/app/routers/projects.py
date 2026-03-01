@@ -1,7 +1,5 @@
 """Project routes."""
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -17,18 +15,18 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 # Pydantic schemas
 class ProjectCreate(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
 
 
 class ProjectResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str]
+    description: str | None
     owner_id: int
     row_count: int
     storage_bytes: int
@@ -69,7 +67,7 @@ async def create_project(
 async def list_projects(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
-    search: Optional[str] = Query(None),
+    search: str | None = Query(None),
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):

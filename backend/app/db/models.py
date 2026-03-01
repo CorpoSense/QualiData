@@ -1,7 +1,6 @@
 """SQLAlchemy database models."""
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import (
     JSON,
@@ -27,12 +26,12 @@ class User(Base):
     email: Mapped[str] = mapped_column(
         String(255), unique=True, index=True, nullable=False
     )
-    hashed_password: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # OAuth fields
-    oauth_provider: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    oauth_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    oauth_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    oauth_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -45,7 +44,7 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    last_login: Mapped[Optional[datetime]] = mapped_column(
+    last_login: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
@@ -65,7 +64,7 @@ class Project(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Foreign keys
     owner_id: Mapped[int] = mapped_column(
@@ -98,18 +97,18 @@ class Dataset(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # File info
-    file_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     file_size: Mapped[int] = mapped_column(Integer, default=0)
-    file_type: Mapped[Optional[str]] = mapped_column(
+    file_type: Mapped[str | None] = mapped_column(
         String(50), nullable=True
     )  # csv, xlsx, json, etc.
 
     # Data preview (stored as JSON)
-    preview_data: Mapped[Optional[JSON]] = mapped_column(JSON, nullable=True)
-    columns: Mapped[Optional[JSON]] = mapped_column(
+    preview_data: Mapped[JSON | None] = mapped_column(JSON, nullable=True)
+    columns: Mapped[JSON | None] = mapped_column(
         JSON, nullable=True
     )  # Column names and types
 
@@ -147,12 +146,12 @@ class OperationHistory(Base):
     operation_type: Mapped[str] = mapped_column(
         String(100), nullable=False
     )  # add_column, rename, etc.
-    operation_params: Mapped[Optional[JSON]] = mapped_column(JSON, nullable=True)
-    operation_result: Mapped[Optional[JSON]] = mapped_column(JSON, nullable=True)
+    operation_params: Mapped[JSON | None] = mapped_column(JSON, nullable=True)
+    operation_result: Mapped[JSON | None] = mapped_column(JSON, nullable=True)
 
     # Before/After snapshots (stored as JSON for simplicity)
-    before_snapshot: Mapped[Optional[JSON]] = mapped_column(JSON, nullable=True)
-    after_snapshot: Mapped[Optional[JSON]] = mapped_column(JSON, nullable=True)
+    before_snapshot: Mapped[JSON | None] = mapped_column(JSON, nullable=True)
+    after_snapshot: Mapped[JSON | None] = mapped_column(JSON, nullable=True)
 
     # Status
     is_applied: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -179,13 +178,13 @@ class Agent(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # AI Configuration
     provider: Mapped[str] = mapped_column(String(50), default="openai")
-    model: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     temperature: Mapped[float] = mapped_column(default=0.3)
-    system_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Template flag
     is_template: Mapped[bool] = mapped_column(Boolean, default=False)
