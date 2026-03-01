@@ -403,4 +403,16 @@ Track progress for the MasterDataCleaner SaaS project.
 
 ---
 
-*Last updated: 2026-02-24*
+### CI/CD
+
+- [x] GitHub Actions workflow
+- [x] Backend tests (pytest)
+- [x] Frontend type check (vue-tsc)
+- [x] Lint checks (ruff + black)
+- [x] Code coverage reporting
+- [ ] E2E tests (works locally, CI issues with Vite server)
+- [ ] Automated deployment
+
+---
+
+*Last updated: 2026-03-01*
