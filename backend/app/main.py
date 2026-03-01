@@ -1,5 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 from app.config import get_settings
 from app.routers import (
@@ -67,6 +70,34 @@ def create_app() -> FastAPI:
     app.include_router(assistant.router, prefix="/api")
     app.include_router(rate_limit.router, prefix="/api")
     app.include_router(cell_ops.router, prefix="/api")
+
+    # Serve Vue static files if available (for production)
+    # Check multiple locations for frontend build
+    possible_paths = [
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend"),  # Local dev
+        "/app/frontend",  # Docker production
+    ]
+    
+    frontend_path = None
+    for path in possible_paths:
+        if os.path.isdir(path):
+            frontend_path = path
+            break
+    
+    if frontend_path and os.path.isfile(os.path.join(frontend_path, "index.html")):
+        app.mount("/static", StaticFiles(directory=os.path.join(frontend_path, "assets")), name="static")
+        
+        @app.get("/")
+        async def serve_frontend():
+            return FileResponse(os.path.join(frontend_path, "index.html"))
+        
+        @app.get("/{path:path}")
+        async def serve_frontend_catchall(path: str):
+            # Check if it's an API request
+            if path.startswith("api/"):
+                raise HTTPException(status_code=404, detail="Not Found")
+            # Serve index.html for SPA routing
+            return FileResponse(os.path.join(frontend_path, "index.html"))
 
     return app
 
