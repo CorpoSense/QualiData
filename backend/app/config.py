@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Optional
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,7 +17,21 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
     # Database
-    database_url: str = "postgresql://user:password@host:port/database?sslmode=require"
+    database_url: str = "sqlite+aiosqlite:///./master_data_cleaner.db"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        """Validate that database_url is properly formatted."""
+        if not v:
+            raise ValueError("DATABASE_URL cannot be empty")
+        # Check for placeholder values
+        if "host:port" in v or v == "postgresql://user:password@host:port/database?sslmode=require":
+            raise ValueError(
+                "DATABASE_URL contains placeholder values. "
+                "Please set a valid DATABASE_URL environment variable."
+            )
+        return v
 
     # Connection Pool Settings
     db_pool_size: int = 10
