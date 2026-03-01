@@ -17,11 +17,7 @@ export default defineConfig({
     outDir: 'dist/',
   },
   plugins: [
-    vue({
-      compilerOptions: {
-        isCustomElement: (tag) => tag.startsWith('b-') && !['b-modal', 'b-dropdown'].includes(tag)
-      }
-    }),
+    vue(),
   ],
   resolve: {
     alias: {
