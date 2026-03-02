@@ -5,7 +5,6 @@ import { resolve } from 'path'
 export default defineConfig({
   server: {
     port: process.env['PORT'] ? parseInt(process.env['PORT'], 10) : 3000,
-    // Proxy API requests to FastAPI backend
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
@@ -15,9 +14,15 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist/',
+    target: 'esnext',
+    minify: 'esbuild'
   },
   plugins: [
-    vue(),
+    vue({
+      compilerOptions: {
+        isCustomElement: (tag) => tag.startsWith('b-')
+      }
+    }),
   ],
   resolve: {
     alias: {
