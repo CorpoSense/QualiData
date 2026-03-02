@@ -96,11 +96,8 @@ def create_app() -> FastAPI:
         print(f"DEBUG: Frontend found at: {frontend_path}, index exists: {os.path.isfile(index_path)}", file=sys.stderr)
 
     if frontend_path and os.path.isfile(os.path.join(frontend_path, "index.html")):
-        app.mount(
-            "/static",
-            StaticFiles(directory=os.path.join(frontend_path, "assets")),
-            name="static",
-        )
+        # Note: Not mounting /static to avoid conflicts
+        # Static files will be served via the catchall route
 
         @app.get("/")
         async def serve_frontend():
@@ -115,6 +112,10 @@ def create_app() -> FastAPI:
             # Check if it's an API request
             if path.startswith("api/"):
                 raise HTTPException(status_code=404, detail="Not Found")
+            # Try to serve static file first
+            static_file = os.path.join(frontend_path, path)
+            if os.path.isfile(static_file):
+                return FileResponse(static_file)
             # Serve index.html for SPA routing
             return FileResponse(os.path.join(frontend_path, "index.html"))
 
