@@ -30,7 +30,7 @@ In modern business environments, data often arrives in various formats and state
 - **AI:** [LangChain](https://langchain.com/) with multi-provider support.
 - **Data Processing:** [pandas](https://pandas.pydata.org/), [polars](https://pola.rs/).
 - **Communication:** [Axios](https://axios-http.com/) for seamless frontend-backend integration.
-- **Styling:** Modern, responsive UI components.
+- **Styling:** [Bootstrap 5](https://getbootstrap.com/) with [BootstrapVueNext](https://bootstrap-vue-next.github.io/bootstrap-vue-next/) for modern, responsive UI components.
 - **Language:** [TypeScript](https://www.typescriptlang.org/) (frontend), Python (backend).
 
 ## 🤖 AI Providers
