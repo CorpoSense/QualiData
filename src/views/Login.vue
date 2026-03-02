@@ -185,15 +185,23 @@ async function handleLogin() {
     })
     
     if (!res.ok) {
-      const data = await res.json()
-      throw new Error(data.detail || 'Login failed')
+      // Try to parse as JSON, fallback to text
+      const contentType = res.headers.get('content-type')
+      if (contentType && contentType.includes('application/json')) {
+        const data = await res.json()
+        throw new Error(data.detail || 'Login failed')
+      } else {
+        const text = await res.text()
+        throw new Error(text || `Server error: ${res.status}`)
+      }
     }
     
     const data = await res.json()
     localStorage.setItem('token', data.access_token)
     router.push('/dashboard')
   } catch (e) {
-    error.value = e.message
+    error.value = e.message || 'An error occurred. Please try again.'
+    console.error('Login error:', e)
   } finally {
     loading.value = false
   }
@@ -221,8 +229,15 @@ async function handleRegister() {
     })
     
     if (!res.ok) {
-      const data = await res.json()
-      throw new Error(data.detail || 'Registration failed')
+      // Try to parse as JSON, fallback to text
+      const contentType = res.headers.get('content-type')
+      if (contentType && contentType.includes('application/json')) {
+        const data = await res.json()
+        throw new Error(data.detail || 'Registration failed')
+      } else {
+        const text = await res.text()
+        throw new Error(text || `Server error: ${res.status}`)
+      }
     }
     
     // Auto-login after registration
@@ -231,7 +246,8 @@ async function handleRegister() {
     loginForm.value.password = registerForm.value.password
     handleLogin()
   } catch (e) {
-    error.value = e.message
+    error.value = e.message || 'An error occurred. Please try again.'
+    console.error('Registration error:', e)
   } finally {
     loading.value = false
   }
