@@ -104,10 +104,14 @@ def create_app() -> FastAPI:
 
         @app.get("/")
         async def serve_frontend():
+            import sys
+            print(f"DEBUG: Serving root path from {frontend_path}", file=sys.stderr)
             return FileResponse(os.path.join(frontend_path, "index.html"))
 
         @app.get("/{path:path}")
         async def serve_frontend_catchall(path: str):
+            import sys
+            print(f"DEBUG: Catchall serving path: {path}", file=sys.stderr)
             # Check if it's an API request
             if path.startswith("api/"):
                 raise HTTPException(status_code=404, detail="Not Found")
