@@ -99,6 +99,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { getApiUrl } from '@/utils/api'
 
 const router = useRouter()
 
@@ -108,7 +109,7 @@ const notifications = ref([])
 const unreadCount = ref(0)
 const showNotifications = ref(false)
 
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const apiUrl = getApiUrl()
 
 onMounted(async () => {
   const token = localStorage.getItem('token')

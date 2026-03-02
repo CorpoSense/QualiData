@@ -139,11 +139,15 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { getApiUrl } from '@/utils/api'
 
 const router = useRouter()
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+// Use relative API URL in production (same domain)
+const apiUrl = getApiUrl()
+
 const oauthEnabled = ref(true) // Set to false if OAuth not configured
 
 const activeTab = ref('login')
