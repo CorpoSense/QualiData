@@ -83,9 +83,14 @@ def create_app() -> FastAPI:
 
     frontend_path = None
     for path in possible_paths:
+        print(f"Checking path: {path}, exists: {os.path.isdir(path)}")
         if os.path.isdir(path):
             frontend_path = path
             break
+
+    if frontend_path:
+        index_path = os.path.join(frontend_path, "index.html")
+        print(f"Frontend path: {frontend_path}, index exists: {os.path.isfile(index_path)}")
 
     if frontend_path and os.path.isfile(os.path.join(frontend_path, "index.html")):
         app.mount(
