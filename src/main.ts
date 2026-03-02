@@ -8,4 +8,7 @@ import "buefy/dist/css/buefy.css";
 
 const pinia = createPinia();
 
-createApp(App).use(pinia).use(router).use(Buefy).mount("#app");
+createApp(App).use(pinia).use(router).use(Buefy, {
+  defaultIconPack: "mdi",
+  defaultInputHasCounter: false,
+}).mount("#app");
