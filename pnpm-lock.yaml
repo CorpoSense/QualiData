@@ -14,9 +14,6 @@ importers:
       buefy:
         specifier: 3.0.4
         version: 3.0.4(vue@3.5.28(typescript@5.9.3))
-      bulma:
-        specifier: ^1.0.4
-        version: 1.0.4
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
