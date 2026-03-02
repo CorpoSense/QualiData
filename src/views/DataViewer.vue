@@ -257,6 +257,119 @@
         </section>
       </div>
     </b-modal>
+
+    <!-- FillNA Modal -->
+    <b-modal v-model="showFillnaModal" :has-modal-card="true">
+      <div class="modal-card">
+        <header class="modal-card-head">
+          <p class="modal-card-title">Fill Missing Values</p>
+          <button class="delete" @click="showFillnaModal = false"></button>
+        </header>
+        <section class="modal-card-body">
+          <b-field label="Column">
+            <b-select v-model="selectedColumn" expanded>
+              <option v-for="col in columns" :key="col.field" :value="col.field">
+                {{ col.label }}
+              </option>
+            </b-select>
+          </b-field>
+          <b-field label="Fill Value">
+            <b-input v-model="fillValue" placeholder="Enter value or leave empty for empty string"></b-input>
+          </b-field>
+        </section>
+        <footer class="modal-card-foot">
+          <b-button type="is-primary" :loading="operating" @click="applyOperation('fillna', { method: 'constant', fill_value: fillValue })">
+            Fill
+          </b-button>
+          <b-button @click="showFillnaModal = false">Cancel</b-button>
+        </footer>
+      </div>
+    </b-modal>
+
+    <!-- Clipboard Import Modal -->
+    <b-modal v-model="showClipboardImport" :has-modal-card="true">
+      <div class="modal-card">
+        <header class="modal-card-head">
+          <p class="modal-card-title">Import from Clipboard</p>
+          <button class="delete" @click="showClipboardImport = false"></button>
+        </header>
+        <section class="modal-card-body">
+          <b-field label="Paste CSV Data">
+            <b-input 
+              v-model="clipboardData" 
+              type="textarea" 
+              placeholder="Paste your CSV data here..."
+              :rows="10"
+            ></b-input>
+          </b-field>
+          <b-field label="Dataset Name">
+            <b-input v-model="clipboardDatasetName" placeholder="My Dataset"></b-input>
+          </b-field>
+        </section>
+        <footer class="modal-card-foot">
+          <b-button type="is-primary" :loading="operating" @click="importFromClipboard">
+            Import
+          </b-button>
+          <b-button @click="showClipboardImport = false">Cancel</b-button>
+        </footer>
+      </div>
+    </b-modal>
+
+    <!-- AI Clean Modal -->
+    <b-modal v-model="showAiModal" :has-modal-card="true">
+      <div class="modal-card">
+        <header class="modal-card-head">
+          <p class="modal-card-title">AI-Powered Cleaning</p>
+          <button class="delete" @click="showAiModal = false"></button>
+        </header>
+        <section class="modal-card-body">
+          <b-field label="Column">
+            <b-select v-model="selectedColumn" expanded>
+              <option v-for="col in columns" :key="col.field" :value="col.field">
+                {{ col.label }}
+              </option>
+            </b-select>
+          </b-field>
+          <b-field label="Instruction">
+            <b-input v-model="aiInstruction" type="textarea" placeholder="Describe what you want the AI to do..."></b-input>
+          </b-field>
+        </section>
+        <footer class="modal-card-foot">
+          <b-button type="is-primary" :loading="operating" @click="applyAiClean">
+            Apply AI Cleaning
+          </b-button>
+          <b-button @click="showAiModal = false">Cancel</b-button>
+        </footer>
+      </div>
+    </b-modal>
+
+    <!-- Edit Cell Modal -->
+    <b-modal v-model="showEditCellModal" :has-modal-card="true">
+      <div class="modal-card">
+        <header class="modal-card-head">
+          <p class="modal-card-title">Edit Cell</p>
+          <button class="delete" @click="showEditCellModal = false"></button>
+        </header>
+        <section class="modal-card-body">
+          <b-field label="Column">
+            <b-input :value="editingCell?.column" disabled></b-input>
+          </b-field>
+          <b-field label="Current Value">
+            <b-input :value="editingCell?.value" disabled></b-input>
+          </b-field>
+          <b-field label="New Value">
+            <b-input v-model="editValue" placeholder="Enter new value"></b-input>
+          </b-field>
+        </section>
+        <footer class="modal-card-foot">
+          <b-button type="is-primary" :loading="operating" @click="saveCellEdit">
+            Save
+          </b-button>
+          <b-button @click="showEditCellModal = false">Cancel</b-button>
+        </footer>
+      </div>
+    </b-modal>
+
   </div>
 </template>
 
@@ -690,118 +803,6 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString()
 }
 </script>
-
-<!-- FillNA Modal -->
-<b-modal v-model="showFillnaModal" :has-modal-card="true">
-  <div class="modal-card">
-    <header class="modal-card-head">
-      <p class="modal-card-title">Fill Missing Values</p>
-      <button class="delete" @click="showFillnaModal = false"></button>
-    </header>
-    <section class="modal-card-body">
-      <b-field label="Column">
-        <b-select v-model="selectedColumn" expanded>
-          <option v-for="col in columns" :key="col.field" :value="col.field">
-            {{ col.label }}
-          </option>
-        </b-select>
-      </b-field>
-      <b-field label="Fill Value">
-        <b-input v-model="fillValue" placeholder="Enter value or leave empty for empty string"></b-input>
-      </b-field>
-    </section>
-    <footer class="modal-card-foot">
-      <b-button type="is-primary" :loading="operating" @click="applyOperation('fillna', { method: 'constant', fill_value: fillValue })">
-        Fill
-      </b-button>
-      <b-button @click="showFillnaModal = false">Cancel</b-button>
-    </footer>
-  </div>
-</b-modal>
-
-<!-- Clipboard Import Modal -->
-<b-modal v-model="showClipboardImport" :has-modal-card="true">
-  <div class="modal-card">
-    <header class="modal-card-head">
-      <p class="modal-card-title">Import from Clipboard</p>
-      <button class="delete" @click="showClipboardImport = false"></button>
-    </header>
-    <section class="modal-card-body">
-      <b-field label="Paste CSV Data">
-        <b-input 
-          v-model="clipboardData" 
-          type="textarea" 
-          placeholder="Paste your CSV data here..."
-          :rows="10"
-        ></b-input>
-      </b-field>
-      <b-field label="Dataset Name">
-        <b-input v-model="clipboardDatasetName" placeholder="My Dataset"></b-input>
-      </b-field>
-    </section>
-    <footer class="modal-card-foot">
-      <b-button type="is-primary" :loading="operating" @click="importFromClipboard">
-        Import
-      </b-button>
-      <b-button @click="showClipboardImport = false">Cancel</b-button>
-    </footer>
-  </div>
-</b-modal>
-
-<!-- AI Clean Modal -->
-<b-modal v-model="showAiModal" :has-modal-card="true">
-  <div class="modal-card">
-    <header class="modal-card-head">
-      <p class="modal-card-title">AI-Powered Cleaning</p>
-      <button class="delete" @click="showAiModal = false"></button>
-    </header>
-    <section class="modal-card-body">
-      <b-field label="Column">
-        <b-select v-model="selectedColumn" expanded>
-          <option v-for="col in columns" :key="col.field" :value="col.field">
-            {{ col.label }}
-          </option>
-        </b-select>
-      </b-field>
-      <b-field label="Instruction">
-        <b-input v-model="aiInstruction" type="textarea" placeholder="Describe what you want the AI to do..."></b-input>
-      </b-field>
-    </section>
-    <footer class="modal-card-foot">
-      <b-button type="is-primary" :loading="operating" @click="applyAiClean">
-        Apply AI Cleaning
-      </b-button>
-      <b-button @click="showAiModal = false">Cancel</b-button>
-    </footer>
-  </div>
-</b-modal>
-
-<!-- Edit Cell Modal -->
-<b-modal v-model="showEditCellModal" :has-modal-card="true">
-  <div class="modal-card">
-    <header class="modal-card-head">
-      <p class="modal-card-title">Edit Cell</p>
-      <button class="delete" @click="showEditCellModal = false"></button>
-    </header>
-    <section class="modal-card-body">
-      <b-field label="Column">
-        <b-input :value="editingCell?.column" disabled></b-input>
-      </b-field>
-      <b-field label="Current Value">
-        <b-input :value="editingCell?.value" disabled></b-input>
-      </b-field>
-      <b-field label="New Value">
-        <b-input v-model="editValue" placeholder="Enter new value"></b-input>
-      </b-field>
-    </section>
-    <footer class="modal-card-foot">
-      <b-button type="is-primary" :loading="operating" @click="saveCellEdit">
-        Save
-      </b-button>
-      <b-button @click="showEditCellModal = false">Cancel</b-button>
-    </footer>
-  </div>
-</b-modal>
 
 <style scoped>
 .table-container {
