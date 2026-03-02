@@ -79,18 +79,21 @@ def create_app() -> FastAPI:
             os.path.dirname(os.path.dirname(__file__)), "frontend"
         ),  # Local dev
         "/app/frontend",  # Docker production
+        "/app/backend/frontend",  # Alternative Docker path
     ]
 
     frontend_path = None
     for path in possible_paths:
-        print(f"Checking path: {path}, exists: {os.path.isdir(path)}")
+        import sys
+        print(f"DEBUG: Checking path: {path}, exists: {os.path.isdir(path)}", file=sys.stderr)
         if os.path.isdir(path):
             frontend_path = path
             break
 
     if frontend_path:
+        import sys
         index_path = os.path.join(frontend_path, "index.html")
-        print(f"Frontend path: {frontend_path}, index exists: {os.path.isfile(index_path)}")
+        print(f"DEBUG: Frontend found at: {frontend_path}, index exists: {os.path.isfile(index_path)}", file=sys.stderr)
 
     if frontend_path and os.path.isfile(os.path.join(frontend_path, "index.html")):
         app.mount(
