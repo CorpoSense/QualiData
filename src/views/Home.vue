@@ -193,71 +193,17 @@
     </section>
 
     <!-- Pricing Preview -->
-    <section class="py-5 bg-light">
-      <div class="container py-5">
-        <div class="text-center mb-5">
-          <h2 class="h1 fw-bold mb-3">Simple Pricing</h2>
-          <p class="text-muted">Start free, scale as you grow.</p>
-        </div>
-        <div class="row justify-content-center g-4">
-          <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100">
-              <div class="card-body p-4 text-center">
-                <h3>Free</h3>
-                <p class="display-4 fw-bold">$0</p>
-                <p class="text-muted">Perfect for individuals</p>
-                <ul class="list-unstyled text-start mb-4">
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>1 Project</li>
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>100 rows per dataset</li>
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Basic operations</li>
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>CSV import/export</li>
-                  <li class="mb-2 text-muted"><i class="bi bi-x me-2"></i>AI cleaning</li>
-                  <li class="mb-2 text-muted"><i class="bi bi-x me-2"></i>API access</li>
-                </ul>
-                <BButton variant="outline-primary" block @click="goGetStarted">Get Started</BButton>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card border-0 shadow-lg h-100 position-relative" style="border: 2px solid #667eea !important;">
-              <div class="position-absolute top-0 start-50 translate-middle" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 4px 16px; border-radius: 20px; font-size: 12px;">Most Popular</div>
-              <div class="card-body p-4 text-center">
-                <h3>Pro</h3>
-                <p class="display-4 fw-bold">$29<small class="text-muted fs-6">/mo</small></p>
-                <p class="text-muted">For professionals</p>
-                <ul class="list-unstyled text-start mb-4">
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>10 Projects</li>
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>10,000 rows per dataset</li>
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>AI-powered cleaning</li>
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Priority support</li>
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>API access</li>
-                  <li class="mb-2 text-muted"><i class="bi bi-x me-2"></i>Custom integrations</li>
-                </ul>
-                <BButton variant="primary" block @click="goGetStarted">Start Free Trial</BButton>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100">
-              <div class="card-body p-4 text-center">
-                <h3>Enterprise</h3>
-                <p class="display-4 fw-bold">$99<small class="text-muted fs-6">/mo</small></p>
-                <p class="text-muted">For larger organizations</p>
-                <ul class="list-unstyled text-start mb-4">
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Unlimited Projects</li>
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Unlimited rows</li>
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>All features</li>
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Custom integrations</li>
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Dedicated support</li>
-                  <li class="mb-2"><i class="bi bi-check text-success me-2"></i>SSO/SAML</li>
-                </ul>
-                <BButton variant="outline-dark" block @click="contactSales">Contact Sales</BButton>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+    <PricingSection @select-plan="handlePlanSelect">
+      <template #cta="{ plan }">
+        <BButton 
+          :variant="plan.featured ? 'primary' : 'outline-dark'" 
+          block
+          @click="plan.name === 'Enterprise' ? contactSales() : goGetStarted()"
+        >
+          {{ plan.cta }}
+        </BButton>
+      </template>
+    </PricingSection>
 
     <!-- FAQ -->
     <section class="py-5">
@@ -299,6 +245,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { BButton, BBadge } from 'bootstrap-vue-next'
+import PricingSection from '@/components/PricingSection.vue'
 
 const router = useRouter()
 const activeStep = ref(0)
@@ -335,6 +282,14 @@ const faqs = [
 
 const goGetStarted = () => {
   router.push('/login')
+}
+
+const handlePlanSelect = (plan) => {
+  if (plan.name === 'Enterprise') {
+    contactSales()
+  } else {
+    goGetStarted()
+  }
 }
 
 const watchDemo = () => {
