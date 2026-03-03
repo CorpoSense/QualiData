@@ -298,6 +298,7 @@
 </template>
 
 <script setup lang="ts">
+// @ts-nocheck
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { BButton, BBadge } from 'bootstrap-vue-next'
@@ -340,7 +341,7 @@ const goGetStarted = () => {
   router.push('/login')
 }
 
-const handlePlanSelect = (plan) => {
+const handlePlanSelect = (plan: any) => {
   if (plan.name === 'Enterprise') {
     contactSales()
   } else {

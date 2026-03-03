@@ -20,14 +20,12 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
       
-      - name: Install pytest-cov
-        run: pip install pytest-cov
-      
       - name: Install dependencies
         working-directory: ./backend
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pytest-cov pytest
       
       - name: Run tests with pytest
         working-directory: ./backend
@@ -40,6 +38,28 @@ jobs:
           name: coverage-report
           path: backend/htmlcov
           retention-days: 7
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build frontend
+        run: pnpm build
+      
+      - name: Run TypeScript check
+        run: pnpm exec tsc --noEmit
 
   lint:
     runs-on: ubuntu-latest
@@ -60,8 +80,7 @@ jobs:
       
       - name: Run Ruff
         working-directory: ./backend
-        run: |
-          ruff check . --output-format=github || true
+        run: ruff check . --output-format=github || true
       
       - name: Check formatting with Black
         working-directory: ./backend
