@@ -1,8 +1,10 @@
 <template>
   <div class="login-container">
-    <div class="box login-box has-text-centered">
-      <b-icon icon="loading" size="is-large" spin></b-icon>
-      <p class="mt-4">Connecting your account...</p>
+    <div class="card login-box text-center">
+      <div class="card-body">
+        <i class="bi bi-arrow-repeat spinner-border spinner-border-lg"></i>
+        <p class="mt-4">Connecting your account...</p>
+      </div>
     </div>
   </div>
 </template>

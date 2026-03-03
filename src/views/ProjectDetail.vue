@@ -1,171 +1,180 @@
 <template>
   <div class="project-detail">
     <!-- Header -->
-    <div class="is-flex is-justify-content-space-between is-align-items-center mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-5">
       <div>
-        <b-button tag="router-link" to="/projects" icon-left="arrow-left" class="mb-3">
-          Back to Projects
-        </b-button>
-        <h1 class="title is-3 mb-1">{{ project?.name }}</h1>
-        <p class="has-text-grey">{{ project?.description || 'No description' }}</p>
+        <BButton variant="link" @click="$router.push('/projects')" class="mb-3 ps-0">
+          <i class="bi bi-arrow-left me-2"></i>Back to Projects
+        </BButton>
+        <h1 class="h3 mb-1">{{ project?.name }}</h1>
+        <p class="text-muted">{{ project?.description || 'No description' }}</p>
       </div>
-      <div class="buttons">
-        <b-button type="is-primary" icon-left="upload" @click="showImportModal = true">
-          Import Data
-        </b-button>
-        <b-button type="is-success" icon-left="robot" @click="showAssistantModal = true">
-          AI Assistant
-        </b-button>
+      <div class="d-flex gap-2">
+        <BButton variant="primary" @click="showImportModal = true">
+          <i class="bi bi-upload me-2"></i>Import Data
+        </BButton>
+        <BButton variant="success" @click="showAssistantModal = true">
+          <i class="bi bi-robot me-2"></i>AI Assistant
+        </BButton>
       </div>
     </div>
 
     <!-- Stats -->
-    <div class="columns mb-5">
-      <div class="column is-3">
-        <div class="box has-text-centered">
-          <p class="heading">Datasets</p>
-          <p class="title">{{ datasets.length }}</p>
+    <div class="row mb-5">
+      <div class="col-md-3 mb-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <p class="text-muted small text-uppercase">Datasets</p>
+            <p class="h3 mb-0">{{ datasets.length }}</p>
+          </div>
         </div>
       </div>
-      <div class="column is-3">
-        <div class="box has-text-centered">
-          <p class="heading">Total Rows</p>
-          <p class="title">{{ formatNumber(project?.row_count || 0) }}</p>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <p class="text-muted small text-uppercase">Total Rows</p>
+            <p class="h3 mb-0">{{ formatNumber(project?.row_count || 0) }}</p>
+          </div>
         </div>
       </div>
-      <div class="column is-3">
-        <div class="box has-text-centered">
-          <p class="heading">Storage</p>
-          <p class="title">{{ formatBytes(project?.storage_bytes || 0) }}</p>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <p class="text-muted small text-uppercase">Storage</p>
+            <p class="h3 mb-0">{{ formatBytes(project?.storage_bytes || 0) }}</p>
+          </div>
         </div>
       </div>
-      <div class="column is-3">
-        <div class="box has-text-centered">
-          <p class="heading">Last Updated</p>
-          <p class="title is-5">{{ formatDate(project?.updated_at) }}</p>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <p class="text-muted small text-uppercase">Last Updated</p>
+            <p class="h5 mb-0">{{ formatDate(project?.updated_at) }}</p>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Tabs -->
-    <b-tabs v-model="activeTab" type="is-boxed">
-      <b-tab-item label="Datasets">
+    <BTabs v-model="activeTab" nav-style="box">
+      <BTab title="Datasets">
         <!-- Datasets List -->
-        <div v-if="loading" class="has-text-centered py-6">
-          <b-icon icon="loading" size="is-large" spin></b-icon>
+        <div v-if="loading" class="text-center py-6">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
         </div>
-        <div v-else-if="datasets.length === 0" class="box has-text-centered py-6">
-          <b-icon icon="database-outline" size="is-large" class="has-text-grey-light mb-4"></b-icon>
-          <p class="has-text-grey mb-4">No datasets yet</p>
-          <b-button type="is-primary" @click="showImportModal = true">
-            Import Your First Dataset
-          </b-button>
+        <div v-else-if="datasets.length === 0" class="card text-center py-6">
+          <div class="card-body">
+            <i class="bi bi-database text-muted mb-4" style="font-size: 3rem;"></i>
+            <p class="text-muted mb-4">No datasets yet</p>
+            <BButton variant="primary" @click="showImportModal = true">
+              Import Your First Dataset
+            </BButton>
+          </div>
         </div>
-        <div v-else class="columns is-multiline">
-          <div v-for="dataset in datasets" :key="dataset.id" class="column is-4">
-            <div class="box dataset-card">
-              <div class="is-flex is-justify-content-space-between is-align-items-start mb-2">
-                <h3 class="title is-6 mb-0">{{ dataset.name }}</h3>
-                <b-dropdown position="is-bottom-right" @click.stop>
-                  <b-button icon-left="dots-vertical" size="is-small" slot="trigger"></b-button>
-                  <b-dropdown-item @click="viewDataset(dataset)">View Data</b-dropdown-item>
-                  <b-dropdown-item @click="previewDataset(dataset)">Preview</b-dropdown-item>
-                  <b-dropdown-item @click="exportDataset(dataset)">Export</b-dropdown-item>
-                  <b-dropdown-item @click="profileDataset(dataset)" class="has-text-info">Profile</b-dropdown-item>
-                  <b-dropdown-item @click="deleteDataset(dataset)" class="has-text-danger">Delete</b-dropdown-item>
-                </b-dropdown>
-              </div>
-              <p class="is-size-7 has-text-grey mb-2">{{ dataset.description || 'No description' }}</p>
-              <div class="is-flex is-justify-content-space-between is-size-7 has-text-grey">
-                <span><b-icon icon="table" size="is-small"></b-icon> {{ dataset.row_count }} rows</span>
-                <span>{{ dataset.file_type?.toUpperCase() }}</span>
+        <div v-else class="row">
+          <div v-for="dataset in datasets" :key="dataset.id" class="col-md-">
+            <div class="col-md-4 mb-3"> class="card dataset-card">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h3 class="h6 mb-0">{{ dataset.name }}</h3>
+                  <BDropdown>
+                    <template #button-content>
+                      <i class="bi bi-three-dots-vertical"></i>
+                    </template>
+                    <BDropdownItem @click.stop="viewDataset(dataset)">View Data</BDropdownItem>
+                    <BDropdownItem @click.stop="previewDataset(dataset)">Preview</BDropdownItem>
+                    <BDropdownItem @click.stop="exportDataset(dataset)">Export</BDropdownItem>
+                    <BDropdownItem @click.stop="profileDataset(dataset)" variant="info">Profile</BDropdownItem>
+                    <BDropdownItem @click.stop="deleteDataset(dataset)" variant="danger">Delete</BDropdownItem>
+                  </BDropdown>
+                </div>
+                <p class="small text-muted mb-2">{{ dataset.description || 'No description' }}</p>
+                <div class="d-flex justify-content-between small text-muted">
+                  <span><i class="bi bi-table me-1"></i> {{ dataset.row_count }} rows</span>
+                  <span>{{ dataset.file_type?.toUpperCase() }}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </b-tab-item>
+      </BTab>
 
-      <b-tab-item label="Operations">
-        <div class="box">
-          <h3 class="title is-5 mb-4">Operation History</h3>
-          <div v-if="operations.length === 0" class="has-text-centered py-4 has-text-grey">
-            No operations yet
-          </div>
-          <timeline v-else>
-            <timeline-item 
-              v-for="op in operations" 
-              :key="op.id"
-              :color="op.is_undone ? 'grey' : 'green'"
-            >
-              <div class="is-flex is-justify-content-space-between">
+      <BTab title="Operations">
+        <div class="card">
+          <div class="card-body">
+            <h3 class="h5 mb-4">Operation History</h3>
+            <div v-if="operations.length === 0" class="text-center py-4 text-muted">
+              No operations yet
+            </div>
+            <div v-else class="list-group list-group-flush">
+              <div 
+                v-for="op in operations" 
+                :key="op.id"
+                class="list-group-item d-flex justify-content-between align-items-center"
+              >
                 <div>
                   <strong>{{ op.operation_type }}</strong>
-                  <p class="is-size-7 has-text-grey">{{ formatDate(op.created_at) }}</p>
+                  <p class="small text-muted mb-0">{{ formatDate(op.created_at) }}</p>
                 </div>
-                <b-tag v-if="op.is_undone" type="is-light">Undone</b-tag>
+                <BBadge v-if="op.is_undone" variant="light">Undone</BBadge>
               </div>
-            </timeline-item>
-          </timeline>
+            </div>
+          </div>
         </div>
-      </b-tab-item>
-    </b-tabs>
+      </BTab>
+    </BTabs>
 
     <!-- Import Modal -->
-    <b-modal v-model="showImportModal" :has-modal-card="true">
-      <div class="modal-card">
-        <header class="modal-card-head">
-          <p class="modal-card-title">Import Data</p>
-          <button class="delete" @click="showImportModal = false"></button>
-        </header>
-        <section class="modal-card-body">
-          <b-field label="Dataset Name">
-            <b-input v-model="importForm.name" placeholder="My Dataset"></b-input>
-          </b-field>
-          <b-field label="Upload File">
-            <b-upload v-model="importForm.file" drag-drop expanded>
-              <section class="section">
-                <div class="content has-text-centered">
-                  <p><b-icon icon="upload" size="is-large"></b-icon></p>
-                  <p>Drop file here or click to upload</p>
-                  <p class="is-size-7 has-text-grey">CSV, Excel, JSON</p>
-                </div>
-              </section>
-            </b-upload>
-          </b-field>
-        </section>
-        <footer class="modal-card-footer">
-          <b-button type="is-primary" :loading="importing" @click="handleImport">Import</b-button>
-          <b-button @click="showImportModal = false">Cancel</b-button>
-        </footer>
+    <BModal v-model="showImportModal" :has-modal-card="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Import Data</h5>
+            <button type="button" class="btn-close" @click="showImportModal = false"></button>
+          </div>
+          <div class="modal-body">
+            <BFormGroup label="Dataset Name">
+              <BFormInput v-model="importForm.name" placeholder="My Dataset"></BFormInput>
+            </BFormGroup>
+            <BFormGroup label="Upload File" class="mt-3">
+              <BFormFile v-model="importForm.file" drop-placeholder="Drop file here"></BFormFile>
+              <small class="text-muted">CSV, Excel, JSON</small>
+            </BFormGroup>
+          </div>
+          <div class="modal-footer">
+            <BButton variant="primary" :loading="importing" @click="handleImport">Import</BButton>
+            <BButton @click="showImportModal = false">Cancel</BButton>
+          </div>
+        </div>
       </div>
-    </b-modal>
+    </BModal>
 
     <!-- Preview Modal -->
-    <b-modal v-model="showPreviewModal" :has-modal-card="true" :width="'90%'">
-      <div class="modal-card" style="width: 90%">
-        <header class="modal-card-head">
-          <p class="modal-card-title">{{ selectedDataset?.name }} - Preview</p>
-          <button class="delete" @click="showPreviewModal = false"></button>
-        </header>
-        <section class="modal-card-body">
-          <b-field label="Rows to Show">
-            <b-select v-model="previewLimit">
-              <option :value="10">10 rows</option>
-              <option :value="25">25 rows</option>
-              <option :value="50">50 rows</option>
-              <option :value="100">100 rows</option>
-            </b-select>
-          </b-field>
-          <b-table :data="previewData" :columns="previewColumns" :per-page="previewLimit" paginated></b-table>
-        </section>
+    <BModal v-model="showPreviewModal" :has-modal-card="true" size="xl">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">{{ selectedDataset?.name }} - Preview</h5>
+            <button type="button" class="btn-close" @click="showPreviewModal = false"></button>
+          </div>
+          <div class="modal-body">
+            <BFormGroup label="Rows to Show">
+              <BFormSelect v-model="previewLimit" :options="previewLimitOptions"></BFormSelect>
+            </BFormGroup>
+            <BTable :items="previewData" :fields="previewColumns" :per-page="previewLimit" bordered striped hover></BTable>
+          </div>
+        </div>
       </div>
-    </b-modal>
+    </BModal>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { BButton, BTab, BTabs, BDropdown, BDropdownItem, BBadge, BModal, BFormGroup, BFormInput, BFormFile, BFormSelect, BTable } from 'bootstrap-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -185,6 +194,13 @@ const selectedDataset = ref(null)
 const previewLimit = ref(10)
 const previewData = ref([])
 
+const previewLimitOptions = [
+  { value: 10, text: '10 rows' },
+  { value: 25, text: '25 rows' },
+  { value: 50, text: '50 rows' },
+  { value: 100, text: '100 rows' }
+]
+
 const importForm = reactive({
   name: '',
   file: null
@@ -193,7 +209,7 @@ const importForm = reactive({
 const previewColumns = computed(() => {
   if (previewData.value.length === 0) return []
   return Object.keys(previewData.value[0]).map(key => ({
-    field: key,
+    key: key,
     label: key
   }))
 })
@@ -289,12 +305,12 @@ function exportDataset(dataset) {
   window.open(`${apiUrl}/api/datasets/${dataset.id}/export?format=csv`, '_blank')
 }
 
-function selectDataset(dataset) {
-  selectedDataset.value = dataset
-}
-
 function viewDataset(dataset) {
   router.push(`/projects/${projectId}/dataset/${dataset.id}`)
+}
+
+function profileDataset(dataset) {
+  console.log('Profile dataset:', dataset)
 }
 
 function formatNumber(num) {

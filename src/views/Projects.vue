@@ -1,63 +1,76 @@
 <template>
   <div class="projects-page">
-    <div class="is-flex is-justify-content-space-between is-align-items-center mb-5">
-      <h1 class="title mb-0">Projects</h1>
-      <b-button type="is-primary" icon-left="plus" @click="showCreateModal = true">
-        New Project
-      </b-button>
+    <div class="d-flex justify-content-between align-items-center mb-5">
+      <h1 class="h3 mb-0">Projects</h1>
+      <BButton variant="primary" @click="showCreateModal = true">
+        <i class="bi bi-plus-lg me-2"></i>New Project
+      </BButton>
     </div>
 
     <!-- Search -->
-    <div class="box mb-4">
-      <b-field>
-        <b-input 
-          v-model="search" 
-          placeholder="Search projects..." 
-          icon="magnify"
-          @input="debouncedSearch"
-        ></b-input>
-      </b-field>
+    <div class="card mb-4">
+      <div class="card-body">
+        <BFormGroup>
+          <BFormInput 
+            v-model="search" 
+            placeholder="Search projects..." 
+            @update:model-value="debouncedSearch"
+          >
+            <template #prepend>
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+            </template>
+          </BFormInput>
+        </BFormGroup>
+      </div>
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="has-text-centered py-6">
-      <b-icon icon="loading" size="is-large" spin></b-icon>
+    <div v-if="loading" class="text-center py-6">
+      <div class="spinner-border" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="projects.length === 0" class="box has-text-centered py-6">
-      <b-icon icon="folder-open-outline" size="is-large" class="has-text-grey-light mb-4"></b-icon>
-      <p class="has-text-grey mb-4">No projects yet</p>
-      <b-button type="is-primary" @click="showCreateModal = true">
-        Create Your First Project
-      </b-button>
+    <div v-else-if="projects.length === 0" class="card text-center py-6">
+      <div class="card-body">
+        <i class="bi bi-folder2-open text-muted mb-4" style="font-size: 3rem;"></i>
+        <p class="text-muted mb-4">No projects yet</p>
+        <BButton variant="primary" @click="showCreateModal = true">
+          Create Your First Project
+        </BButton>
+      </div>
     </div>
 
     <!-- Projects Grid -->
-    <div v-else class="columns is-multiline">
-      <div v-for="project in projects" :key="project.id" class="column is-4">
-        <div class="box project-card" @click="$router.push(`/projects/${project.id}`)">
-          <div class="is-flex is-justify-content-space-between is-align-items-start mb-3">
-            <h3 class="title is-5 mb-0">{{ project.name }}</h3>
-            <b-dropdown position="is-bottom-right" @click.stop>
-              <b-button icon-left="dots-vertical" size="is-small" slot="trigger"></b-button>
-              <b-dropdown-item @click="editProject(project)">Edit</b-dropdown-item>
-              <b-dropdown-item @click="deleteProject(project)" class="has-text-danger">Delete</b-dropdown-item>
-            </b-dropdown>
-          </div>
-          
-          <p class="has-text-grey is-size-7 mb-3">
-            {{ project.description || 'No description' }}
-          </p>
-          
-          <div class="is-flex is-justify-content-space-between is-size-7 has-text-grey">
-            <span>
-              <b-icon icon="database" size="is-small"></b-icon>
-              {{ project.row_count || 0 }} rows
-            </span>
-            <span>
-              {{ formatBytes(project.storage_bytes || 0) }}
-            </span>
+    <div v-else class="row">
+      <div v-for="project in projects" :key="project.id" class="col-md-4 mb-4">
+        <div class="card project-card" @click="$router.push(`/projects/${project.id}`)">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <h3 class="h5 mb-0">{{ project.name }}</h3>
+              <BDropdown>
+                <template #button-content>
+                  <i class="bi bi-three-dots-vertical"></i>
+                </template>
+                <BDropdownItem @click.stop="editProject(project)">Edit</BDropdownItem>
+                <BDropdownItem @click.stop="deleteProject(project)" variant="danger">Delete</BDropdownItem>
+              </BDropdown>
+            </div>
+            
+            <p class="text-muted small mb-3">
+              {{ project.description || 'No description' }}
+            </p>
+            
+            <div class="d-flex justify-content-between small text-muted">
+              <span>
+                <i class="bi bi-database me-1"></i>
+                {{ project.row_count || 0 }} rows
+              </span>
+              <span>
+                {{ formatBytes(project.storage_bytes || 0) }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -65,42 +78,45 @@
 
     <!-- Pagination -->
     <div v-if="total > pageSize" class="mt-4">
-      <b-pagination
+      <BPagination
         :total="total"
-        :current.sync="currentPage"
+        v-model:model-value="currentPage"
         :per-page="pageSize"
-        @change="fetchProjects"
-      ></b-pagination>
+        @update:model-value="fetchProjects"
+      ></BPagination>
     </div>
 
     <!-- Create/Edit Modal -->
-    <b-modal v-model="showCreateModal" :has-modal-card="true">
-      <div class="modal-card">
-        <header class="modal-card-head">
-          <p class="modal-card-title">{{ editingProject ? 'Edit Project' : 'New Project' }}</p>
-          <button class="delete" @click="closeModal"></button>
-        </header>
-        <section class="modal-card-body">
-          <b-field label="Name" :label-position="labelPosition">
-            <b-input v-model="projectForm.name" placeholder="My Project" required></b-input>
-          </b-field>
-          <b-field label="Description" :label-position="labelPosition">
-            <b-input v-model="projectForm.description" type="textarea" placeholder="Project description..."></b-input>
-          </b-field>
-        </section>
-        <footer class="modal-card-foot">
-          <b-button type="is-primary" :loading="saving" @click="saveProject">
-            {{ editingProject ? 'Update' : 'Create' }}
-          </b-button>
-          <b-button @click="closeModal">Cancel</b-button>
-        </footer>
+    <BModal v-model="showCreateModal" :has-modal-card="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">{{ editingProject ? 'Edit Project' : 'New Project' }}</h5>
+            <button type="button" class="btn-close" @click="closeModal"></button>
+          </div>
+          <div class="modal-body">
+            <BFormGroup label="Name" label-class="fw-bold">
+              <BFormInput v-model="projectForm.name" placeholder="My Project" required></BFormInput>
+            </BFormGroup>
+            <BFormGroup label="Description" label-class="fw-bold">
+              <BFormTextarea v-model="projectForm.description" placeholder="Project description..."></BFormTextarea>
+            </BFormGroup>
+          </div>
+          <div class="modal-footer">
+            <BButton variant="primary" :loading="saving" @click="saveProject">
+              {{ editingProject ? 'Update' : 'Create' }}
+            </BButton>
+            <BButton @click="closeModal">Cancel</BButton>
+          </div>
+        </div>
       </div>
-    </b-modal>
+    </BModal>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { BButton, BFormGroup, BFormInput, BFormTextarea, BDropdown, BDropdownItem, BPagination, BModal } from 'bootstrap-vue-next'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -113,7 +129,6 @@ const total = ref(0)
 const showCreateModal = ref(false)
 const editingProject = ref(null)
 const saving = ref(false)
-const labelPosition = 'on-border'
 
 const projectForm = reactive({
   name: '',

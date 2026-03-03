@@ -1,87 +1,103 @@
 <template>
   <div class="dashboard">
-    <div class="columns">
+    <div class="row">
       <!-- Stats Cards -->
-      <div class="column is-3">
-        <div class="box has-text-centered">
-          <p class="heading">Total Projects</p>
-          <p class="title is-1">{{ stats.projects }}</p>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <p class="text-muted small text-uppercase">Total Projects</p>
+            <p class="h1 mb-0">{{ stats.projects }}</p>
+          </div>
         </div>
       </div>
-      <div class="column is-3">
-        <div class="box has-text-centered">
-          <p class="heading">Total Datasets</p>
-          <p class="title is-1">{{ stats.datasets }}</p>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <p class="text-muted small text-uppercase">Total Datasets</p>
+            <p class="h1 mb-0">{{ stats.datasets }}</p>
+          </div>
         </div>
       </div>
-      <div class="column is-3">
-        <div class="box has-text-centered">
-          <p class="heading">Rows Processed</p>
-          <p class="title is-1">{{ formatNumber(stats.rows) }}</p>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <p class="text-muted small text-uppercase">Rows Processed</p>
+            <p class="h1 mb-0">{{ formatNumber(stats.rows) }}</p>
+          </div>
         </div>
       </div>
-      <div class="column is-3">
-        <div class="box has-text-centered">
-          <p class="heading">Storage Used</p>
-          <p class="title is-1">{{ formatBytes(stats.storage) }}</p>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center">
+          <div class="card-body">
+            <p class="text-muted small text-uppercase">Storage Used</p>
+            <p class="h1 mb-0">{{ formatBytes(stats.storage) }}</p>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Quick Actions -->
-    <div class="box mb-5">
-      <h2 class="title is-4">Quick Actions</h2>
-      <div class="buttons">
-        <b-button type="is-primary" icon-left="plus" @click="$router.push('/projects/new')">
-          New Project
-        </b-button>
-        <b-button type="is-info" icon-left="upload" @click="showImportModal = true">
-          Import Data
-        </b-button>
-        <b-button type="is-success" icon-left="robot" @click="$router.push('/assistant')">
-          AI Assistant
-        </b-button>
+    <div class="card mb-5">
+      <div class="card-body">
+        <h2 class="h4 mb-3">Quick Actions</h2>
+        <div class="d-flex gap-2">
+          <BButton variant="primary" @click="$router.push('/projects/new')">
+            <i class="bi bi-plus-lg me-2"></i>New Project
+          </BButton>
+          <BButton variant="info" @click="showImportModal = true">
+            <i class="bi bi-upload me-2"></i>Import Data
+          </BButton>
+          <BButton variant="success" @click="$router.push('/assistant')">
+            <i class="bi bi-robot me-2"></i>AI Assistant
+          </BButton>
+        </div>
       </div>
     </div>
 
     <!-- API Usage -->
-    <div class="box mb-5">
-      <RateLimitStatus />
+    <div class="card mb-5">
+      <div class="card-body">
+        <RateLimitStatus />
+      </div>
     </div>
 
     <!-- Recent Projects -->
-    <div class="box">
-      <div class="is-flex is-justify-content-space-between is-align-items-center mb-4">
-        <h2 class="title is-4 mb-0">Recent Projects</h2>
-        <b-button tag="router-link" to="/projects" size="is-small" type="is-text">
-          View All
-        </b-button>
-      </div>
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h2 class="h4 mb-0">Recent Projects</h2>
+          <router-link to="/projects" class="small">View All</router-link>
+        </div>
 
-      <div v-if="loading" class="has-text-centered py-6">
-        <b-icon icon="loading" size="is-large" spin></b-icon>
-      </div>
+        <div v-if="loading" class="text-center py-6">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
 
-      <div v-else-if="projects.length === 0" class="has-text-centered py-6">
-        <p class="has-text-grey">No projects yet</p>
-        <b-button type="is-primary" class="mt-3" @click="$router.push('/projects/new')">
-          Create Your First Project
-        </b-button>
-      </div>
+        <div v-else-if="projects.length === 0" class="text-center py-6">
+          <p class="text-muted">No projects yet</p>
+          <BButton variant="primary" class="mt-3" @click="$router.push('/projects/new')">
+            Create Your First Project
+          </BButton>
+        </div>
 
-      <div v-else class="columns is-multiline">
-        <div v-for="project in projects" :key="project.id" class="column is-4">
-          <div class="box project-card" @click="$router.push(`/projects/${project.id}`)">
-            <h3 class="title is-5 mb-2">{{ project.name }}</h3>
-            <p class="has-text-grey is-size-7 mb-3">
-              {{ project.description || 'No description' }}
-            </p>
-            <div class="is-flex is-justify-content-space-between is-size-7 has-text-grey">
-              <span>
-                <b-icon icon="database" size="is-small"></b-icon>
-                {{ project.row_count || 0 }} rows
-              </span>
-              <span>{{ formatDate(project.updated_at) }}</span>
+        <div v-else class="row">
+          <div v-for="project in projects" :key="project.id" class="col-md-4 mb-3">
+            <div class="card project-card" @click="$router.push(`/projects/${project.id}`)">
+              <div class="card-body">
+                <h3 class="h5 mb-2">{{ project.name }}</h3>
+                <p class="text-muted small mb-3">
+                  {{ project.description || 'No description' }}
+                </p>
+                <div class="d-flex justify-content-between small text-muted">
+                  <span>
+                    <i class="bi bi-database me-1"></i>
+                    {{ project.row_count || 0 }} rows
+                  </span>
+                  <span>{{ formatDate(project.updated_at) }}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -89,51 +105,43 @@
     </div>
 
     <!-- Import Modal -->
-    <b-modal v-model="showImportModal" :has-modal-card="true">
-      <div class="modal-card">
-        <header class="modal-card-head">
-          <p class="modal-card-title">Import Data</p>
-          <button class="delete" @click="showImportModal = false"></button>
-        </header>
-        <section class="modal-card-body">
-          <b-field label="Select Project">
-            <b-select v-model="importForm.projectId" expanded placeholder="Choose project">
-              <option v-for="p in projects" :key="p.id" :value="p.id">
-                {{ p.name }}
-              </option>
-            </b-select>
-          </b-field>
+    <BModal v-model="showImportModal" :has-modal-card="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Import Data</h5>
+            <button type="button" class="btn-close" @click="showImportModal = false"></button>
+          </div>
+          <div class="modal-body">
+            <BFormGroup label="Select Project">
+              <BFormSelect v-model="importForm.projectId" :options="projectOptions"></BFormSelect>
+            </BFormGroup>
 
-          <b-field label="Upload File">
-            <b-upload v-model="importForm.file" drag-drop expanded>
-              <section class="section">
-                <div class="content has-text-centered">
-                  <p><b-icon icon="upload" size="is-large"></b-icon></p>
-                  <p>Drop your file here or click to upload</p>
-                  <p class="is-size-7 has-text-grey">Supported: CSV, Excel, JSON</p>
-                </div>
-              </section>
-            </b-upload>
-          </b-field>
+            <BFormGroup label="Upload File" class="mt-3">
+              <BFormFile v-model="importForm.file" drop-placeholder="Drop your file here"></BFormFile>
+              <small class="text-muted">Supported: CSV, Excel, JSON</small>
+            </BFormGroup>
 
-          <b-field label="Dataset Name">
-            <b-input v-model="importForm.name" placeholder="My Dataset"></b-input>
-          </b-field>
-        </section>
-        <footer class="modal-card-foot">
-          <b-button type="is-primary" :loading="importing" @click="handleImport">
-            Import
-          </b-button>
-          <b-button @click="showImportModal = false">Cancel</b-button>
-        </footer>
+            <BFormGroup label="Dataset Name" class="mt-3">
+              <BFormInput v-model="importForm.name" placeholder="My Dataset"></BFormInput>
+            </BFormGroup>
+          </div>
+          <div class="modal-footer">
+            <BButton variant="primary" :loading="importing" @click="handleImport">
+              Import
+            </BButton>
+            <BButton @click="showImportModal = false">Cancel</BButton>
+          </div>
+        </div>
       </div>
-    </b-modal>
+    </BModal>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { BButton, BModal, BFormGroup, BFormSelect, BFormFile, BFormInput } from 'bootstrap-vue-next'
 import RateLimitStatus from '@/components/RateLimitStatus.vue'
 
 const router = useRouter()
@@ -149,6 +157,10 @@ const importForm = reactive({
   file: null,
   name: ''
 })
+
+const projectOptions = computed(() => 
+  projects.value.map(p => ({ value: p.id, text: p.name }))
+)
 
 onMounted(async () => {
   await fetchProjects()
@@ -171,7 +183,6 @@ async function fetchProjects() {
 }
 
 async function fetchStats() {
-  // Calculate stats from projects
   stats.value.projects = projects.value.length
   stats.value.datasets = projects.value.reduce((sum, p) => sum + (p.datasets?.length || 0), 0)
   stats.value.rows = projects.value.reduce((sum, p) => sum + (p.row_count || 0), 0)

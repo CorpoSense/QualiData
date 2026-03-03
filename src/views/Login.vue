@@ -1,159 +1,153 @@
 <template>
   <div class="login-container">
-    <div class="box login-box">
-      <h1 class="title has-text-centered">MasterDataCleaner</h1>
-      <h2 class="subtitle has-text-centered">Sign in to your account</h2>
+    <div class="card login-box">
+      <div class="card-body">
+        <h1 class="h3 text-center mb-4">MasterDataCleaner</h1>
+        <h2 class="h5 text-center text-muted mb-4">Sign in to your account</h2>
 
-      <!-- Tabs for Login/Register -->
-      <b-tabs v-model="activeTab" type="is-toggle" expanded>
-        <b-tab-item label="Sign In" value="login">
-          <b-form @submit.prevent="handleLogin">
-            <b-field label="Email" :label-position="labelPosition">
-              <b-input 
-                v-model="loginForm.email" 
-                type="email" 
-                placeholder="your@email.com"
-                required
-              ></b-input>
-            </b-field>
+        <!-- Tabs for Login/Register -->
+        <BTabs v-model="activeTab" nav-wrapper-class="mb-3">
+          <BTab title="Sign In" value="login">
+            <BForm @submit.prevent="handleLogin">
+              <BFormGroup label="Email" label-class="fw-bold">
+                <BFormInput 
+                  v-model="loginForm.email" 
+                  type="email" 
+                  placeholder="your@email.com"
+                  required
+                ></BFormInput>
+              </BFormGroup>
 
-            <b-field label="Password" :label-position="labelPosition">
-              <b-input 
-                v-model="loginForm.password" 
-                type="password" 
-                placeholder="Password"
-                required
-                password-reveal
-              ></b-input>
-            </b-field>
+              <BFormGroup label="Password" label-class="fw-bold">
+                <BFormInput 
+                  v-model="loginForm.password" 
+                  type="password" 
+                  placeholder="Password"
+                  required
+                ></BFormInput>
+              </BFormGroup>
 
-            <b-button 
-              type="is-primary" 
-              native-type="submit" 
-              :loading="loading"
-              expanded
-            >
-              Sign In
-            </b-button>
-
-            <p class="has-text-centered mt-4">
-              <router-link to="/forgot-password">Forgot your password?</router-link>
-            </p>
-
-            <p class="has-text-centered mt-2">
-              <a @click="activeTab = 'register'">Don't have an account? Sign up</a>
-            </p>
-          </b-form>
-
-          <!-- OAuth Options -->
-          <div class="mt-4">
-            <p class="has-text-centered has-text-grey is-size-7 mb-2">Or continue with</p>
-            <div class="buttons is-centered">
-              <b-button 
-                type="is-white" 
-                outlined
-                @click="oauthLogin('google')"
-                :disabled="!oauthEnabled"
+              <BButton 
+                variant="primary" 
+                type="submit" 
+                :loading="loading"
+                class="w-100"
               >
-                <b-icon icon="google"></b-icon>
-                <span>Google</span>
-              </b-button>
-              <b-button 
-                type="is-dark" 
-                outlined
-                @click="oauthLogin('github')"
-                :disabled="!oauthEnabled"
-              >
-                <b-icon icon="github"></b-icon>
-                <span>GitHub</span>
-              </b-button>
+                Sign In
+              </BButton>
+
+              <p class="text-center mt-4">
+                <router-link to="/forgot-password">Forgot your password?</router-link>
+              </p>
+
+              <p class="text">
+                <a @click="activeTab = 'register'" class="cursor-pointer">Don't have an account? Sign up</a>
+              </p>
+            </BForm>
+
+            <!-- OAuth Options -->
+            <div class="mt-4">
+              <p class="text-center text-muted small mb-2">Or continue with</p>
+              <div class="d-flex justify-content-center gap-2">
+                <BButton 
+                  variant="outline-secondary" 
+                  @click="oauthLogin('google')"
+                  :disabled="!oauthEnabled"
+                >
+                  <i class="bi bi-google"></i>
+                  <span class="ms-2">Google</span>
+                </BButton>
+                <BButton 
+                  variant="outline-dark" 
+                  @click="oauthLogin('github')"
+                  :disabled="!oauthEnabled"
+                >
+                  <i class="bi bi-github"></i>
+                  <span class="ms-2">GitHub</span>
+                </BButton>
+              </div>
             </div>
-          </div>
-        </b-tab-item>
+          </BTab>
 
-        <b-tab-item label="Sign Up" value="register">
-          <b-form @submit.prevent="handleRegister">
-            <b-field label="Full Name" :label-position="labelPosition">
-              <b-input 
-                v-model="registerForm.fullName" 
-                placeholder="John Doe"
-              ></b-input>
-            </b-field>
+          <BTab title="Sign Up" value="register">
+            <BForm @submit.prevent="handleRegister">
+              <BFormGroup label="Full Name" label-class="fw-bold">
+                <BFormInput 
+                  v-model="registerForm.fullName" 
+                  placeholder="John Doe"
+                ></BFormInput>
+              </BFormGroup>
 
-            <b-field label="Email" :label-position="labelPosition">
-              <b-input 
-                v-model="registerForm.email" 
-                type="email" 
-                placeholder="your@email.com"
-                required
-              ></b-input>
-            </b-field>
+              <BFormGroup label="Email" label-class="fw-bold">
+                <BFormInput 
+                  v-model="registerForm.email" 
+                  type="email" 
+                  placeholder="your@email.com"
+                  required
+                ></BFormInput>
+              </BFormGroup>
 
-            <b-field label="Password" :label-position="labelPosition">
-              <b-input 
-                v-model="registerForm.password" 
-                type="password" 
-                placeholder="Password"
-                required
-                password-reveal
-              ></b-input>
-            </b-field>
+              <BFormGroup label="Password" label-class="fw-bold">
+                <BFormInput 
+                  v-model="registerForm.password" 
+                  type="password" 
+                  placeholder="Password"
+                  required
+                ></BFormInput>
+              </BFormGroup>
 
-            <b-field label="Confirm Password" :label-position="labelPosition">
-              <b-input 
-                v-model="registerForm.confirmPassword" 
-                type="password" 
-                placeholder="Confirm password"
-                required
-                password-reveal
-              ></b-input>
-            </b-field>
+              <BFormGroup label="Confirm Password" label-class="fw-bold">
+                <BFormInput 
+                  v-model="registerForm.confirmPassword" 
+                  type="password" 
+                  placeholder="Confirm password"
+                  required
+                ></BFormInput>
+              </BFormGroup>
 
-            <b-button 
-              type="is-primary" 
-              native-type="submit" 
-              :loading="loading"
-              expanded
-            >
-              Create Account
-            </b-button>
+              <BButton 
+                variant="primary" 
+                type="submit" 
+                :loading="loading"
+                class="w-100"
+              >
+                Create Account
+              </BButton>
 
-            <p class="has-text-centered mt-4">
-              <a @click="activeTab = 'login'">Already have an account? Sign in</a>
-            </p>
-          </b-form>
-        </b-tab-item>
-      </b-tabs>
+              <p class="text-center mt-4">
+                <a @click="activeTab = 'login'" class="cursor-pointer">Already have an account? Sign in</a>
+              </p>
+            </BForm>
+          </BTab>
+        </BTabs>
 
-      <!-- Error Message -->
-      <b-notification 
-        v-if="error" 
-        type="is-danger" 
-        :closable="false"
-        class="mt-4"
-      >
-        {{ error }}
-      </b-notification>
+        <!-- Error Message -->
+        <BAlert 
+          v-if="error" 
+          variant="danger" 
+          :closable="false"
+          class="mt-4"
+        >
+          {{ error }}
+        </BAlert>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { BForm, BFormGroup, BFormInput, BButton, BTab, BTabs, BAlert } from 'bootstrap-vue-next'
 import { getApiUrl } from '@/utils/api'
 
 const router = useRouter()
-
-// Use relative API URL in production (same domain)
 const apiUrl = getApiUrl()
 
-const oauthEnabled = ref(true) // Set to false if OAuth not configured
-
+const oauthEnabled = ref(true)
 const activeTab = ref('login')
 const loading = ref(false)
 const error = ref('')
-const labelPosition = 'on-border'
 
 const loginForm = ref({
   email: '',
@@ -185,7 +179,6 @@ async function handleLogin() {
     })
     
     if (!res.ok) {
-      // Try to parse as JSON, fallback to text
       const contentType = res.headers.get('content-type')
       if (contentType && contentType.includes('application/json')) {
         const data = await res.json()
@@ -229,7 +222,6 @@ async function handleRegister() {
     })
     
     if (!res.ok) {
-      // Try to parse as JSON, fallback to text
       const contentType = res.headers.get('content-type')
       if (contentType && contentType.includes('application/json')) {
         const data = await res.json()
@@ -254,8 +246,6 @@ async function handleRegister() {
 }
 
 function oauthLogin(provider) {
-  // In production, this would redirect to the OAuth provider
-  // For now, we'll redirect to the OAuth route
   window.location.href = `${apiUrl}/api/auth/oauth/${provider}`
 }
 </script>
@@ -273,5 +263,9 @@ function oauthLogin(provider) {
   width: 100%;
   max-width: 400px;
   padding: 2rem;
+}
+
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>

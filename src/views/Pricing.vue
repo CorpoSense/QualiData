@@ -2,37 +2,37 @@
   <div class="pricing-page">
     <div class="container">
       <!-- Header -->
-      <div class="has-text-centered mb-6">
-        <h1 class="title is-1 has-text-weight-bold">
+      <div class="text-center mb-6">
+        <h1 class="h1 mb-3">
           Simple, Transparent <span class="gradient-text">Pricing</span>
         </h1>
-        <p class="subtitle is-4 has-text-grey">
+        <p class="h5 text-muted mb-4">
           Choose the plan that fits your needs. Upgrade or downgrade anytime.
         </p>
         
         <!-- Toggle -->
         <div class="toggle-container mt-5">
-          <span :class="{ 'has-text-weight-bold': !isYearly }">Monthly</span>
-          <b-switch v-model="isYearly" class="mx-3" type="is-primary"></b-switch>
-          <span :class="{ 'has-text-weight-bold': isYearly }">
+          <span :class="{ 'fw-bold': !isYearly }">Monthly</span>
+          <BFormCheckbox v-model="isYearly" switch class="mx-3"></BFormCheckbox>
+          <span :class="{ 'fw-bold': isYearly }">
             Yearly
-            <b-tag type="is-success" size="is-small" class="ml-2">Save 20%</b-tag>
+            <BBadge variant="success" class="ms-2">Save 20%</BBadge>
           </span>
         </div>
       </div>
 
       <!-- Pricing Cards -->
-      <div class="columns is-centered">
-        <div v-for="plan in plans" :key="plan.name" class="column is-4">
-          <div class="pricing-card" :class="{ 'featured': plan.featured }">
+      <div class="row justify-content-center">
+        <div v-for="plan in plans" :key="plan.name" class="col-md-4 mb-4">
+          <div class="card pricing-card" :class="{ 'featured': plan.featured }">
             <div v-if="plan.featured" class="popular-badge">
-              <b-icon icon="star" size="is-small"></b-icon>
+              <i class="bi bi-star-fill"></i>
               Most Popular
             </div>
             
             <div class="plan-header">
-              <h3 class="title is-4 mb-2">{{ plan.name }}</h3>
-              <p class="has-text-grey is-size-6">{{ plan.description }}</p>
+              <h3 class="h4 mb-2">{{ plan.name }}</h3>
+              <p class="text-muted small">{{ plan.description }}</p>
             </div>
             
             <div class="plan-price mb-4">
@@ -42,66 +42,63 @@
             
             <ul class="features-list mb-5">
               <li v-for="feature in plan.features" :key="feature">
-                <b-icon icon="check-circle" type="is-success" size="is-small" class="mr-2"></b-icon>
+                <i class="bi bi-check-circle text-success me-2"></i>
                 {{ feature }}
               </li>
-              <li v-for="missing in plan.notIncluded" :key="missing" class="has-text-grey-light">
-                <b-icon icon="close-circle" size="is-small" class="mr-2"></b-icon>
+              <li v-for="missing in plan.notIncluded" :key="missing" class="text-muted">
+                <i class="bi bi-x-circle me-2"></i>
                 {{ missing }}
               </li>
             </ul>
             
-            <b-button 
-              :type="plan.featured ? 'is-primary' : 'is-light'"
-              size="is-medium"
-              expanded
-              rounded
+            <BButton 
+              :variant="plan.featured ? 'primary' : 'outline-secondary'"
+              size="md"
+              block
               @click="selectPlan(plan)"
             >
               {{ plan.cta }}
-            </b-button>
+            </BButton>
           </div>
         </div>
       </div>
 
       <!-- FAQ -->
-      <div class="section">
-        <div class="container is-max-desktop">
-          <h2 class="title is-3 has-text-centered mb-5">Frequently Asked Questions</h2>
+      <div class="py-5">
+        <div class="container" style="max-width: 800px;">
+          <h2 class="h3 text-center mb-5">Frequently Asked Questions</h2>
           
-          <b-collapse
+          <BCollapse
             v-for="(faq, index) in faqs"
             :key="index"
             class="card mb-3"
-            animation="slide"
-            :open="openFaq === index"
-            @open="openFaq = index"
+            :visible="openFaq === index"
           >
             <template #trigger>
-              <div class="card-header" role="button">
-                <p class="card-header-title">{{ faq.question }}</p>
-                <a class="card-header-icon">
-                  <b-icon :icon="openFaq === index ? 'minus' : 'plus'"></b-icon>
-                </a>
+              <div class="card-header" role="button" @click="openFaq = openFaq === index ? -1 : index">
+                <p class="card-title mb-0">{{ faq.question }}</p>
+                <div class="card-header-icon">
+                  <i :class="openFaq === index ? 'bi bi-dash' : 'bi bi-plus'"></i>
+                </div>
               </div>
             </template>
-            <div class="card-content">
-              <p class="has-text-grey">{{ faq.answer }}</p>
+            <div class="card-body">
+              <p class="text-muted mb-0">{{ faq.answer }}</p>
             </div>
-          </b-collapse>
+          </BCollapse>
         </div>
       </div>
 
       <!-- CTA -->
-      <section class="section has-background-light">
-        <div class="has-text-centered">
-          <h2 class="title is-3">Need a Custom Plan?</h2>
-          <p class="subtitle is-5 has-text-grey mb-5">
+      <section class="py-5 bg-light">
+        <div class="text-center">
+          <h2 class="h3 mb-3">Need a Custom Plan?</h2>
+          <p class="h5 text-muted mb-5">
             Contact us for custom pricing for enterprise needs.
           </p>
-          <b-button type="is-primary" size="is-large" rounded @click="contactSales">
+          <BButton variant="primary" size="lg" @click="contactSales">
             Contact Sales
-          </b-button>
+          </BButton>
         </div>
       </section>
     </div>
@@ -110,6 +107,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { BFormCheckbox, BBadge, BButton, BCollapse } from 'bootstrap-vue-next'
 
 const isYearly = ref(false)
 const openFaq = ref(0)
@@ -203,12 +201,10 @@ const faqs = [
 
 const selectPlan = (plan) => {
   if (plan.monthlyPrice === 0) {
-    // Navigate to signup
     console.log('Select free plan')
   } else if (plan.name === 'Enterprise') {
     contactSales()
   } else {
-    // Navigate to checkout
     console.log('Select plan:', plan.name)
   }
 }
@@ -307,7 +303,16 @@ const contactSales = () => {
   overflow: hidden;
 }
 
-.card-header-title {
+.card-header {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: #f8f9fa;
+}
+
+.card-title {
   font-weight: 500;
 }
 </style>

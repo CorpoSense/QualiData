@@ -1,69 +1,71 @@
 <template>
   <div class="login-container">
-    <div class="box login-box">
-      <h1 class="title has-text-centered">Reset Password</h1>
-      <h2 class="subtitle has-text-centered">Enter your email to receive a reset link</h2>
+    <div class="card login-box">
+      <div class="card-body">
+        <h1 class="h3 text-center mb-4">Reset Password</h1>
+        <h2 class="h5 text-center text-muted mb-4">Enter your email to receive a reset link</h2>
 
-      <!-- Request Reset Form -->
-      <b-form v-if="!emailSent" @submit.prevent="requestReset">
-        <b-field label="Email" :label-position="labelPosition">
-          <b-input 
-            v-model="form.email" 
-            type="email" 
-            placeholder="your@email.com"
-            required
-          ></b-input>
-        </b-field>
+        <!-- Request Reset Form -->
+        <BForm v-if="!emailSent" @submit.prevent="requestReset">
+          <BFormGroup label="Email" label-class="fw-bold">
+            <BFormInput 
+              v-model="form.email" 
+              type="email" 
+              placeholder="your@email.com"
+              required
+            ></BFormInput>
+          </BFormGroup>
 
-        <b-button 
-          type="is-primary" 
-          native-type="submit" 
-          :loading="loading"
-          expanded
+          <BButton 
+            variant="primary" 
+            type="submit" 
+            :loading="loading"
+            class="w-100"
+          >
+            Send Reset Link
+          </BButton>
+
+          <p class="text-center mt-4">
+            <router-link to="/login">Back to Login</router-link>
+          </p>
+        </BForm>
+
+        <!-- Success Message -->
+        <div v-else class="text-center">
+          <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+          <p class="mt-4">If an account with that email exists, we've sent a password reset link.</p>
+          <p class="text-muted small mt-2">Check your email and click the reset link.</p>
+          
+          <BButton class="mt-4" @click="emailSent = false">Resend Email</BButton>
+          
+          <p class="mt-4">
+            <router-link to="/login">Back to Login</router-link>
+          </p>
+        </div>
+
+        <!-- Error Message -->
+        <BAlert 
+          v-if="error" 
+          variant="danger" 
+          :closable="false"
+          class="mt-4"
         >
-          Send Reset Link
-        </b-button>
-
-        <p class="has-text-centered mt-4">
-          <router-link to="/login">Back to Login</router-link>
-        </p>
-      </b-form>
-
-      <!-- Success Message -->
-      <div v-else class="has-text-centered">
-        <b-icon icon="email-check" size="is-large" type="is-success"></b-icon>
-        <p class="mt-4">If an account with that email exists, we've sent a password reset link.</p>
-        <p class="is-size-7 has-text-grey mt-2">Check your email and click the reset link.</p>
-        
-        <b-button class="mt-4" @click="emailSent = false">Resend Email</b-button>
-        
-        <p class="mt-4">
-          <router-link to="/login">Back to Login</router-link>
-        </p>
+          {{ error }}
+        </BAlert>
       </div>
-
-      <!-- Error Message -->
-      <b-notification 
-        v-if="error" 
-        type="is-danger" 
-        :closable="false"
-        class="mt-4"
-      >
-        {{ error }}
-      </b-notification>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { BForm, BFormGroup, BFormInput, BButton, BAlert } from 'bootstrap-vue-next'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const loading = ref(false)
 const error = ref('')
 const emailSent = ref(false)
-const labelPosition = 'on-border'
 
 const form = ref({
   email: ''

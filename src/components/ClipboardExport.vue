@@ -1,12 +1,13 @@
 <template>
-  <b-button type="is-info" outlined @click="copyToClipboard" :loading="copying">
-    <b-icon icon="content-copy"></b-icon>
-    <span>Copy to Clipboard</span>
-  </b-button>
+  <BButton variant="info" outline @click="copyToClipboard" :loading="copying">
+    <i class="bi bi-clipboard"></i>
+    <span class="ms-2">Copy to Clipboard</span>
+  </BButton>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { BButton } from 'bootstrap-vue-next'
 
 const props = defineProps({
   data: { type: Array, required: true }

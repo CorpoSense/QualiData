@@ -1,64 +1,64 @@
 <template>
   <div class="login-container">
-    <div class="box login-box">
-      <h1 class="title has-text-centered">Set New Password</h1>
-      <h2 class="subtitle has-text-centered">Enter your new password below</h2>
+    <div class="card login-box">
+      <div class="card-body">
+        <h1 class="h3 text-center mb-4">Set New Password</h1>
+        <h2 class="h5 text-center text-muted mb-4">Enter your new password below</h2>
 
-      <b-form v-if="!success" @submit.prevent="resetPassword">
-        <b-field label="New Password" :label-position="labelPosition">
-          <b-input 
-            v-model="form.password" 
-            type="password" 
-            placeholder="New password"
-            required
-            password-reveal
-          ></b-input>
-        </b-field>
+        <BForm v-if="!success" @submit.prevent="resetPassword">
+          <BFormGroup label="New Password" label-class="fw-bold">
+            <BFormInput 
+              v-model="form.password" 
+              type="password" 
+              placeholder="New password"
+              required
+            ></BFormInput>
+          </BFormGroup>
 
-        <b-field label="Confirm Password" :label-position="labelPosition">
-          <b-input 
-            v-model="form.confirmPassword" 
-            type="password" 
-            placeholder="Confirm new password"
-            required
-            password-reveal
-          ></b-input>
-        </b-field>
+          <BFormGroup label="Confirm Password" label-class="fw-bold">
+            <BFormInput 
+              v-model="form.confirmPassword" 
+              type="password" 
+              placeholder="Confirm new password"
+              required
+            ></BFormInput>
+          </BFormGroup>
 
-        <b-button 
-          type="is-primary" 
-          native-type="submit" 
-          :loading="loading"
-          :disabled="form.password !== form.confirmPassword"
-          expanded
+          <BButton 
+            variant="primary" 
+            type="submit" 
+            :loading="loading"
+            :disabled="form.password !== form.confirmPassword"
+            class="w-100"
+          >
+            Reset Password
+          </BButton>
+
+          <p class="text-center mt-4">
+            <router-link to="/login">Back to Login</router-link>
+          </p>
+        </BForm>
+
+        <!-- Success Message -->
+        <div v-else class="text-center">
+          <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+          <p class="mt-4">Your password has been reset successfully!</p>
+          
+          <BButton class="mt-4" variant="primary" tag="router-link" to="/login">
+            Go to Login
+          </BButton>
+        </div>
+
+        <!-- Error Message -->
+        <BAlert 
+          v-if="error" 
+          variant="danger" 
+          :closable="false"
+          class="mt-4"
         >
-          Reset Password
-        </b-button>
-
-        <p class="has-text-centered mt-4">
-          <router-link to="/login">Back to Login</router-link>
-        </p>
-      </b-form>
-
-      <!-- Success Message -->
-      <div v-else class="has-text-centered">
-        <b-icon icon="check-circle" size="is-large" type="is-success"></b-icon>
-        <p class="mt-4">Your password has been reset successfully!</p>
-        
-        <b-button class="mt-4" type="is-primary" tag="router-link" to="/login">
-          Go to Login
-        </b-button>
+          {{ error }}
+        </BAlert>
       </div>
-
-      <!-- Error Message -->
-      <b-notification 
-        v-if="error" 
-        type="is-danger" 
-        :closable="false"
-        class="mt-4"
-      >
-        {{ error }}
-      </b-notification>
     </div>
   </div>
 </template>
@@ -66,6 +66,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { BForm, BFormGroup, BFormInput, BButton, BAlert } from 'bootstrap-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -74,7 +75,6 @@ const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const loading = ref(false)
 const error = ref('')
 const success = ref(false)
-const labelPosition = 'on-border'
 const token = ref('')
 
 const form = ref({

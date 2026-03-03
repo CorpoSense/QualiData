@@ -1,30 +1,32 @@
 <template>
-  <div class="box">
-    <h3 class="title is-5 mb-4">Clipboard Import</h3>
-    
-    <b-field label="Paste CSV Data">
-      <b-input 
-        v-model="clipboardData" 
-        type="textarea" 
-        placeholder="Paste your CSV data here..."
-        :rows="10"
-      ></b-input>
-    </b-field>
+  <div class="card">
+    <div class="card-body">
+      <h3 class="h5 mb-4">Clipboard Import</h3>
+      
+      <BFormGroup label="Paste CSV Data">
+        <BFormTextarea 
+          v-model="clipboardData" 
+          placeholder="Paste your CSV data here..."
+          :rows="10"
+        ></BFormTextarea>
+      </BFormGroup>
 
-    <div class="buttons">
-      <b-button type="is-primary" :loading="importing" @click="importFromClipboard">
-        Import Data
-      </b-button>
-      <b-button @click="pasteFromClipboard">
-        <b-icon icon="content-paste"></b-icon>
-        <span>Paste</span>
-      </b-button>
+      <div class="d-flex gap-2">
+        <BButton variant="primary" :loading="importing" @click="importFromClipboard">
+          Import Data
+        </BButton>
+        <BButton @click="pasteFromClipboard">
+          <i class="bi bi-clipboard"></i>
+          <span class="ms-2">Paste</span>
+        </BButton>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { BButton, BFormGroup, BFormTextarea } from 'bootstrap-vue-next'
 
 const emit = defineEmits(['import'])
 
