@@ -20,9 +20,6 @@ importers:
       bootstrap-vue-next:
         specifier: ^0.43.7
         version: 0.43.7(vue-router@4.6.4(vue@3.5.28(typescript@5.9.3)))(vue@3.5.28(typescript@5.9.3))
-      buefy:
-        specifier: ^3.0.4
-        version: 3.0.4(vue@3.5.28(typescript@5.9.3))
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
@@ -586,19 +583,11 @@ packages:
     peerDependencies:
       '@popperjs/core': ^2.11.8
 
-  buefy@3.0.4:
-    resolution: {integrity: sha512-mSQSGcVaGx92KR+Dl9gH6oMif4tMrogqT61+k27rMckuhomdbob24sJbHKa/pRsq57Ti8gzBfpWiS9Dc+qDMZw==}
-    peerDependencies:
-      vue: ^3.0.0
-
   buffer-crc32@0.2.13:
     resolution: {integrity: sha512-VO9Ht/+p3SN7SKWqcrgEzjGbRSJYTx+Q1pTQC0wrWqHx0vpJraQ6GtHx8tvcg1rlK1byhU5gccxgOgj7B0TDkQ==}
 
   buffer@5.7.1:
     resolution: {integrity: sha512-EHcyIPBQ4BSGlvjB16k5KgAJ27CIsHY/2JBmCRReo48y9rQ3MaUzWX3KVlBa4U7MyX02HdVj0K7C3WaB3ju7FQ==}
-
-  bulma@1.0.4:
-    resolution: {integrity: sha512-Ffb6YGXDiZYX3cqvSbHWqQ8+LkX6tVoTcZuVB3lm93sbAVXlO0D6QlOTMnV6g18gILpAXqkG2z9hf9z4hCjz2g==}
 
   cachedir@2.4.0:
     resolution: {integrity: sha512-9EtFOZR8g22CL7BWjJ9BUx1+A/djkofnyW3aOXZORNW2kxoUpx2h+uN2cOqwPmFhnpVmxg+KW2OjOSgChTEvsQ==}
@@ -1775,19 +1764,12 @@ snapshots:
     dependencies:
       '@popperjs/core': 2.11.8
 
-  buefy@3.0.4(vue@3.5.28(typescript@5.9.3)):
-    dependencies:
-      bulma: 1.0.4
-      vue: 3.5.28(typescript@5.9.3)
-
   buffer-crc32@0.2.13: {}
 
   buffer@5.7.1:
     dependencies:
       base64-js: 1.5.1
       ieee754: 1.2.1
-
-  bulma@1.0.4: {}
 
   cachedir@2.4.0: {}
 
