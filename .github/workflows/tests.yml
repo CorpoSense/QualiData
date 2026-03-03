@@ -46,6 +46,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -59,7 +64,7 @@ jobs:
         run: pnpm build
       
       - name: Run TypeScript check
-        run: pnpm exec tsc --noEmit
+        run: pnpm exec vue-tsc --noEmit
 
   lint:
     runs-on: ubuntu-latest
