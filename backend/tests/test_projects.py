@@ -1,7 +1,8 @@
 """Tests for projects endpoints - route validation."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 # Mock database before importing app
@@ -28,18 +29,12 @@ class TestProjectRoutes:
 
     def test_create_requires_auth(self):
         """Test create project requires authentication."""
-        response = client.post(
-            "/api/projects",
-            json={"name": "Test Project"}
-        )
+        response = client.post("/api/projects", json={"name": "Test Project"})
         assert response.status_code == 401
 
     def test_update_requires_auth(self):
         """Test update project requires authentication."""
-        response = client.put(
-            "/api/projects/1",
-            json={"name": "Updated"}
-        )
+        response = client.put("/api/projects/1", json={"name": "Updated"})
         assert response.status_code == 401
 
     def test_delete_requires_auth(self):

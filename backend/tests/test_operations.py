@@ -1,7 +1,8 @@
 """Tests for data operations endpoints - route validation."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from fastapi.testclient import TestClient
 
 # Mock database before importing app
@@ -20,15 +21,14 @@ class TestOperationsRoutes:
         """Test add column requires authentication."""
         response = client.post(
             "/api/datasets/1/operations/add-column",
-            json={"name": "new_col", "dtype": "string"}
+            json={"name": "new_col", "dtype": "string"},
         )
         assert response.status_code == 401
 
     def test_remove_columns_requires_auth(self):
         """Test remove columns requires authentication."""
         response = client.post(
-            "/api/datasets/1/operations/remove-columns",
-            json={"columns": ["col1"]}
+            "/api/datasets/1/operations/remove-columns", json={"columns": ["col1"]}
         )
         assert response.status_code == 401
 
@@ -36,7 +36,7 @@ class TestOperationsRoutes:
         """Test rename column requires authentication."""
         response = client.post(
             "/api/datasets/1/operations/rename-column",
-            json={"old_name": "col1", "new_name": "new_col"}
+            json={"old_name": "col1", "new_name": "new_col"},
         )
         assert response.status_code == 401
 

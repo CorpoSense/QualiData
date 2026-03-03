@@ -84,15 +84,23 @@ def create_app() -> FastAPI:
     frontend_path = None
     for path in possible_paths:
         import sys
-        print(f"DEBUG: Checking path: {path}, exists: {os.path.isdir(path)}", file=sys.stderr)
+
+        print(
+            f"DEBUG: Checking path: {path}, exists: {os.path.isdir(path)}",
+            file=sys.stderr,
+        )
         if os.path.isdir(path):
             frontend_path = path
             break
 
     if frontend_path:
         import sys
+
         index_path = os.path.join(frontend_path, "index.html")
-        print(f"DEBUG: Frontend found at: {frontend_path}, index exists: {os.path.isfile(index_path)}", file=sys.stderr)
+        print(
+            f"DEBUG: Frontend found at: {frontend_path}, index exists: {os.path.isfile(index_path)}",
+            file=sys.stderr,
+        )
 
     if frontend_path and os.path.isfile(os.path.join(frontend_path, "index.html")):
         # Note: Not mounting /static to avoid conflicts
@@ -101,12 +109,14 @@ def create_app() -> FastAPI:
         @app.get("/")
         async def serve_frontend():
             import sys
+
             print(f"DEBUG: Serving root path from {frontend_path}", file=sys.stderr)
             return FileResponse(os.path.join(frontend_path, "index.html"))
 
         @app.get("/{path:path}")
         async def serve_frontend_catchall(path: str):
             import sys
+
             print(f"DEBUG: Catchall serving path: {path}", file=sys.stderr)
             # Check if it's an API request
             if path.startswith("api/"):

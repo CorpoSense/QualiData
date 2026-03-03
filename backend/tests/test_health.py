@@ -1,12 +1,11 @@
-import pytest
 from unittest.mock import patch
-
 
 # Mock database before importing app
 with patch("app.db.database.get_async_session_maker"):
     with patch("app.db.database.get_sync_session_maker"):
-        from app.main import app
         from fastapi.testclient import TestClient
+
+        from app.main import app
 
 
 client = TestClient(app)
