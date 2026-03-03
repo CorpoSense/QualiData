@@ -58,10 +58,11 @@
 </template>
 
 <script setup>
+import { getApiUrl } from '@/utils/api'
 import { ref } from 'vue'
 import { BForm, BFormGroup, BFormInput, BButton, BAlert } from 'bootstrap-vue-next'
 
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const apiUrl = getApiUrl()
 
 const loading = ref(false)
 const error = ref('')

@@ -30,10 +30,11 @@
 </template>
 
 <script setup>
+import { getApiUrl } from '@/utils/api'
 import { ref, onMounted } from 'vue'
 import { BButton, BBadge, BProgress } from 'bootstrap-vue-next'
 
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const apiUrl = getApiUrl()
 const loading = ref(false)
 const providers = ref([
   { name: 'OpenAI', limit: 60, remaining: 60, resetsAt: null },

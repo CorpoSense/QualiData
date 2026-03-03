@@ -64,13 +64,14 @@
 </template>
 
 <script setup>
+import { getApiUrl } from '@/utils/api'
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { BForm, BFormGroup, BFormInput, BButton, BAlert } from 'bootstrap-vue-next'
 
 const route = useRoute()
 const router = useRouter()
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const apiUrl = getApiUrl()
 
 const loading = ref(false)
 const error = ref('')

@@ -265,6 +265,7 @@
 </template>
 
 <script setup>
+import { getApiUrl } from '@/utils/api'
 import { ref, computed, onMounted, watch } from 'vue'
 import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem } from 'bootstrap-vue-next'
 
@@ -272,7 +273,7 @@ const props = defineProps({
   datasetId: { type: Number, required: true }
 })
 
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const apiUrl = getApiUrl()
 
 const loading = ref(true)
 const dataset = ref(null)

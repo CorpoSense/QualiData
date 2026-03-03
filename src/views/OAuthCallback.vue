@@ -15,7 +15,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
 const router = useRouter()
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const apiUrl = getApiUrl()
 
 onMounted(async () => {
   const code = route.query.code

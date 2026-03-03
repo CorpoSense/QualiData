@@ -172,13 +172,14 @@
 </template>
 
 <script setup>
+import { getApiUrl } from '@/utils/api'
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { BButton, BTab, BTabs, BDropdown, BDropdownItem, BBadge, BModal, BFormGroup, BFormInput, BFormFile, BFormSelect, BTable } from 'bootstrap-vue-next'
 
 const route = useRoute()
 const router = useRouter()
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const apiUrl = getApiUrl()
 
 const projectId = route.params.id
 const loading = ref(true)

@@ -177,10 +177,11 @@
 </template>
 
 <script setup>
+import { getApiUrl } from '@/utils/api'
 import { ref, reactive, onMounted, computed } from 'vue'
 import { BFormGroup, BFormSelect, BFormRadioGroup, BFormRadio, BButton, BBadge, BAlert } from 'bootstrap-vue-next'
 
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const apiUrl = getApiUrl()
 
 const projects = ref([])
 const datasets = ref([])

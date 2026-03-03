@@ -139,13 +139,14 @@
 </template>
 
 <script setup>
+import { getApiUrl } from '@/utils/api'
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { BButton, BModal, BFormGroup, BFormSelect, BFormFile, BFormInput } from 'bootstrap-vue-next'
 import RateLimitStatus from '@/components/RateLimitStatus.vue'
 
 const router = useRouter()
-const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const apiUrl = getApiUrl()
 
 const loading = ref(true)
 const projects = ref([])
