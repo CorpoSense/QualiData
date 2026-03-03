@@ -1,103 +1,85 @@
 <template>
   <div id="app">
     <!-- Public Navbar (when not authenticated) -->
-    <b-navbar v-if="!isAuthenticated" type="is-light">
-      <template #brand>
-        <b-navbar-item tag="router-link" :to="{ path: '/' }">
-          <span class="has-text-weight-bold is-size-5">MasterDataCleaner</span>
-        </b-navbar-item>
-      </template>
-
-      <template #start>
-        <b-navbar-item tag="router-link" :to="{ path: '/' }">
-          Home
-        </b-navbar-item>
-        <b-navbar-item tag="router-link" :to="{ path: '/pricing' }">
-          Pricing
-        </b-navbar-item>
-      </template>
-
-      <template #end>
-        <b-navbar-item tag="div">
-          <div class="buttons">
-            <b-button size="is-small" type="is-primary" tag="router-link" to="/login">
-              Sign In
-            </b-button>
-          </div>
-        </b-navbar-item>
-      </template>
-    </b-navbar>
+    <nav v-if="!isAuthenticated" class="navbar navbar-light bg-white border-bottom mb-4">
+      <div class="container">
+        <router-link class="navbar-brand fw-bold" to="/">MasterDataCleaner</router-link>
+        <div class="navbar-nav ms-auto flex-row gap-2">
+          <router-link class="nav-link" to="/">Home</router-link>
+          <router-link class="nav-link" to="/pricing">Pricing</router-link>
+          <router-link class="btn btn-primary btn-sm" to="/login">Sign In</router-link>
+        </div>
+      </div>
+    </nav>
 
     <!-- Authenticated Navbar -->
-    <b-navbar v-if="isAuthenticated" type="is-dark" :fixed-top="true">
-      <template #brand>
-        <b-navbar-item tag="router-link" :to="{ path: '/' }">
-          <span class="has-text-weight-bold is-size-5">MasterDataCleaner</span>
-        </b-navbar-item>
-      </template>
-
-      <template #start>
-        <b-navbar-item tag="router-link" :to="{ path: '/dashboard' }">
-          Dashboard
-        </b-navbar-item>
-        <b-navbar-item tag="router-link" :to="{ path: '/projects' }">
-          Projects
-        </b-navbar-item>
-      </template>
-
-      <template #end>
-        <b-navbar-item tag="div">
-          <div class="buttons">
-            <b-button size="is-small" @click="showNotifications = true">
-              <b-icon icon="bell"></b-icon>
-              <span v-if="unreadCount > 0" class="tag is-danger is-rounded ml-1">{{ unreadCount }}</span>
-            </b-button>
-            <b-dropdown position="is-bottom-right">
-              <a class="navbar-item" slot="trigger">
-                <b-icon icon="account"></b-icon>
-                <span>{{ user?.email }}</span>
-              </a>
-              <b-dropdown-item @click="logout">Logout</b-dropdown-item>
-            </b-dropdown>
+    <nav v-if="isAuthenticated" class="navbar navbar-dark bg-dark fixed-top">
+      <div class="container">
+        <router-link class="navbar-brand fw-bold" to="/">MasterDataCleaner</router-link>
+        <div class="navbar-nav flex-row gap-3">
+          <router-link class="nav-link" to="/dashboard">Dashboard</router-link>
+          <router-link class="nav-link" to="/projects">Projects</router-link>
+        </div>
+        <div class="navbar-nav flex-row gap-2 ms-auto align-items-center">
+          <button class="btn btn-outline-light btn-sm position-relative" @click="showNotifications = true">
+            <i class="bi bi-bell"></i>
+            <span v-if="unreadCount > 0" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+              {{ unreadCount }}
+            </span>
+          </button>
+          <div class="dropdown">
+            <button class="btn btn-outline-light btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+              <i class="bi bi-person me-1"></i>
+              {{ user?.email }}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="#" @click.prevent="logout">Logout</a></li>
+            </ul>
           </div>
-        </b-navbar-item>
-      </template>
-    </b-navbar>
+        </div>
+      </div>
+    </nav>
 
     <!-- Main Content -->
-    <section class="section" :class="{ 'mt-6': isAuthenticated }">
+    <div class="container mt-4" :class="{ 'pt-5': isAuthenticated }">
       <router-view />
-    </section>
+    </div>
 
-    <!-- Notifications Panel -->
-    <b-sidebar v-model="showNotifications" position="fixed" type="is-dark" :fullheight="true" :overlay="true">
-      <div class="p-4">
-        <div class="is-flex is-justify-content-space-between is-align-items-center mb-4">
-          <h3 class="title is-4">Notifications</h3>
-          <b-button size="is-small" @click="markAllRead">Mark all read</b-button>
+    <!-- Notifications Offcanvas -->
+    <div class="offcanvas offcanvas-end" :class="{ show: showNotifications }" tabindex="-1" v-if="showNotifications">
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title">Notifications</h5>
+        <button type="button" class="btn-close" @click="showNotifications = false"></button>
+      </div>
+      <div class="offcanvas-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <button class="btn btn-link btn-sm p-0" @click="markAllRead">Mark all read</button>
         </div>
-        <div v-if="notifications.length === 0" class="has-text-centered has-text-grey">
+        <div v-if="notifications.length === 0" class="text-center text-muted py-4">
           No notifications
         </div>
         <div v-else>
           <div 
             v-for="notif in notifications" 
             :key="notif.id"
-            class="notification mb-3"
-            :class="getNotificationClass(notif.type)"
+            class="alert mb-3"
+            :class="`alert-${getNotificationType(notif.type)}`"
           >
-            <button class="delete" @click="deleteNotification(notif.id)"></button>
+            <button type="button" class="btn-close" @click="deleteNotification(notif.id)"></button>
             <strong>{{ notif.title }}</strong>
-            <p>{{ notif.message }}</p>
+            <p class="mb-0 small">{{ notif.message }}</p>
           </div>
         </div>
       </div>
-    </b-sidebar>
+    </div>
+    
+    <!-- Backdrop for offcanvas -->
+    <div v-if="showNotifications" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50" style="z-index: 1040;" @click="showNotifications = false"></div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getApiUrl } from '@/utils/api'
 
@@ -157,13 +139,9 @@ function logout() {
   router.push('/login')
 }
 
-function getNotificationClass(type) {
-  return {
-    'is-info': type === 'info',
-    'is-success': type === 'success',
-    'is-warning': type === 'warning',
-    'is-danger': type === 'error'
-  }
+function getNotificationType(type) {
+  const map = { 'info': 'info', 'success': 'success', 'warning': 'warning', 'error': 'danger' }
+  return map[type] || 'info'
 }
 
 async function markAllRead() {
@@ -192,7 +170,7 @@ async function deleteNotification(id) {
 </script>
 
 <style>
-.mt-6 {
-  margin-top: 3rem !important;
+body {
+  background-color: #f8f9fa;
 }
 </style>

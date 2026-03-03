@@ -16,6 +16,7 @@
     "clean:all": "rm -rf ./dist && rm -rf ./node_modules && rm -rf ./backend/.venv"
   },
   "dependencies": {
+    "@popperjs/core": "^2.11.8",
     "axios": "^1.13.2",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",

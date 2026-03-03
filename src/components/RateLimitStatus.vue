@@ -1,36 +1,37 @@
 <template>
-  <div class="box">
-    <h3 class="title is-5 mb-4">API Usage & Rate Limits</h3>
-    
-    <div class="columns is-multiline">
-      <div v-for="provider in providers" :key="provider.name" class="column is-4">
-        <div class="box provider-box">
-          <div class="is-flex is-justify-content-space-between is-align-items-center mb-2">
-            <strong>{{ provider.name }}</strong>
-            <b-tag :type="getStatusType(provider)">{{ provider.remaining }}/{{ provider.limit }}</b-tag>
+  <div class="card">
+    <div class="card-body">
+      <h3 class="h5 mb-4">API Usage & Rate Limits</h3>
+      
+      <div class="row g-3">
+        <div v-for="provider in providers" :key="provider.name" class="col-md-4">
+          <div class="card border">
+            <div class="card-body p-3">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <strong>{{ provider.name }}</strong>
+                <BBadge :variant="getStatusType(provider)">{{ provider.remaining }}/{{ provider.limit }}</BBadge>
+              </div>
+              <BProgress :model-value="getUsagePercent(provider)" :variant="getProgressType(provider)" style="height: 8px;"></BProgress>
+              <p class="small text-muted mt-1 mb-0">
+                Resets in {{ formatTime(provider.resetsAt) }}
+              </p>
+            </div>
           </div>
-          <b-progress 
-            :value="getUsagePercent(provider)" 
-            :type="getProgressType(provider)"
-            size="is-small"
-          ></b-progress>
-          <p class="is-size-7 has-text-grey mt-1">
-            Resets in {{ formatTime(provider.resetsAt) }}
-          </p>
         </div>
       </div>
-    </div>
-    
-    <div class="has-text-centered mt-4">
-      <b-button size="is-small" @click="refreshUsage" :loading="loading">
-        Refresh
-      </b-button>
+      
+      <div class="text-center mt-4">
+        <BButton size="sm" variant="outline-secondary" @click="refreshUsage" :loading="loading">
+          <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+        </BButton>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { BButton, BBadge, BProgress } from 'bootstrap-vue-next'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const loading = ref(false)
@@ -54,7 +55,6 @@ async function refreshUsage() {
     })
     if (res.ok) {
       const data = await res.json()
-      // Update provider stats from response
       if (data.providers) {
         providers.value = providers.value.map(p => {
           const providerData = data.providers[p.name.toLowerCase()]
@@ -79,16 +79,16 @@ function getUsagePercent(provider) {
 
 function getProgressType(provider) {
   const percent = getUsagePercent(provider)
-  if (percent >= 90) return 'is-danger'
-  if (percent >= 70) return 'is-warning'
-  return 'is-success'
+  if (percent >= 90) return 'danger'
+  if (percent >= 70) return 'warning'
+  return 'success'
 }
 
 function getStatusType(provider) {
   const percent = getUsagePercent(provider)
-  if (percent >= 90) return 'is-danger'
-  if (percent >= 70) return 'is-warning'
-  return 'is-success'
+  if (percent >= 90) return 'danger'
+  if (percent >= 70) return 'warning'
+  return 'success'
 }
 
 function formatTime(dateStr) {
@@ -98,9 +98,3 @@ function formatTime(dateStr) {
   return Math.ceil(diff / 60000) + ' min'
 }
 </script>
-
-<style scoped>
-.provider-box {
-  padding: 1rem;
-}
-</style>

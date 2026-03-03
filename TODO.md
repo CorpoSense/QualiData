@@ -8,15 +8,15 @@
 - [x] Update README.md with migration notes
 
 ## Phase 2: Replace Core Components
-- [ ] Replace `<b-table>` → `<BTable>`
-- [ ] Replace `<b-input>` → `<BFormInput>`
-- [ ] Replace `<b-button>` → `<BButton>`
-- [ ] Replace `<b-modal>` → `<BModal>`
-- [ ] Replace `<b-dropdown>` → `<BDropdown>`
-- [ ] Replace `<b-notification>` → `<BAlert>`
-- [ ] Replace `<b-tag>` → `<BBadge>`
-- [ ] Replace `<b-icon>` → Bootstrap Icons (`<i class="bi bi-...">`)
-- [ ] Replace MDI icons with Bootstrap Icons
+- [x] Replace `<b-table>` → `<BTable>`
+- [x] Replace `<b-input>` → `<BFormInput>`
+- [x] Replace `<b-button>` → `<BButton>`
+- [x] Replace `<b-modal>` → `<BModal>`
+- [x] Replace `<b-dropdown>` → `<BDropdown>`
+- [x] Replace `<b-notification>` → `<BAlert>`
+- [x] Replace `<b-tag>` → `<BBadge>`
+- [x] Replace `<b-icon>` → Bootstrap Icons (`<i class="bi bi-...">`)
+- [x] Replace MDI icons with Bootstrap Icons
 
 ## Phase 3: View-by-View Migration
 - [x] Login.vue
@@ -29,8 +29,8 @@
 - [x] Projects.vue
 - [x] ProjectDetail.vue
 - [x] Assistant.vue
-- [ ] Home.vue (using hybrid Buefy+Bootstrap)
-- [ ] DataViewer.vue (using hybrid Buefy+Bootstrap)
+- [x] Home.vue
+- [x] DataViewer.vue
 
 ## Phase 4: Testing & Polish
 - [ ] Verify all forms work
@@ -38,5 +38,4 @@
 - [ ] Verify all modals work
 - [ ] Check responsive behavior
 - [ ] Test auth flow
-- [ ] Remove Buefy dependency (keep if needed for Home/DataViewer)
 - [ ] Test full E2E flow
