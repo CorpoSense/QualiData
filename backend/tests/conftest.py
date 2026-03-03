@@ -1,19 +1,21 @@
+"""Pytest configuration for tests."""
+
 import os
 
 # Set test database before importing app
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///test.db"
 
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
+import pytest
+from unittest.mock import patch
 
-from app.main import create_app
+# Mock database before importing app
+with patch("app.db.database.get_async_session_maker"):
+    with patch("app.db.database.get_sync_session_maker"):
+        from app.main import app
 
 
-@pytest_asyncio.fixture
-async def client():
-    """Create an async test client."""
-    app = create_app()
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        yield client
+@pytest.fixture
+def client():
+    """Create test client."""
+    from fastapi.testclient import TestClient
+    return TestClient(app)
