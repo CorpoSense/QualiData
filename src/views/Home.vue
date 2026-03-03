@@ -238,6 +238,62 @@
         </div>
       </div>
     </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-5 mt-5">
+      <div class="container py-4">
+        <div class="row g-4">
+          <div class="col-lg-4">
+            <h5 class="fw-bold mb-3">MasterDataCleaner</h5>
+            <p class="small text-white-50 mb-3">The ultimate platform for cleaning, normalizing, and enriching your master data with AI precision.</p>
+            <div class="d-flex gap-3">
+              <a href="#" class="text-white"><i class="bi bi-twitter-x"></i></a>
+              <a href="#" class="text-white"><i class="bi bi-github"></i></a>
+              <a href="#" class="text-white"><i class="bi bi-linkedin"></i></a>
+            </div>
+          </div>
+          <div class="col-lg-2">
+            <h6 class="fw-bold mb-3">Product</h6>
+            <ul class="list-unstyled mb-0">
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Features</a></li>
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Pricing</a></li>
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Integrations</a></li>
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">API</a></li>
+            </ul>
+          </div>
+          <div class="col-lg-2">
+            <h6 class="fw-bold mb-3">Company</h6>
+            <ul class="list-unstyled mb-0">
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">About</a></li>
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Blog</a></li>
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Careers</a></li>
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Contact</a></li>
+            </ul>
+          </div>
+          <div class="col-lg-2">
+            <h6 class="fw-bold mb-3">Legal</h6>
+            <ul class="list-unstyled mb-0">
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Privacy</a></li>
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Terms</a></li>
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Security</a></li>
+            </ul>
+          </div>
+          <div class="col-lg-2">
+            <h6 class="fw-bold mb-3">Support</h6>
+            <ul class="list-unstyled mb-0">
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Help Center</a></li>
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Documentation</a></li>
+              <li class="mb-2"><a href="#" class="text-white-50 text-decoration-none">Status</a></li>
+            </ul>
+          </div>
+        </div>
+        <hr class="my-4 border-secondary">
+        <div class="d-flex justify-content-between align-items-center">
+          <p class="small text-white-50 mb-0">&copy; 2026 MasterDataCleaner. All rights reserved.</p>
+          <p class="small text-white-50 mb-0">Made with <i class="bi bi-heart-fill text-danger"></i> for data teams</p>
+        </div>
+      </div>
+    </footer>
   </div>
 </template>
 
