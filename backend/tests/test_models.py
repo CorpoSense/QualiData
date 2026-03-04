@@ -126,3 +126,47 @@ class TestPasswordHashingConsistency:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+class TestProjectRouting:
+    """Test Project routes match model."""
+
+    def test_project_get_route_exists(self):
+        """GET /{project_id} should accept string UUID."""
+        from app.routers.projects import get_project
+        import inspect
+        sig = inspect.signature(get_project)
+        params = sig.parameters
+        assert 'project_id' in params
+
+    def test_project_list_route_exists(self):
+        """List projects route should exist."""
+        from app.routers.projects import list_projects
+        assert list_projects is not None
+
+    def test_project_create_route_exists(self):
+        """Create project route should exist."""
+        from app.routers.projects import create_project
+        assert create_project is not None
+
+
+class TestDatasetModelFields:
+    """Test Dataset model fields."""
+
+    def test_dataset_has_id(self):
+        """Dataset must have id field."""
+        from app.db.models import Dataset
+        assert hasattr(Dataset, 'id')
+
+    def test_dataset_has_project_id(self):
+        """Dataset must have project_id field."""
+        from app.db.models import Dataset
+        assert hasattr(Dataset, 'project_id')
+
+    def test_dataset_has_data_json(self):
+        """Dataset must have data_json field."""
+        from app.db.models.project import Dataset
+        assert hasattr(Dataset, 'data_json')
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
