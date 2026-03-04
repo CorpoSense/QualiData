@@ -14,7 +14,8 @@ class Settings(BaseSettings):
 
     # Frontend URL (for OAuth redirects)
     # Automatically detects from environment if not set
-    # Koyeb provides APP_URL, otherwise fall back to localhost
+    # Koyeb provides: KOYEB_PUBLIC_DOMAIN
+    # Other platforms may provide: APP_URL, FRONTEND_URL, ORIGIN_URL, URL
     frontend_url: str = ""
 
     @field_validator("frontend_url", mode="before")
@@ -23,8 +24,8 @@ class Settings(BaseSettings):
         """Get frontend URL from environment or use default."""
         import os
         # Check common deployment platform env vars
-        for env_var in ["APP_URL", "FRONTEND_URL", "ORIGIN_URL", "URL"]:
-            if env_var in os.environ:
+        for env_var in ["KOYEB_PUBLIC_DOMAIN", "APP_URL", "FRONTEND_URL", "ORIGIN_URL", "URL"]:
+            if env_var in os.environ and os.environ[env_var]:
                 return os.environ[env_var]
         # Default for local development
         return "http://localhost:5173"
