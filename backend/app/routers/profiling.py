@@ -34,7 +34,7 @@ class ProfilingResponse(BaseModel):
 
 @router.get("/api/datasets/{dataset_id}/profile", response_model=ProfilingResponse)
 async def profile_columns(
-    dataset_id: int,
+    dataset_id: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):

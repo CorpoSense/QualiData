@@ -38,7 +38,7 @@ BATCH_JOBS = {}
 
 @router.post("/api/datasets/{dataset_id}/ai-batch", response_model=BatchProcessResponse)
 async def ai_batch_process(
-    dataset_id: int,
+    dataset_id: str,
     request: BatchProcessRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -100,7 +100,7 @@ async def ai_batch_process(
     "/api/datasets/{dataset_id}/ai-batch/{job_id}", response_model=BatchProgressResponse
 )
 async def get_batch_progress(
-    dataset_id: int,
+    dataset_id: str,
     job_id: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -124,7 +124,7 @@ async def get_batch_progress(
     "/api/datasets/{dataset_id}/ai-cross-row", response_model=BatchProcessResponse
 )
 async def ai_cross_row_context(
-    dataset_id: int,
+    dataset_id: str,
     column: str,
     group_by: str,
     operation: str,  # count, concat, sum, mean

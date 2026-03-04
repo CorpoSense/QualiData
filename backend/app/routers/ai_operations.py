@@ -32,7 +32,7 @@ class AICleaningResponse(BaseModel):
 
 @router.post("/api/datasets/{dataset_id}/ai-clean", response_model=AICleaningResponse)
 async def ai_clean_column(
-    dataset_id: int,
+    dataset_id: str,
     request: AICleaningRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -84,7 +84,7 @@ async def ai_clean_column(
 
 @router.post("/api/datasets/{dataset_id}/ai-analyze", response_model=AICleaningResponse)
 async def ai_analyze_column(
-    dataset_id: int,
+    dataset_id: str,
     column: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -152,7 +152,7 @@ async def ai_analyze_column(
     "/api/datasets/{dataset_id}/ai-json-clean", response_model=AICleaningResponse
 )
 async def ai_clean_json(
-    dataset_id: int,
+    dataset_id: str,
     column: str,
     instruction: str,
     output_column: str | None = None,

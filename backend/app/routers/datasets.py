@@ -168,7 +168,7 @@ async def import_dataset(
 
 @router.get("/{dataset_id}/preview", response_model=DatasetPreviewResponse)
 async def preview_dataset(
-    dataset_id: int,
+    dataset_id: str,
     limit: int = Query(10, ge=1, le=100),
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -206,7 +206,7 @@ async def preview_dataset(
 
 @router.get("/{dataset_id}/export")
 async def export_dataset(
-    dataset_id: int,
+    dataset_id: str,
     format: str = "csv",
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -297,7 +297,7 @@ async def list_datasets(
 
 @router.get("/{dataset_id}", response_model=DatasetResponse)
 async def get_dataset(
-    dataset_id: int,
+    dataset_id: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -326,7 +326,7 @@ async def get_dataset(
 
 @router.delete("/{dataset_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_dataset(
-    dataset_id: int,
+    dataset_id: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):

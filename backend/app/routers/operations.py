@@ -56,7 +56,7 @@ class OperationResponse(BaseModel):
     columns: list[dict] | None = None
 
 
-def get_dataset_with_owner_check(dataset_id: int, user_id: int, session: AsyncSession):
+def get_dataset_with_owner_check(dataset_id: str, user_id: str, session: AsyncSession):
     result = session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
     if not dataset:
@@ -72,7 +72,7 @@ def get_dataset_with_owner_check(dataset_id: int, user_id: int, session: AsyncSe
 
 
 def save_operation(
-    dataset_id: int,
+    dataset_id: str,
     operation_type: str,
     params: dict,
     before: dict,
@@ -96,7 +96,7 @@ def save_operation(
     "/datasets/{dataset_id}/operations/add-column", response_model=OperationResponse
 )
 async def add_column(
-    dataset_id: int,
+    dataset_id: str,
     request: AddColumnRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -134,7 +134,7 @@ async def add_column(
     "/datasets/{dataset_id}/operations/remove-columns", response_model=OperationResponse
 )
 async def remove_columns(
-    dataset_id: int,
+    dataset_id: str,
     request: RemoveColumnsRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -167,7 +167,7 @@ async def remove_columns(
     "/datasets/{dataset_id}/operations/rename-column", response_model=OperationResponse
 )
 async def rename_column(
-    dataset_id: int,
+    dataset_id: str,
     request: RenameColumnRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -200,7 +200,7 @@ async def rename_column(
     "/datasets/{dataset_id}/operations/merge-columns", response_model=OperationResponse
 )
 async def merge_columns(
-    dataset_id: int,
+    dataset_id: str,
     request: MergeColumnsRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -234,7 +234,7 @@ async def merge_columns(
     "/datasets/{dataset_id}/operations/split-column", response_model=OperationResponse
 )
 async def split_column(
-    dataset_id: int,
+    dataset_id: str,
     request: SplitColumnRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -272,7 +272,7 @@ async def split_column(
     response_model=OperationResponse,
 )
 async def duplicate_column(
-    dataset_id: int,
+    dataset_id: str,
     request: DuplicateColumnRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -308,7 +308,7 @@ async def duplicate_column(
     response_model=OperationResponse,
 )
 async def reorder_columns(
-    dataset_id: int,
+    dataset_id: str,
     request: ReorderColumnsRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -337,7 +337,7 @@ async def reorder_columns(
 
 @router.get("/datasets/{dataset_id}/operations/history")
 async def get_operation_history(
-    dataset_id: int,
+    dataset_id: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):

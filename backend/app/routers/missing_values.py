@@ -29,7 +29,7 @@ class OperationResponse(BaseModel):
     "/api/datasets/{dataset_id}/operations/fillna", response_model=OperationResponse
 )
 async def fill_na(
-    dataset_id: int,
+    dataset_id: str,
     request: FillNaRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -100,7 +100,7 @@ async def fill_na(
     "/api/datasets/{dataset_id}/operations/dropna", response_model=OperationResponse
 )
 async def drop_na(
-    dataset_id: int,
+    dataset_id: str,
     columns: list[str] | None = None,
     how: str = "any",  # any or all
     thresh: int | None = None,
@@ -156,7 +156,7 @@ async def drop_na(
     response_model=OperationResponse,
 )
 async def string_operations(
-    dataset_id: int,
+    dataset_id: str,
     column: str,
     operation: str,  # strip, upper, lower, title, capitalize
     current_user: User = Depends(get_current_active_user),

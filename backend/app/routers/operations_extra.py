@@ -49,7 +49,7 @@ class OperationResponse(BaseModel):
     row_count: int | None = None
 
 
-def get_dataset_with_owner_check(dataset_id: int, user_id: int, session: AsyncSession):
+def get_dataset_with_owner_check(dataset_id: str, user_id: str, session: AsyncSession):
     result = session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
     if not dataset:
@@ -65,7 +65,7 @@ def get_dataset_with_owner_check(dataset_id: int, user_id: int, session: AsyncSe
 
 
 def save_operation(
-    dataset_id: int,
+    dataset_id: str,
     operation_type: str,
     params: dict,
     before: dict,
@@ -122,7 +122,7 @@ def apply_filter(df, column: str, operator: str, value: Any):
     "/datasets/{dataset_id}/operations/filter-rows", response_model=OperationResponse
 )
 async def filter_rows(
-    dataset_id: int,
+    dataset_id: str,
     request: FilterRowsRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -161,7 +161,7 @@ async def filter_rows(
     "/datasets/{dataset_id}/operations/sort-data", response_model=OperationResponse
 )
 async def sort_data(
-    dataset_id: int,
+    dataset_id: str,
     request: SortDataRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -203,7 +203,7 @@ async def sort_data(
     response_model=OperationResponse,
 )
 async def remove_duplicates(
-    dataset_id: int,
+    dataset_id: str,
     request: RemoveDuplicatesRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -249,7 +249,7 @@ async def remove_duplicates(
     "/datasets/{dataset_id}/operations/find-replace", response_model=OperationResponse
 )
 async def find_replace(
-    dataset_id: int,
+    dataset_id: str,
     request: FindReplaceRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -303,7 +303,7 @@ async def find_replace(
     "/datasets/{dataset_id}/operations/change-type", response_model=OperationResponse
 )
 async def change_type(
-    dataset_id: int,
+    dataset_id: str,
     request: ChangeTypeRequest,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),

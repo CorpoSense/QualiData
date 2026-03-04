@@ -21,7 +21,7 @@ class CellUpdate(BaseModel):
 
 @router.post("/{dataset_id}/operations/update-cell")
 async def update_cell(
-    dataset_id: int,
+    dataset_id: str,
     update: CellUpdate,
     current_user=Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),

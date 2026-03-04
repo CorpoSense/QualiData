@@ -14,7 +14,7 @@ router = APIRouter(tags=["assistant"])
 
 
 class AnalysisRequest(BaseModel):
-    dataset_id: int
+    dataset_id: str
 
 
 class WizardStep(BaseModel):
@@ -148,7 +148,7 @@ async def analyze_dataset(
 
 @router.post("/api/assistant/suggest", response_model=WizardResponse)
 async def get_suggestions(
-    dataset_id: int,
+    dataset_id: str,
     operation_type: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -213,7 +213,7 @@ async def get_suggestions(
 
 @router.post("/api/assistant/execute", response_model=WizardResponse)
 async def execute_operation(
-    dataset_id: int,
+    dataset_id: str,
     operation: dict[str, Any],
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),

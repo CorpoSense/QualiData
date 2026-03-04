@@ -23,7 +23,7 @@ class OperationResponse(BaseModel):
     response_model=OperationResponse,
 )
 async def parse_datetime(
-    dataset_id: int,
+    dataset_id: str,
     column: str,
     input_format: str | None = None,
     output_format: str = "%Y-%m-%d %H:%M:%S",
@@ -90,7 +90,7 @@ async def parse_datetime(
     response_model=OperationResponse,
 )
 async def extract_datetime_parts(
-    dataset_id: int,
+    dataset_id: str,
     column: str,
     parts: list[str] = ["year", "month", "day"],
     current_user: User = Depends(get_current_active_user),
@@ -176,7 +176,7 @@ async def extract_datetime_parts(
     response_model=OperationResponse,
 )
 async def standardize_date(
-    dataset_id: int,
+    dataset_id: str,
     column: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -196,7 +196,7 @@ async def standardize_date(
     response_model=OperationResponse,
 )
 async def standardize_datetime(
-    dataset_id: int,
+    dataset_id: str,
     column: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),

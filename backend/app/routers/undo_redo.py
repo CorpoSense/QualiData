@@ -17,7 +17,7 @@ class OperationResponse(BaseModel):
     message: str
 
 
-def get_dataset_with_owner_check(dataset_id: int, user_id: int, session: AsyncSession):
+def get_dataset_with_owner_check(dataset_id: str, user_id: str, session: AsyncSession):
     result = session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
     if not dataset:
@@ -36,7 +36,7 @@ def get_dataset_with_owner_check(dataset_id: int, user_id: int, session: AsyncSe
     "/api/datasets/{dataset_id}/operations/undo", response_model=OperationResponse
 )
 async def undo_operation(
-    dataset_id: int,
+    dataset_id: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -84,7 +84,7 @@ async def undo_operation(
     "/api/datasets/{dataset_id}/operations/redo", response_model=OperationResponse
 )
 async def redo_operation(
-    dataset_id: int,
+    dataset_id: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):

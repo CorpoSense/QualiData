@@ -143,7 +143,7 @@ async def clear_notifications(current_user: User = Depends(get_current_active_us
 
 # Helper function to create notifications (can be called from other endpoints)
 async def create_notification(
-    user_id: int, title: str, message: str, type: str = "info"
+    user_id: str, title: str, message: str, type: str = "info"
 ):
     """Create a notification for a user."""
     if user_id not in NOTIFICATIONS:

@@ -42,7 +42,7 @@ class AgentResponse(BaseModel):
     system_prompt: str | None
     is_template: bool
     usage_count: int
-    owner_id: int
+    owner_id: str
     created_at: str
 
     class Config:

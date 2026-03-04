@@ -227,3 +227,50 @@ class TestDatasetResponseModel:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+class TestAllRoutesAcceptUUID:
+    """Test all routes accept string UUIDs."""
+
+    def test_projects_get_accepts_string(self):
+        """GET /{project_id} should accept string UUID."""
+        from app.routers.projects import get_project
+        import inspect
+        sig = inspect.signature(get_project)
+        params = sig.parameters
+        assert params['project_id'].annotation == str
+
+    def test_projects_update_accepts_string(self):
+        """PUT /{project_id} should accept string UUID."""
+        from app.routers.projects import update_project
+        import inspect
+        sig = inspect.signature(update_project)
+        params = sig.parameters
+        assert params['project_id'].annotation == str
+
+    def test_projects_delete_accepts_string(self):
+        """DELETE /{project_id} should accept string UUID."""
+        from app.routers.projects import delete_project
+        import inspect
+        sig = inspect.signature(delete_project)
+        params = sig.parameters
+        assert params['project_id'].annotation == str
+
+    def test_datasets_get_accepts_string(self):
+        """GET /{dataset_id} should accept string UUID."""
+        from app.routers.datasets import get_dataset
+        import inspect
+        sig = inspect.signature(get_dataset)
+        params = sig.parameters
+        assert params['dataset_id'].annotation == str
+
+    def test_datasets_delete_accepts_string(self):
+        """DELETE /{dataset_id} should accept string UUID."""
+        from app.routers.datasets import delete_dataset
+        import inspect
+        sig = inspect.signature(delete_dataset)
+        params = sig.parameters
+        assert params['dataset_id'].annotation == str
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

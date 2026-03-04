@@ -28,7 +28,7 @@ class ComparisonResponse(BaseModel):
     response_model=ComparisonResponse,
 )
 async def compare_operation(
-    dataset_id: int,
+    dataset_id: str,
     operation_id: int,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -102,7 +102,7 @@ async def compare_operation(
 
 @router.get("/api/datasets/{dataset_id}/history/{limit}", response_model=list[dict])
 async def get_operation_history_summary(
-    dataset_id: int,
+    dataset_id: str,
     limit: int = 10,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),

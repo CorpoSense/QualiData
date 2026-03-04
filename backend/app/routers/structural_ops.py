@@ -22,7 +22,7 @@ class OperationResponse(BaseModel):
     "/api/datasets/{dataset_id}/operations/fix-case", response_model=OperationResponse
 )
 async def fix_case(
-    dataset_id: int,
+    dataset_id: str,
     column: str,
     case: str = "title",  # lower, upper, title, sentence
     current_user: User = Depends(get_current_active_user),
@@ -76,7 +76,7 @@ async def fix_case(
     response_model=OperationResponse,
 )
 async def trim_whitespace(
-    dataset_id: int,
+    dataset_id: str,
     columns: list[str] | None = None,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -123,7 +123,7 @@ async def trim_whitespace(
     "/api/datasets/{dataset_id}/operations/fix-typos", response_model=OperationResponse
 )
 async def fix_typos(
-    dataset_id: int,
+    dataset_id: str,
     column: str,
     mappings: dict,
     current_user: User = Depends(get_current_active_user),
@@ -172,7 +172,7 @@ async def fix_typos(
     response_model=OperationResponse,
 )
 async def standardize_values(
-    dataset_id: int,
+    dataset_id: str,
     column: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
