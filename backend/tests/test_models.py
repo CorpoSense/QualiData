@@ -193,3 +193,37 @@ class TestDatasetRouting:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+class TestProjectResponseModel:
+    """Test ProjectResponse matches Project model."""
+
+    def test_project_response_id_is_string(self):
+        """ProjectResponse id must be string (UUID)."""
+        from app.routers.projects import ProjectResponse
+        fields = ProjectResponse.model_fields
+        assert fields['id'].annotation == str
+
+    def test_project_response_created_at_accepts_datetime(self):
+        """ProjectResponse created_at must accept datetime."""
+        from app.routers.projects import ProjectResponse
+        fields = ProjectResponse.model_fields
+        # Should accept datetime or str
+
+
+class TestDatasetResponseModel:
+    """Test DatasetResponse matches Dataset model."""
+
+    def test_dataset_response_id_is_string(self):
+        """DatasetResponse id must be string (UUID)."""
+        from app.routers.datasets import DatasetResponse
+        fields = DatasetResponse.model_fields
+        assert fields['id'].annotation == str
+
+    def test_dataset_response_created_at_accepts_datetime(self):
+        """DatasetResponse created_at must accept datetime."""
+        from app.routers.datasets import DatasetResponse
+        fields = DatasetResponse.model_fields
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

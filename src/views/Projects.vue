@@ -106,7 +106,7 @@
             <BButton variant="primary" :loading="saving" @click="saveProject">
               {{ editingProject ? 'Update' : 'Create' }}
             </BButton>
-            <BButton @click="closeModal">Cancel</BButton>
+            
           </div>
         </div>
       </div>

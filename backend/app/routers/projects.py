@@ -1,5 +1,6 @@
 """Project routes."""
 
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -24,17 +25,16 @@ class ProjectUpdate(BaseModel):
 
 
 class ProjectResponse(BaseModel):
-    id: int
+    id: str
     name: str
     description: str | None
     user_id: str
     row_count: int
     storage_bytes: int
-    created_at: str
-    updated_at: str
+    created_at: datetime | None
+    updated_at: datetime | None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class ProjectListResponse(BaseModel):

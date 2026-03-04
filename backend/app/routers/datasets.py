@@ -3,6 +3,7 @@
 import io
 
 import pandas as pd
+from datetime import datetime
 from fastapi import (
     APIRouter,
     Depends,
@@ -37,7 +38,7 @@ class DatasetUpdate(BaseModel):
 
 
 class DatasetResponse(BaseModel):
-    id: int
+    id: str
     name: str
     description: str | None
     project_id: str
@@ -47,10 +48,9 @@ class DatasetResponse(BaseModel):
     row_count: int
     columns: dict | None
     preview_data: list | None
-    created_at: str
+    created_at: datetime | None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class ColumnInfo(BaseModel):
