@@ -194,10 +194,8 @@ async function handleLogin() {
     
     const res = await fetch(`${apiUrl}/api/auth/login`, {
       method: 'POST',
-      body: formData,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
+      body: formData
+      // Note: Don't set Content-Type for FormData - browser does it automatically
     })
     
     if (!res.ok) {
@@ -234,14 +232,14 @@ async function handleRegister() {
   }
   
   try {
+    const formData = new FormData()
+    formData.append('email', registerForm.value.email)
+    formData.append('password', registerForm.value.password)
+    formData.append('full_name', registerForm.value.fullName)
+    
     const res = await fetch(`${apiUrl}/api/auth/register`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: registerForm.value.email,
-        password: registerForm.value.password,
-        full_name: registerForm.value.fullName
-      })
+      body: formData
     })
     
     if (!res.ok) {
