@@ -1,7 +1,7 @@
 """Tests for app startup and configuration."""
 
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 
 # Mock database before importing app
@@ -45,8 +45,33 @@ class TestConfig:
         """Test frontend URL has default."""
         from app.config import get_settings
         settings = get_settings()
-        # Should have a default or can be empty
         assert settings.frontend_url is not None
+
+    def test_admin_env_vars(self):
+        """Test admin env vars configuration."""
+        from app.config import get_settings
+        settings = get_settings()
+        assert hasattr(settings, 'admin_email')
+        assert hasattr(settings, 'admin_password')
+
+
+class TestDatabaseInit:
+    """Test database initialization."""
+
+    def test_models_import(self):
+        """Test all models can be imported."""
+        from app.db.models import User, Project, Dataset, OperationHistory, Agent
+        assert User is not None
+        assert Project is not None
+        assert Dataset is not None
+        assert OperationHistory is not None
+        assert Agent is not None
+
+    def test_database_functions_import(self):
+        """Test database functions can be imported."""
+        from app.db.database import get_async_engine, get_async_session_maker
+        assert get_async_engine is not None
+        assert get_async_session_maker is not None
 
 
 if __name__ == "__main__":

@@ -54,8 +54,9 @@ async def lifespan(app: FastAPI):
 async def create_admin_user():
     """Create admin user on startup if configured."""
     from sqlalchemy import select
-    from app.db.database import get_async_session_maker
+    from app.db.database import get_async_engine, get_async_session_maker
     from app.db.models import User
+    from app.db.database import Base
     
     # Check if admin env vars are set
     admin_email = os.environ.get("ADMIN_USER", "").strip()
@@ -69,6 +70,11 @@ async def create_admin_user():
         return
     
     try:
+        # Create tables if they don't exist
+        engine = get_async_engine()
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        
         async_session = get_async_session_maker()
         async with async_session() as session:
             # Check if admin already exists
