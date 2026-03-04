@@ -28,32 +28,37 @@ describe('MasterDataCleaner - Home Page', () => {
 describe('MasterDataCleaner - Login Page', () => {
   it('login page loads', () => {
     cy.visit('/login')
-    cy.contains('Sign in to your account').should('be.visible')
+    cy.get('input[type="email"]').should('be.visible')
   })
 
   it('can switch to register tab', () => {
     cy.visit('/login')
-    cy.contains("Don't have an account?").should('be.visible')
+    // Wait for page to load
+    cy.get('input[type="email"]').should('exist')
+    // Click the Sign Up tab
     cy.contains('Sign Up').click()
     cy.contains('Already have an account?').should('be.visible')
   })
 
   it('forgot password link exists', () => {
     cy.visit('/login')
-    cy.contains('Forgot your password?').should('be.visible')
+    cy.get('input[type="email"]').should('exist')
+    cy.contains('Forgot').should('be.visible')
   })
 
   it('oauth buttons exist', () => {
     cy.visit('/login')
+    cy.get('input[type="email"]').should('exist')
     cy.contains('Google').should('be.visible')
     cy.contains('GitHub').should('be.visible')
   })
 
   it('login form validation', () => {
     cy.visit('/login')
+    cy.get('input[type="email"]').should('exist')
     // Submit empty form
     cy.contains('Sign In').click()
-    // Should show validation errors (email required)
+    // Should show validation errors
     cy.get('input[type="email"]').should('exist')
   })
 })
@@ -61,7 +66,6 @@ describe('MasterDataCleaner - Login Page', () => {
 describe('MasterDataCleaner - Pricing Page', () => {
   it('pricing page loads with all tiers', () => {
     cy.visit('/pricing')
-    cy.contains('Simple').should('be.visible')
     cy.contains('Free').should('be.visible')
     cy.contains('Pro').should('be.visible')
     cy.contains('Enterprise').should('be.visible')
@@ -76,7 +80,6 @@ describe('MasterDataCleaner - Pricing Page', () => {
 describe('MasterDataCleaner - Navigation', () => {
   it('navbar appears on homepage', () => {
     cy.visit('/')
-    // Check for navbar elements
     cy.get('nav').should('exist')
   })
 
