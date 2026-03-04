@@ -37,14 +37,15 @@ class UserCreate(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: int
+    id: str
     email: str
-    full_name: str | None
+    name: str | None
+    role: str
     is_active: bool
-    created_at: datetime
+    is_verified: bool
+    created_at: datetime | None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class Token(BaseModel):
