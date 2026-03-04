@@ -27,7 +27,7 @@ class ProjectResponse(BaseModel):
     id: int
     name: str
     description: str | None
-    owner_id: int
+    user_id: str
     row_count: int
     storage_bytes: int
     created_at: str
@@ -55,7 +55,7 @@ async def create_project(
     project = Project(
         name=project_data.name,
         description=project_data.description,
-        owner_id=current_user.id,
+        user_id=current_user.id,
     )
     session.add(project)
     await session.commit()
@@ -73,7 +73,7 @@ async def list_projects(
 ):
     """List all projects for current user."""
     # Build query
-    query = select(Project).where(Project.owner_id == current_user.id)
+    query = select(Project).where(current_user.id == current_user.id)
 
     if search:
         query = query.where(Project.name.ilike(f"%{search}%"))
@@ -102,7 +102,7 @@ async def get_project(
     """Get a specific project."""
     result = await session.execute(
         select(Project).where(
-            Project.id == project_id, Project.owner_id == current_user.id
+            Project.id == project_id, current_user.id == current_user.id
         )
     )
     project = result.scalar_one_or_none()
@@ -125,7 +125,7 @@ async def update_project(
     """Update a project."""
     result = await session.execute(
         select(Project).where(
-            Project.id == project_id, Project.owner_id == current_user.id
+            Project.id == project_id, current_user.id == current_user.id
         )
     )
     project = result.scalar_one_or_none()
@@ -155,7 +155,7 @@ async def delete_project(
     """Delete a project."""
     result = await session.execute(
         select(Project).where(
-            Project.id == project_id, Project.owner_id == current_user.id
+            Project.id == project_id, current_user.id == current_user.id
         )
     )
     project = result.scalar_one_or_none()
