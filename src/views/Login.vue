@@ -6,120 +6,141 @@
         <h2 class="h5 text-center text-muted mb-4">Sign in to your account</h2>
 
         <!-- Tabs for Login/Register -->
-        <BTabs v-model="activeTab" nav-wrapper-class="mb-3">
-          <BTab title="Sign In" value="login">
-            <BForm @submit.prevent="handleLogin">
-              <BFormGroup label="Email" label-class="fw-bold">
-                <BFormInput 
-                  v-model="loginForm.email" 
-                  type="email" 
-                  placeholder="your@email.com"
-                  required
-                ></BFormInput>
-              </BFormGroup>
+        <ul class="nav nav-pills mb-3" role="tablist">
+          <li class="nav-item">
+            <button 
+              class="nav-link" 
+              :class="{ active: activeTab === 'login' }"
+              @click="activeTab = 'login'"
+            >
+              Sign In
+            </button>
+          </li>
+          <li class="nav-item">
+            <button 
+              class="nav-link" 
+              :class="{ active: activeTab === 'register' }"
+              @click="activeTab = 'register'"
+            >
+              Sign Up
+            </button>
+          </li>
+        </ul>
 
-              <BFormGroup label="Password" label-class="fw-bold">
-                <BFormInput 
-                  v-model="loginForm.password" 
-                  type="password" 
-                  placeholder="Password"
-                  required
-                ></BFormInput>
-              </BFormGroup>
+        <!-- Login Form -->
+        <div v-show="activeTab === 'login'">
+          <BForm @submit.prevent="handleLogin">
+            <BFormGroup label="Email" label-class="fw-bold">
+              <BFormInput 
+                v-model="loginForm.email" 
+                type="email" 
+                placeholder="your@email.com"
+                required
+              ></BFormInput>
+            </BFormGroup>
 
+            <BFormGroup label="Password" label-class="fw-bold">
+              <BFormInput 
+                v-model="loginForm.password" 
+                type="password" 
+                placeholder="Password"
+                required
+              ></BFormInput>
+            </BFormGroup>
+
+            <BButton 
+              variant="primary" 
+              type="submit" 
+              :loading="loading"
+              class="w-100"
+            >
+              Sign In
+            </BButton>
+
+            <p class="text-center mt-4">
+              <router-link to="/forgot-password">Forgot your password?</router-link>
+            </p>
+
+            <p class="text-center mt-2">
+              <a @click="activeTab = 'register'" class="cursor-pointer">Don't have an account? Sign up</a>
+            </p>
+          </BForm>
+
+          <!-- OAuth Options -->
+          <div class="mt-4">
+            <p class="text-center text-muted small mb-2">Or continue with</p>
+            <div class="d-flex justify-content-center gap-2">
               <BButton 
-                variant="primary" 
-                type="submit" 
-                :loading="loading"
-                class="w-100"
+                variant="outline-secondary" 
+                @click="oauthLogin('google')"
+                :disabled="!oauthEnabled"
               >
-                Sign In
+                <i class="bi bi-google"></i>
+                <span class="ms-2">Google</span>
               </BButton>
-
-              <p class="text-center mt-4">
-                <router-link to="/forgot-password">Forgot your password?</router-link>
-              </p>
-
-              <p class="text">
-                <a @click="activeTab = 'register'" class="cursor-pointer">Don't have an account? Sign up</a>
-              </p>
-            </BForm>
-
-            <!-- OAuth Options -->
-            <div class="mt-4">
-              <p class="text-center text-muted small mb-2">Or continue with</p>
-              <div class="d-flex justify-content-center gap-2">
-                <BButton 
-                  variant="outline-secondary" 
-                  @click="oauthLogin('google')"
-                  :disabled="!oauthEnabled"
-                >
-                  <i class="bi bi-google"></i>
-                  <span class="ms-2">Google</span>
-                </BButton>
-                <BButton 
-                  variant="outline-dark" 
-                  @click="oauthLogin('github')"
-                  :disabled="!oauthEnabled"
-                >
-                  <i class="bi bi-github"></i>
-                  <span class="ms-2">GitHub</span>
-                </BButton>
-              </div>
+              <BButton 
+                variant="outline-dark" 
+                @click="oauthLogin('github')"
+                :disabled="!oauthEnabled"
+              >
+                <i class="bi bi-github"></i>
+                <span class="ms-2">GitHub</span>
+              </BButton>
             </div>
-          </BTab>
+          </div>
+        </div>
 
-          <BTab title="Sign Up" value="register">
-            <BForm @submit.prevent="handleRegister">
-              <BFormGroup label="Full Name" label-class="fw-bold">
-                <BFormInput 
-                  v-model="registerForm.fullName" 
-                  placeholder="John Doe"
-                ></BFormInput>
-              </BFormGroup>
+        <!-- Register Form -->
+        <div v-show="activeTab === 'register'">
+          <BForm @submit.prevent="handleRegister">
+            <BFormGroup label="Full Name" label-class="fw-bold">
+              <BFormInput 
+                v-model="registerForm.fullName" 
+                placeholder="John Doe"
+              ></BFormInput>
+            </BFormGroup>
 
-              <BFormGroup label="Email" label-class="fw-bold">
-                <BFormInput 
-                  v-model="registerForm.email" 
-                  type="email" 
-                  placeholder="your@email.com"
-                  required
-                ></BFormInput>
-              </BFormGroup>
+            <BFormGroup label="Email" label-class="fw-bold">
+              <BFormInput 
+                v-model="registerForm.email" 
+                type="email" 
+                placeholder="your@email.com"
+                required
+              ></BFormInput>
+            </BFormGroup>
 
-              <BFormGroup label="Password" label-class="fw-bold">
-                <BFormInput 
-                  v-model="registerForm.password" 
-                  type="password" 
-                  placeholder="Password"
-                  required
-                ></BFormInput>
-              </BFormGroup>
+            <BFormGroup label="Password" label-class="fw-bold">
+              <BFormInput 
+                v-model="registerForm.password" 
+                type="password" 
+                placeholder="Password"
+                required
+              ></BFormInput>
+            </BFormGroup>
 
-              <BFormGroup label="Confirm Password" label-class="fw-bold">
-                <BFormInput 
-                  v-model="registerForm.confirmPassword" 
-                  type="password" 
-                  placeholder="Confirm password"
-                  required
-                ></BFormInput>
-              </BFormGroup>
+            <BFormGroup label="Confirm Password" label-class="fw-bold">
+              <BFormInput 
+                v-model="registerForm.confirmPassword" 
+                type="password" 
+                placeholder="Confirm password"
+                required
+              ></BFormInput>
+            </BFormGroup>
 
-              <BButton 
-                variant="primary" 
-                type="submit" 
-                :loading="loading"
-                class="w-100"
-              >
-                Create Account
-              </BButton>
+            <BButton 
+              variant="primary" 
+              type="submit" 
+              :loading="loading"
+              class="w-100"
+            >
+              Create Account
+            </BButton>
 
-              <p class="text-center mt-4">
-                <a @click="activeTab = 'login'" class="cursor-pointer">Already have an account? Sign in</a>
-              </p>
-            </BForm>
-          </BTab>
-        </BTabs>
+            <p class="text-center mt-4">
+              <a @click="activeTab = 'login'" class="cursor-pointer">Already have an account? Sign in</a>
+            </p>
+          </BForm>
+        </div>
 
         <!-- Error Message -->
         <BAlert 
@@ -138,7 +159,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { BForm, BFormGroup, BFormInput, BButton, BTab, BTabs, BAlert } from 'bootstrap-vue-next'
+import { BForm, BFormGroup, BFormInput, BButton, BAlert } from 'bootstrap-vue-next'
 import { getApiUrl } from '@/utils/api'
 
 const router = useRouter()
@@ -266,6 +287,10 @@ function oauthLogin(provider) {
 }
 
 .cursor-pointer {
+  cursor: pointer;
+}
+
+.nav-link {
   cursor: pointer;
 }
 </style>
