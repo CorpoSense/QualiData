@@ -95,13 +95,13 @@ async def create_admin_user():
             import hashlib
             # Use sha256 as fallback if bcrypt fails
             try:
-                hashed_password = pwd_context.hash(admin_password)
+                password_hash = pwd_context.hash(admin_password)
             except Exception:
                 # Fallback: use simple hash if bcrypt fails
-                hashed_password = hashlib.sha256(admin_password.encode()).hexdigest()
+                password_hash = hashlib.sha256(admin_password.encode()).hexdigest()
             admin_user = User(
                 email=admin_email,
-                password_hash=hashed_password,
+                password_hash=password_hash,
                 name="Admin",
                 role="admin",
             )

@@ -66,24 +66,19 @@ class TokenData(BaseModel):
 
 
 # Utility functions
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+def verify_password(plain_password: str, password_hash: str) -> bool:
     import hashlib
     try:
         # Try passlib first (bcrypt)
-        return pwd_context.verify(plain_password, hashed_password)
+        return pwd_context.verify(plain_password, password_hash)
     except Exception:
         # Fallback: check sha256
-        return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
+        return hashlib.sha256(plain_password.encode()).hexdigest() == password_hash
 
 
 def get_password_hash(password: str) -> str:
     import hashlib
-    try:
-        # Use passlib with bcrypt
-        return pwd_context.hash(password)
-    except Exception:
-        # Fallback: use sha256 if bcrypt fails
-        return hashlib.sha256(password.encode()).hexdigest()
+    return hashlib.sha256(password.encode()).hexdigest()
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
@@ -164,10 +159,10 @@ async def register(
             user_role = "free"
 
     # Create new user
-    hashed_password = get_password_hash(password)
+    password_hash = get_password_hash(password)
     new_user = User(
         email=email,
-        password_hash=hashed_password,
+        password_hash=password_hash,
         name=full_name,
         is_active=True,
     )
@@ -187,7 +182,7 @@ async def login(
     result = await session.execute(select(User).where(User.email == form_data.username))
     user = result.scalar_one_or_none()
 
-    if not user or not verify_password(form_data.password, user.hashed_password or ""):
+    if not user or not verify_password(form_data.password, user.password_hash or ""):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -272,7 +267,7 @@ async def confirm_password_reset(
         raise HTTPException(status_code=404, detail="User not found")
 
     # Update password
-    user.hashed_password = get_password_hash(request.new_password)
+    user.password_hash = get_password_hash(request.new_password)
     await session.commit()
 
     # Clean up token
@@ -391,7 +386,7 @@ async def oauth_callback(
         # Create new user
         user = User(
             email=email,
-            hashed_password=get_password_hash(None),  # No password for OAuth
+            password_hash=get_password_hash(None),  # No password for OAuth
             full_name=name,
             is_active=True,
         )

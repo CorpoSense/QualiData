@@ -76,3 +76,52 @@ class TestDatabaseInit:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+class TestPasswordHashing:
+    """Test password hashing functions."""
+
+    def test_get_password_hash_returns_string(self):
+        """Test that password hashing returns a string."""
+        from app.routers.auth import get_password_hash
+        result = get_password_hash("testpassword")
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_password_hash_consistency(self):
+        """Test that same password produces same hash."""
+        from app.routers.auth import get_password_hash
+        pwd = "mysecretpassword"
+        hash1 = get_password_hash(pwd)
+        hash2 = get_password_hash(pwd)
+        assert hash1 == hash2
+
+    def test_verify_password_correct(self):
+        """Test password verification with correct password."""
+        from app.routers.auth import get_password_hash, verify_password
+        pwd = "testpassword123"
+        hashed = get_password_hash(pwd)
+        assert verify_password(pwd, hashed) is True
+
+    def test_verify_password_incorrect(self):
+        """Test password verification with wrong password."""
+        from app.routers.auth import get_password_hash, verify_password
+        pwd = "testpassword123"
+        hashed = get_password_hash(pwd)
+        assert verify_password("wrongpassword", hashed) is False
+
+
+class TestUserModel:
+    """Test User model fields."""
+
+    def test_user_has_password_hash_field(self):
+        """Test User model has password_hash field."""
+        from app.db.models import User
+        user = User(email="test@test.com")
+        assert hasattr(user, 'password_hash')
+
+    def test_user_model_fields(self):
+        """Test User model has all required fields."""
+        from app.db.models import User
+        user = User(email="test@test.com", name="Test User")
+        assert user.email == "test@test.com"
+        assert user.name == "Test User"
