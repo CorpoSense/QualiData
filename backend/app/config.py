@@ -13,7 +13,21 @@ class Settings(BaseSettings):
     secret_key: str = "your-secret-key-here"
 
     # Frontend URL (for OAuth redirects)
-    frontend_url: str = "http://localhost:5173"
+    # Automatically detects from environment if not set
+    # Koyeb provides APP_URL, otherwise fall back to localhost
+    frontend_url: str = ""
+
+    @field_validator("frontend_url", mode="before")
+    @classmethod
+    def get_frontend_url(cls, v: str) -> str:
+        """Get frontend URL from environment or use default."""
+        import os
+        # Check common deployment platform env vars
+        for env_var in ["APP_URL", "FRONTEND_URL", "ORIGIN_URL", "URL"]:
+            if env_var in os.environ:
+                return os.environ[env_var]
+        # Default for local development
+        return "http://localhost:5173"
 
     # CORS - dynamically generated from frontend_url
     @property
