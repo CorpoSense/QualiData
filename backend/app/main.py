@@ -1,8 +1,16 @@
 import os
+import logging
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from passlib.context import CryptContext
+
+logger = logging.getLogger(__name__)
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 from app.config import get_settings
 from app.routers import (
@@ -31,6 +39,67 @@ from app.routers import (
 settings = get_settings()
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan event handler for startup/shutdown."""
+    # Startup: Create admin user if configured
+    await create_admin_user()
+    yield
+    # Shutdown: cleanup if needed
+    pass
+
+
+
+
+async def create_admin_user():
+    """Create admin user on startup if configured."""
+    from sqlalchemy import select
+    from app.db.database import engine, AsyncSessionLocal
+    from app.db.models import User
+    
+    # Check if admin env vars are set
+    admin_email = os.environ.get("ADMIN_USER", "").strip()
+    admin_password = os.environ.get("ADMIN_PASSWORD", "").strip()
+    
+    if not admin_email or not admin_password:
+        logger.warning(
+            "ADMIN_USER or ADMIN_PASSWORD not set. "
+            "First registered user will become admin."
+        )
+        return
+    
+    try:
+        async with AsyncSessionLocal() as session:
+            # Check if admin already exists
+            result = await session.execute(
+                select(User).where(User.email == admin_email)
+            )
+            existing_admin = result.scalar_one_or_none()
+            
+            if existing_admin:
+                logger.info(f"Admin user already exists: {admin_email}")
+                return
+            
+            # Check if any users exist
+            result = await session.execute(select(User))
+            users = result.scalars().all()
+            
+            # Create admin user
+            hashed_password = pwd_context.hash(admin_password)
+            admin_user = User(
+                email=admin_email,
+                password_hash=hashed_password,
+                name="Admin",
+                role="admin",
+            )
+            
+            session.add(admin_user)
+            await session.commit()
+            logger.info(f"Admin user created: {admin_email}")
+            
+    except Exception as e:
+        logger.error(f"Failed to create admin user: {e}")
+
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     app = FastAPI(
@@ -38,6 +107,7 @@ def create_app() -> FastAPI:
         description="AI-guided data cleaning API",
         version="0.1.0",
         debug=settings.debug,
+        lifespan=lifespan,
     )
 
     # CORS middleware for Vue frontend

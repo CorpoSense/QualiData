@@ -17,6 +17,7 @@ class UserRole(str, enum.Enum):
     FREE = "free"
     PRO = "pro"
     ENTERPRISE = "enterprise"
+    ADMIN = "admin"
 
 
 class User(Base):

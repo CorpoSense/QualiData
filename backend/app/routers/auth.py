@@ -2,7 +2,9 @@
 
 from datetime import datetime, timedelta
 
+import os
 from fastapi import APIRouter, Depends, HTTPException, status
+import os
 from fastapi import Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
@@ -135,12 +137,26 @@ async def register(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
 
+    # Check if any users exist (first user becomes admin)
+    result = await session.execute(select(User))
+    user_count = len(result.scalars().all())
+    
+    # Determine user role: first user becomes admin
+    user_role = "free"  # Default role
+    if user_count == 0:
+        user_role = "admin"
+        # Also check if admin env vars were set (they would have created admin on startup)
+        admin_email = os.environ.get("ADMIN_USER", "").strip()
+        if admin_email and admin_email.lower() != email.lower():
+            # Admin already created via env, this is not first user
+            user_role = "free"
+
     # Create new user
     hashed_password = get_password_hash(password)
     new_user = User(
         email=email,
-        hashed_password=hashed_password,
-        full_name=full_name,
+        password_hash=hashed_password,
+        name=full_name,
         is_active=True,
     )
     session.add(new_user)

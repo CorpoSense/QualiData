@@ -30,6 +30,10 @@ class Settings(BaseSettings):
         # Default for local development
         return "http://localhost:5173"
 
+    # Admin user credentials (optional - if set, creates admin on startup)
+    admin_email: str = ""
+    admin_password: str = ""
+
     # CORS - dynamically generated from frontend_url
     @property
     def cors_origins(self) -> list[str]:
