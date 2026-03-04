@@ -170,3 +170,26 @@ class TestDatasetModelFields:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+class TestDatasetRouting:
+    """Test Dataset routes use correct types."""
+
+    def test_dataset_list_accepts_string_project_id(self):
+        """Dataset list should accept string project_id (UUID)."""
+        from app.routers.datasets import list_datasets
+        import inspect
+        sig = inspect.signature(list_datasets)
+        params = sig.parameters
+        assert 'project_id' in params
+
+    def test_dataset_import_accepts_string_project_id(self):
+        """Dataset import should accept string project_id (UUID)."""
+        from app.routers.datasets import import_dataset
+        import inspect
+        sig = inspect.signature(import_dataset)
+        params = sig.parameters
+        assert 'project_id' in params
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

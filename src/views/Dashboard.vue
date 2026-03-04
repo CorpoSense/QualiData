@@ -41,7 +41,7 @@
       <div class="card-body">
         <h2 class="h4 mb-3">Quick Actions</h2>
         <div class="d-flex gap-2">
-          <BButton variant="primary" @click="$router.push('/projects/new')">
+          <BButton variant="primary" @click="$router.push('/projects')">
             <i class="bi bi-plus-lg me-2"></i>New Project
           </BButton>
           <BButton variant="info" @click="showImportModal = true">
@@ -77,7 +77,7 @@
 
         <div v-else-if="projects.length === 0" class="text-center py-6">
           <p class="text-muted">No projects yet</p>
-          <BButton variant="primary" class="mt-3" @click="$router.push('/projects/new')">
+          <BButton variant="primary" class="mt-3" @click="$router.push('/projects')">
             Create Your First Project
           </BButton>
         </div>

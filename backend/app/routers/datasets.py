@@ -28,7 +28,7 @@ router = APIRouter(prefix="/datasets", tags=["datasets"])
 class DatasetCreate(BaseModel):
     name: str
     description: str | None = None
-    project_id: int
+    project_id: str
 
 
 class DatasetUpdate(BaseModel):
@@ -40,7 +40,7 @@ class DatasetResponse(BaseModel):
     id: int
     name: str
     description: str | None
-    project_id: int
+    project_id: str
     file_name: str | None
     file_size: int
     file_type: str | None
@@ -93,7 +93,7 @@ def get_preview_data(df: pd.DataFrame, max_rows: int = 10) -> list[dict]:
 @router.post("/import", response_model=DatasetResponse)
 async def import_dataset(
     file: UploadFile = File(...),
-    project_id: int = Form(...),
+    project_id: str = Form(...),
     name: str | None = Form(None),
     description: str | None = Form(None),
     current_user: User = Depends(get_current_active_user),
@@ -103,7 +103,7 @@ async def import_dataset(
     # Verify project belongs to user
     result = await session.execute(
         select(Project).where(
-            Project.id == project_id, Project.owner_id == current_user.id
+            Project.id == project_id, Project.user_id == current_user.id
         )
     )
     project = result.scalar_one_or_none()
@@ -185,7 +185,7 @@ async def preview_dataset(
     # Verify ownership via project
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id, Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.user_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -223,7 +223,7 @@ async def export_dataset(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id, Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.user_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -271,7 +271,7 @@ async def export_dataset(
 
 @router.get("", response_model=list[DatasetResponse])
 async def list_datasets(
-    project_id: int,
+    project_id: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -279,7 +279,7 @@ async def list_datasets(
     # Verify project ownership
     result = await session.execute(
         select(Project).where(
-            Project.id == project_id, Project.owner_id == current_user.id
+            Project.id == project_id, Project.user_id == current_user.id
         )
     )
     if not result.scalar_one_or_none():
@@ -313,7 +313,7 @@ async def get_dataset(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id, Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.user_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -342,7 +342,7 @@ async def delete_dataset(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id, Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.user_id == current_user.id
         )
     )
     project = project_result.scalar_one_or_none()
