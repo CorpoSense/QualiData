@@ -70,6 +70,18 @@ class Dataset(Base):
         index=True,
     )
 
+    # File metadata
+    name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    file_size: Mapped[int] = mapped_column(Integer, default=0)
+    file_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    
+    # Data info
+    row_count: Mapped[int] = mapped_column(Integer, default=0)
+    columns: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    preview_data: Mapped[list | None] = mapped_column(JSON, nullable=True)
+
     # Serialized data (JSON format for pandas DataFrame)
     data_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     schema_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)

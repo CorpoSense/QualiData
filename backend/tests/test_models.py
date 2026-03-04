@@ -274,3 +274,50 @@ class TestAllRoutesAcceptUUID:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+class TestDatasetModelFieldsComplete:
+    """Test Dataset model has all required fields."""
+
+    def test_dataset_has_name(self):
+        """Dataset must have name field."""
+        from app.db.models.project import Dataset
+        assert hasattr(Dataset, 'name')
+
+    def test_dataset_has_description(self):
+        """Dataset must have description field."""
+        from app.db.models.project import Dataset
+        assert hasattr(Dataset, 'description')
+
+    def test_dataset_has_file_name(self):
+        """Dataset must have file_name field."""
+        from app.db.models.project import Dataset
+        assert hasattr(Dataset, 'file_name')
+
+    def test_dataset_has_file_size(self):
+        """Dataset must have file_size field."""
+        from app.db.models.project import Dataset
+        assert hasattr(Dataset, 'file_size')
+
+    def test_dataset_has_file_type(self):
+        """Dataset must have file_type field."""
+        from app.db.models.project import Dataset
+        assert hasattr(Dataset, 'file_type')
+
+    def test_dataset_has_row_count(self):
+        """Dataset must have row_count field."""
+        from app.db.models.project import Dataset
+        assert hasattr(Dataset, 'row_count')
+
+    def test_dataset_has_columns(self):
+        """Dataset must have columns field."""
+        from app.db.models.project import Dataset
+        assert hasattr(Dataset, 'columns')
+
+    def test_dataset_has_preview_data(self):
+        """Dataset must have preview_data field."""
+        from app.db.models.project import Dataset
+        assert hasattr(Dataset, 'preview_data')
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

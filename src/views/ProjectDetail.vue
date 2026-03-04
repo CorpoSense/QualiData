@@ -145,7 +145,7 @@
           </div>
           <div class="modal-footer">
             <BButton variant="primary" :loading="importing" @click="handleImport">Import</BButton>
-            <BButton @click="showImportModal = false">Cancel</BButton>
+            
           </div>
         </div>
       </div>
