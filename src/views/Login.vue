@@ -215,7 +215,8 @@ async function handleLogin() {
     localStorage.setItem('token', data.access_token)
     router.push('/dashboard')
   } catch (e) {
-    error.value = e.message || 'An error occurred. Please try again.'
+    const errorMsg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e) || 'An error occurred. Please try again.')
+    error.value = errorMsg
     console.error('Login error:', e)
   } finally {
     loading.value = false
@@ -260,7 +261,8 @@ async function handleRegister() {
     loginForm.value.password = registerForm.value.password
     handleLogin()
   } catch (e) {
-    error.value = e.message || 'An error occurred. Please try again.'
+    const errorMsg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e) || 'An error occurred. Please try again.')
+    error.value = errorMsg
     console.error('Registration error:', e)
   } finally {
     loading.value = false
