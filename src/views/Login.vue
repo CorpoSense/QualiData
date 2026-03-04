@@ -5,7 +5,7 @@
         <h1 class="h3 text-center mb-4">MasterDataCleaner</h1>
         <h2 class="h5 text-center text-muted mb-4">Sign in to your account</h2>
 
-        <!-- Tabs for Login/Register -->
+        <!-- Tabs -->
         <ul class="nav nav-pills mb-3" role="tablist">
           <li class="nav-item">
             <button 
@@ -28,129 +28,131 @@
         </ul>
 
         <!-- Login Form -->
-        <div v-show="activeTab === 'login'">
-          <BForm @submit.prevent="handleLogin">
-            <BFormGroup label="Email" label-class="fw-bold">
-              <BFormInput 
-                v-model="loginForm.email" 
-                type="email" 
-                placeholder="your@email.com"
-                required
-              ></BFormInput>
-            </BFormGroup>
-
-            <BFormGroup label="Password" label-class="fw-bold">
-              <BFormInput 
-                v-model="loginForm.password" 
-                type="password" 
-                placeholder="Password"
-                required
-              ></BFormInput>
-            </BFormGroup>
-
-            <BButton 
-              variant="primary" 
-              type="submit" 
-              :loading="loading"
-              class="w-100"
+        <form v-show="activeTab === 'login'" @submit.prevent="handleLogin">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Email</label>
+            <input 
+              v-model="loginForm.email" 
+              type="email" 
+              class="form-control"
+              placeholder="your@email.com"
+              required
             >
-              Sign In
-            </BButton>
+          </div>
 
-            <p class="text-center mt-4">
-              <router-link to="/forgot-password">Forgot your password?</router-link>
-            </p>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Password</label>
+            <input 
+              v-model="loginForm.password" 
+              type="password" 
+              class="form-control"
+              placeholder="Password"
+              required
+            >
+          </div>
 
-            <p class="text-center mt-2">
-              <a @click="activeTab = 'register'" class="cursor-pointer">Don't have an account? Sign up</a>
-            </p>
-          </BForm>
+          <button 
+            type="submit" 
+            class="btn btn-primary w-100"
+            :disabled="loading"
+          >
+            {{ loading ? 'Signing in...' : 'Sign In' }}
+          </button>
 
-          <!-- OAuth Options -->
-          <div class="mt-4">
-            <p class="text-center text-muted small mb-2">Or continue with</p>
-            <div class="d-flex justify-content-center gap-2">
-              <BButton 
-                variant="outline-secondary" 
-                @click="oauthLogin('google')"
-                :disabled="!oauthEnabled"
-              >
-                <i class="bi bi-google"></i>
-                <span class="ms-2">Google</span>
-              </BButton>
-              <BButton 
-                variant="outline-dark" 
-                @click="oauthLogin('github')"
-                :disabled="!oauthEnabled"
-              >
-                <i class="bi bi-github"></i>
-                <span class="ms-2">GitHub</span>
-              </BButton>
-            </div>
+          <p class="text-center mt-4">
+            <router-link to="/forgot-password">Forgot your password?</router-link>
+          </p>
+
+          <p class="text-center mt-2">
+            <a @click="activeTab = 'register'" class="cursor-pointer">Don't have an account? Sign up</a>
+          </p>
+        </form>
+
+        <!-- OAuth Options -->
+        <div v-show="activeTab === 'login'" class="mt-4">
+          <p class="text-center text-muted small mb-2">Or continue with</p>
+          <div class="d-flex justify-content-center gap-2">
+            <button 
+              class="btn btn-outline-secondary" 
+              @click="oauthLogin('google')"
+              :disabled="!oauthEnabled"
+            >
+              <i class="bi bi-google"></i>
+              <span class="ms-2">Google</span>
+            </button>
+            <button 
+              class="btn btn-outline-dark" 
+              @click="oauthLogin('github')"
+              :disabled="!oauthEnabled"
+            >
+              <i class="bi bi-github"></i>
+              <span class="ms-2">GitHub</span>
+            </button>
           </div>
         </div>
 
         <!-- Register Form -->
-        <div v-show="activeTab === 'register'">
-          <BForm @submit.prevent="handleRegister">
-            <BFormGroup label="Full Name" label-class="fw-bold">
-              <BFormInput 
-                v-model="registerForm.fullName" 
-                placeholder="John Doe"
-              ></BFormInput>
-            </BFormGroup>
-
-            <BFormGroup label="Email" label-class="fw-bold">
-              <BFormInput 
-                v-model="registerForm.email" 
-                type="email" 
-                placeholder="your@email.com"
-                required
-              ></BFormInput>
-            </BFormGroup>
-
-            <BFormGroup label="Password" label-class="fw-bold">
-              <BFormInput 
-                v-model="registerForm.password" 
-                type="password" 
-                placeholder="Password"
-                required
-              ></BFormInput>
-            </BFormGroup>
-
-            <BFormGroup label="Confirm Password" label-class="fw-bold">
-              <BFormInput 
-                v-model="registerForm.confirmPassword" 
-                type="password" 
-                placeholder="Confirm password"
-                required
-              ></BFormInput>
-            </BFormGroup>
-
-            <BButton 
-              variant="primary" 
-              type="submit" 
-              :loading="loading"
-              class="w-100"
+        <form v-show="activeTab === 'register'" @submit.prevent="handleRegister">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Full Name</label>
+            <input 
+              v-model="registerForm.fullName" 
+              type="text" 
+              class="form-control"
+              placeholder="John Doe"
             >
-              Create Account
-            </BButton>
+          </div>
 
-            <p class="text-center mt-4">
-              <a @click="activeTab = 'login'" class="cursor-pointer">Already have an account? Sign in</a>
-            </p>
-          </BForm>
-        </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">Email</label>
+            <input 
+              v-model="registerForm.email" 
+              type="email" 
+              class="form-control"
+              placeholder="your@email.com"
+              required
+            >
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Password</label>
+            <input 
+              v-model="registerForm.password" 
+              type="password" 
+              class="form-control"
+              placeholder="Password"
+              required
+            >
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Confirm Password</label>
+            <input 
+              v-model="registerForm.confirmPassword" 
+              type="password" 
+              class="form-control"
+              placeholder="Confirm password"
+              required
+            >
+          </div>
+
+          <button 
+            type="submit" 
+            class="btn btn-primary w-100"
+            :disabled="loading"
+          >
+            {{ loading ? 'Creating account...' : 'Create Account' }}
+          </button>
+
+          <p class="text-center mt-4">
+            <a @click="activeTab = 'login'" class="cursor-pointer">Already have an account? Sign in</a>
+          </p>
+        </form>
 
         <!-- Error Message -->
-        <BAlert 
-          v-if="error" 
-          variant="danger" 
-          :closable="false"
-          class="mt-4"
-        >
+        <div v-if="error" class="alert alert-danger mt-4">
           {{ error }}
-        </BAlert>
+        </div>
       </div>
     </div>
   </div>
@@ -159,7 +161,6 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { BForm, BFormGroup, BFormInput, BButton, BAlert } from 'bootstrap-vue-next'
 import { getApiUrl } from '@/utils/api'
 
 const router = useRouter()
@@ -287,10 +288,6 @@ function oauthLogin(provider) {
 }
 
 .cursor-pointer {
-  cursor: pointer;
-}
-
-.nav-link {
   cursor: pointer;
 }
 </style>
