@@ -1,6 +1,6 @@
 """Project routes."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -91,6 +91,19 @@ async def list_projects(
     projects = result.scalars().all()
 
     return {"projects": projects, "total": total, "page": page, "page_size": page_size}
+
+
+@router.get("/new", response_model=ProjectResponse)
+async def new_project(
+    current_user: User = Depends(get_current_active_user),
+):
+    """Create a new project (returns empty template)."""
+    # This endpoint exists to provide a route for /api/projects/new
+    # The actual creation is done via POST to /api/projects
+    raise HTTPException(
+        status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+        detail="Use POST /api/projects to create a new project"
+    )
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
