@@ -15,7 +15,7 @@ describe('MasterDataCleaner - Home Page', () => {
 describe('MasterDataCleaner - Login Page', () => {
   beforeEach(() => {
     cy.visit('/login', { failOnStatusCode: false })
-    cy.wait(2000) // Wait for Vue to mount
+    cy.wait(2000)
   })
 
   it('login page loads without crashing', () => {

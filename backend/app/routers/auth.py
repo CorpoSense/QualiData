@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -120,11 +121,14 @@ async def get_current_active_user(
     "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
 async def register(
-    user_data: UserCreate, session: AsyncSession = Depends(get_async_session)
+    email: str = Form(...),
+    password: str = Form(...),
+    full_name: str | None = Form(None),
+    session: AsyncSession = Depends(get_async_session)
 ):
     """Register a new user."""
     # Check if user exists
-    result = await session.execute(select(User).where(User.email == user_data.email))
+    result = await session.execute(select(User).where(User.email == email))
     existing_user = result.scalar_one_or_none()
     if existing_user:
         raise HTTPException(
@@ -132,11 +136,11 @@ async def register(
         )
 
     # Create new user
-    hashed_password = get_password_hash(user_data.password)
+    hashed_password = get_password_hash(password)
     new_user = User(
-        email=user_data.email,
+        email=email,
         hashed_password=hashed_password,
-        full_name=user_data.full_name,
+        full_name=full_name,
         is_active=True,
     )
     session.add(new_user)
