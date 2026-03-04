@@ -12,8 +12,13 @@ class Settings(BaseSettings):
     debug: bool = False
     secret_key: str = "your-secret-key-here"
 
-    # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    # Frontend URL (for OAuth redirects)
+    frontend_url: str = "http://localhost:5173"
+
+    # CORS - dynamically generated from frontend_url
+    @property
+    def cors_origins(self) -> list[str]:
+        return [self.frontend_url, f"{self.frontend_url}/"]
 
     # Database
     database_url: str = "sqlite+aiosqlite:///./master_data_cleaner.db"

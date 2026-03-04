@@ -257,7 +257,7 @@ async def confirm_password_reset(
 async def oauth_redirect(provider: str):
     """Redirect to OAuth provider."""
     if provider == "google":
-        redirect_uri = f"{settings.cors_origins[0]}/oauth/callback/google"
+        redirect_uri = f"{settings.frontend_url}/oauth/callback/google"
         auth_url = (
             "https://accounts.google.com/o/oauth2/v2/auth?"
             f"client_id={settings.google_client_id or ''}&"
@@ -266,7 +266,7 @@ async def oauth_redirect(provider: str):
             "scope=openid email profile"
         )
     elif provider == "github":
-        redirect_uri = f"{settings.cors_origins[0]}/oauth/callback/github"
+        redirect_uri = f"{settings.frontend_url}/oauth/callback/github"
         auth_url = (
             f"https://github.com/login/oauth/authorize?"
             f"client_id={settings.github_client_id or ''}&"
@@ -295,7 +295,7 @@ async def oauth_callback(
                 "client_secret": settings.google_client_secret or "",
                 "code": code,
                 "grant_type": "authorization_code",
-                "redirect_uri": f"{settings.cors_origins[0]}/oauth/callback/google",
+                "redirect_uri": f"{settings.frontend_url}/oauth/callback/google",
             },
         )
         if token_res.status_code != 200:
