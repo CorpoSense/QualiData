@@ -71,6 +71,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def get_password_hash(password: str) -> str:
+    # Truncate to 72 bytes max for bcrypt compatibility
+    password = password[:72] if len(password) > 72 else password
     return pwd_context.hash(password)
 
 
