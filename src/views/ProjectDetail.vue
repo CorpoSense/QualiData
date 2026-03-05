@@ -124,7 +124,7 @@
     </BTabs>
 
     <!-- Import Modal -->
-    <BModal v-model="showImportModal" :has-modal-card="true" ok-title="Import" @ok="handleImport">
+    <BModal v-model="showImportModal" :has-modal-card="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
@@ -136,9 +136,35 @@
               <BFormInput v-model="importForm.name" placeholder="My Dataset"></BFormInput>
             </BFormGroup>
             <BFormGroup label="Upload File" class="mt-3">
-              <BFormFile v-model="importForm.file" drop-placeholder="Drop file here"></BFormFile>
-              <small class="text-muted">CSV, Excel, JSON</small>
+              <BFormFile v-model="importForm.file" accept=".csv,.tsv,.txt" @change="handleFileSelect" drop-placeholder="Drop file here"></BFormFile>
+              <small class="text-muted">CSV, TSV, TXT</small>
             </BFormGroup>
+            
+            <!-- Preview Section -->
+            <div v-if="importPreview.length > 0" class="mt-3">
+              <h6>Preview (first 5 rows)</h6>
+              <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                <table class="table table-sm table-bordered">
+                  <thead>
+                    <tr>
+                      <th v-for="col in importPreviewHeaders" :key="col">{{ col }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(row, idx) in importPreview.slice(0, 5)" :key="idx">
+                      <td v-for="(cell, cidx) in row" :key="cidx">{{ cell }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="text-muted small mt-2">Total rows: {{ importPreview.length }}</p>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <BButton variant="secondary" @click="showImportModal = false">Cancel</BButton>
+            <BButton variant="primary" :disabled="!importPreview.length" @click="confirmImport">
+              Import
+            </BButton>
           </div>
         </div>
       </div>
@@ -166,6 +192,7 @@
 
 <script setup>
 import { getApiUrl } from '@/utils/api'
+import Papa from 'papaparse'
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { BButton, BTab, BTabs, BDropdown, BDropdownItem, BBadge, BModal, BFormGroup, BFormInput, BFormFile, BFormSelect, BTable } from 'bootstrap-vue-next'
@@ -181,9 +208,19 @@ const project = ref(null)
 const datasets = ref([])
 const operations = ref([])
 const showImportModal = ref(false)
+watch(showImportModal, (val) => {
+  if (!val) {
+    importPreview.value = []
+    importPreviewHeaders.value = []
+    importForm.name = ''
+    importForm.file = null
+  }
+})
 const showPreviewModal = ref(false)
 const showAssistantModal = ref(false)
 const importing = ref(false)
+const importPreview = ref([])
+const importPreviewHeaders = ref([])
 const selectedDataset = ref(null)
 const previewLimit = ref(10)
 const previewData = ref([])
@@ -238,6 +275,31 @@ async function fetchDatasets() {
   } catch (e) {
     console.error(e)
   }
+}
+
+function handleFileSelect(event) {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  Papa.parse(file, {
+    complete: function(results) {
+      if (results.data && results.data.length > 0) {
+        // Filter out empty rows
+        const filtered = results.data.filter(row => row.some(cell => cell && cell.trim()))
+        if (filtered.length > 0) {
+          importPreviewHeaders.value = filtered[0]
+          importPreview.value = filtered.slice(1)
+        }
+      }
+    },
+    error: function(err) {
+      console.error('Parse error:', err)
+    }
+  })
+}
+
+async function confirmImport() {
+  handleImport()
 }
 
 async function handleImport() {
