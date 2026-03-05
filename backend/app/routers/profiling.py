@@ -32,7 +32,7 @@ class ProfilingResponse(BaseModel):
     total_rows: int
 
 
-@router.get("/api/datasets/{dataset_id}/profile", response_model=ProfilingResponse)
+@router.get("/datasets/{dataset_id}/profile", response_model=ProfilingResponse)
 async def profile_columns(
     dataset_id: str,
     current_user: User = Depends(get_current_active_user),
@@ -50,7 +50,7 @@ async def profile_columns(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id, Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.user_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():

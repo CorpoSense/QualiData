@@ -56,14 +56,14 @@ class OperationResponse(BaseModel):
     columns: list[dict] | None = None
 
 
-def get_dataset_with_owner_check(dataset_id: str, user_id: str, session: AsyncSession):
-    result = session.execute(select(Dataset).where(Dataset.id == dataset_id))
+async def get_dataset_with_owner_check(dataset_id: str, user_id: str, session: AsyncSession):
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
-    project_result = session.execute(
+    project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id, Project.owner_id == user_id
+            Project.id == dataset.project_id, Project.user_id == user_id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -101,7 +101,7 @@ async def add_column(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
     df = pd.DataFrame(dataset.preview_data)
@@ -139,7 +139,7 @@ async def remove_columns(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
     df = pd.DataFrame(dataset.preview_data)
@@ -172,7 +172,7 @@ async def rename_column(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
     df = pd.DataFrame(dataset.preview_data)
@@ -205,7 +205,7 @@ async def merge_columns(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
     df = pd.DataFrame(dataset.preview_data)
@@ -239,7 +239,7 @@ async def split_column(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
     df = pd.DataFrame(dataset.preview_data)
@@ -277,7 +277,7 @@ async def duplicate_column(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
     df = pd.DataFrame(dataset.preview_data)
@@ -313,7 +313,7 @@ async def reorder_columns(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
     df = pd.DataFrame(dataset.preview_data)
@@ -335,16 +335,42 @@ async def reorder_columns(
     )
 
 
+@router.get("/datasets/{dataset_id}/operations")
+async def list_operations(
+    dataset_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """List all operations for a dataset."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    result = await session.execute(
+        select(OperationHistory)
+        .where(OperationHistory.project_id == dataset.project_id)
+        .order_by(OperationHistory.created_at.desc())
+    )
+    operations = result.scalars().all()
+    return [
+        {
+            "id": op.id,
+            "operation_type": op.operation_type,
+            "operation_params": op.operation_params,
+            "created_at": op.created_at.isoformat() if op.created_at else None,
+            "is_undone": op.is_undone,
+        }
+        for op in operations
+    ]
+
+
 @router.get("/datasets/{dataset_id}/operations/history")
 async def get_operation_history(
     dataset_id: str,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     result = await session.execute(
         select(OperationHistory)
-        .where(OperationHistory.dataset_id == dataset_id)
+        .where(dataset.project_id)
         .order_by(OperationHistory.created_at.desc())
     )
     operations = result.scalars().all()

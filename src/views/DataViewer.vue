@@ -267,11 +267,11 @@
 <script setup>
 import { getApiUrl } from '@/utils/api'
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem } from 'bootstrap-vue-next'
 
-const props = defineProps({
-  datasetId: { type: Number, required: true }
-})
+const route = useRoute()
+const datasetId = computed(() => route.params.datasetId)
 
 const apiUrl = getApiUrl()
 
@@ -323,10 +323,10 @@ async function refreshData() {
   loading.value = true
   try {
     const [previewRes, opsRes] = await Promise.all([
-      fetch(`${apiUrl}/api/datasets/${props.datasetId}/preview?limit=${limit.value}`, {
+      fetch(`${apiUrl}/api/datasets/${datasetId.value}/preview?limit=${limit.value}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       }),
-      fetch(`${apiUrl}/api/datasets/${props.datasetId}/operations`, {
+      fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       })
     ])
@@ -340,7 +340,7 @@ async function refreshData() {
     
     if (opsRes.ok) operations.value = await opsRes.json()
     
-    const profileRes = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/profile`, {
+    const profileRes = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/profile`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
     if (profileRes.ok) {
@@ -355,7 +355,7 @@ async function loadComparison() {
   if (!compareOpId.value) return
   comparing.value = true
   try {
-    const res = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/compare/${compareOpId.value}`, {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/compare/${compareOpId.value}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
     if (res.ok) {
@@ -374,7 +374,7 @@ async function applyOperation(endpoint, params) {
   if (!col) return
   operating.value = true
   try {
-    const res = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/operations/${endpoint}`, {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify({ column: col, ...params })
@@ -394,7 +394,7 @@ async function applyDedup(type) { await applyOperation(type === 'duplicates' ? '
 async function undo() {
   operating.value = true
   try {
-    const res = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/operations/undo`, {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/undo`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
@@ -406,7 +406,7 @@ async function undo() {
 async function redo() {
   operating.value = true
   try {
-    const res = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/operations/redo`, {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/redo`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
@@ -420,7 +420,7 @@ async function applyAiClean() {
   if (!col || !aiInstruction.value) return
   operating.value = true
   try {
-    const res = await fetch(`${apiUrl}/api/datasets/${props.datasetId}/ai-clean`, {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/ai-clean`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify({ column: col, instruction: aiInstruction.value, batch_size: 10 })
