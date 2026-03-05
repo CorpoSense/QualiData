@@ -387,7 +387,25 @@ async function applyOperation(endpoint, params) {
 
 async function applyStringOp(operation) { await applyOperation('string-operations', { operation }) }
 async function applyDatetimeOp(operation) { await applyOperation('datetime-operations', { operation }) }
-async function applyStructuralOp(operation) { await applyOperation('structural', { operation }) }
+async function applyStructuralOp(operation) {
+  if (operation === 'rename') {
+    const newName = prompt('Enter new column name:')
+    if (!newName) return
+    const col = selectedColumn.value || columns.value[0]?.field
+    if (!col) { alert('No column selected'); return }
+    await applyOperation('structural', { operation, column: col, new_name: newName })
+  } else if (operation === 'astype') {
+    const dtype = prompt('Enter new type (int, float, str, bool):')
+    if (!dtype) return
+    const col = selectedColumn.value || columns.value[0]?.field
+    if (!col) { alert('No column selected'); return }
+    await applyOperation('structural', { operation, column: col, dtype })
+  } else if (operation === 'drop') {
+    const col = selectedColumn.value || columns.value[0]?.field
+    if (!col) { alert('No column selected'); return }
+    await applyOperation('structural', { operation, column: col })
+  }
+}
 async function applyNumericOp(operation) { await applyOperation('numeric', { operation }) }
 async function applyDedup(type) { await applyOperation(type === 'duplicates' ? 'remove-duplicates' : 'fuzzy-dedupe', {}) }
 
