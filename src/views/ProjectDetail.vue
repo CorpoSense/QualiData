@@ -136,7 +136,7 @@
               <BFormInput v-model="importForm.name" placeholder="My Dataset"></BFormInput>
             </BFormGroup>
             <BFormGroup label="Upload File" class="mt-3">
-              <BFormFile v-model="importForm.file" accept=".csv,.tsv,.txt" @change="handleFileSelect" drop-placeholder="Drop file here"></BFormFile>
+              <BFormFile v-model="importForm.file" accept=".csv,.tsv,.txt"  drop-placeholder="Drop file here"></BFormFile>
               <small class="text-muted">CSV, TSV, TXT</small>
             </BFormGroup>
             
@@ -277,8 +277,8 @@ async function fetchDatasets() {
   }
 }
 
-function handleFileSelect(event) {
-  const file = event.target.files[0]
+function handleFileSelect() {
+  const file = importForm.file
   if (!file) return
   
   Papa.parse(file, {
