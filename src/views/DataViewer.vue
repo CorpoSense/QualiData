@@ -385,8 +385,16 @@ async function applyOperation(endpoint, params) {
   finally { operating.value = false; showFillnaModal.value = false }
 }
 
-async function applyStringOp(operation) { await applyOperation('string-operations', { operation }) }
-async function applyDatetimeOp(operation) { await applyOperation('datetime-operations', { operation }) }
+async function applyStringOp(operation) {
+  const col = selectedColumn.value || columns.value[0]?.field
+  if (!col) { alert('No column selected'); return }
+  await applyOperation('string-operations', { operation, column: col })
+}
+async function applyDatetimeOp(operation) {
+  const col = selectedColumn.value || columns.value[0]?.field
+  if (!col) { alert('No column selected'); return }
+  await applyOperation('datetime-operations', { operation, column: col })
+}
 async function applyStructuralOp(operation) {
   if (operation === 'rename') {
     const newName = prompt('Enter new column name:')
@@ -406,7 +414,11 @@ async function applyStructuralOp(operation) {
     await applyOperation('structural', { operation, column: col })
   }
 }
-async function applyNumericOp(operation) { await applyOperation('numeric', { operation }) }
+async function applyNumericOp(operation) {
+  const col = selectedColumn.value || columns.value[0]?.field
+  if (!col) { alert('No column selected'); return }
+  await applyOperation('numeric', { operation, column: col })
+}
 async function applyDedup(type) { await applyOperation(type === 'duplicates' ? 'remove-duplicates' : 'fuzzy-dedupe', {}) }
 
 async function undo() {
