@@ -74,8 +74,8 @@
           </div>
         </div>
         <div v-else class="row">
-          <div v-for="dataset in datasets" :key="dataset.id" class="col-md-">
-            <div class="col-md-4 mb-3"> class="card dataset-card">
+          <div v-for="dataset in datasets" :key="dataset.id" class="col-md-4 mb-3">
+              <div class="card dataset-card">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                   <h3 class="h6 mb-0">{{ dataset.name }}</h3>
