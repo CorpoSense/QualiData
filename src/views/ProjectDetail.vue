@@ -124,7 +124,7 @@
     </BTabs>
 
     <!-- Import Modal -->
-    <BModal v-model="showImportModal" :has-modal-card="true">
+    <BModal v-model="showImportModal" :has-modal-card="true" ok-title="Import" @ok="handleImport">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
@@ -139,9 +139,6 @@
               <BFormFile v-model="importForm.file" drop-placeholder="Drop file here"></BFormFile>
               <small class="text-muted">CSV, Excel, JSON</small>
             </BFormGroup>
-          </div>
-          <div class="modal-footer">
-            <BButton variant="primary" :loading="importing" @click="handleImport">Import</BButton>
           </div>
         </div>
       </div>

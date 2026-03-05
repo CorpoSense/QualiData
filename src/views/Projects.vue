@@ -84,7 +84,7 @@
     </div>
 
     <!-- Create/Edit Modal -->
-    <BModal v-model="showCreateModal" :has-modal-card="true">
+    <BModal v-model="showCreateModal" :has-modal-card="true" :ok-title="editingProject ? 'Update' : 'Create'" @ok="saveProject">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
@@ -98,11 +98,6 @@
             <BFormGroup label="Description" label-class="fw-bold">
               <BFormTextarea v-model="projectForm.description" placeholder="Project description..."></BFormTextarea>
             </BFormGroup>
-          </div>
-          <div class="modal-footer">
-            <BButton variant="primary" :loading="saving" @click="saveProject">
-              {{ editingProject ? 'Update' : 'Create' }}
-            </BButton>
           </div>
         </div>
       </div>
