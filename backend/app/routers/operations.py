@@ -710,3 +710,64 @@ async def redo_operation(
     session: AsyncSession = Depends(get_async_session),
 ):
     raise HTTPException(status_code=501, detail="Redo not yet implemented")
+
+
+# Numeric operations (round, normalize, outliers)
+@router.post("/datasets/{dataset_id}/operations/numeric")
+async def numeric_operations(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Numeric operations like round, normalize, detect outliers."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+    
+    df = pd.DataFrame(dataset.preview_data)
+    operation = request.get('operation')
+    column = request.get('column')
+    
+    if not column or column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column {column} not found")
+    
+    if operation == 'round':
+        decimals = request.get('decimals', 2)
+        try:
+            df[column] = df[column].round(decimals)
+        except:
+            raise HTTPException(status_code=400, detail="Cannot round this column")
+            
+    elif operation == 'normalize':
+        # Min-max normalization to 0-1
+        try:
+            col_min = df[column].min()
+            col_max = df[column].max()
+            if col_max - col_min != 0:
+                df[column] = (df[column] - col_min) / (col_max - col_min)
+        except:
+            raise HTTPException(status_code=400, detail="Cannot normalize this column")
+            
+    elif operation == 'outliers':
+        # Simple IQR-based outlier detection - replace with median
+        try:
+            Q1 = df[column].quantile(0.25)
+            Q3 = df[column].quantile(0.75)
+            IQR = Q3 - Q1
+            lower = Q1 - 1.5 * IQR
+            upper = Q3 + 1.5 * IQR
+            median = df[column].median()
+            df[column] = df[column].apply(lambda x: median if x < lower or x > upper else x)
+        except:
+            raise HTTPException(status_code=400, detail="Cannot detect outliers in this column")
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
+    
+    from app.routers.datasets import detect_columns, get_preview_data
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    dataset.row_count = len(df)
+    await session.commit()
+    
+    return {"status": "success", "message": f"Applied {operation}", "columns": dataset.columns}
