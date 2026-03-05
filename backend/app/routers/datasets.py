@@ -46,7 +46,7 @@ class DatasetResponse(BaseModel):
     file_size: int
     file_type: str | None
     row_count: int
-    columns: dict | None
+    columns: list | None
     preview_data: list | None
     created_at: datetime | None
 
