@@ -1,5 +1,10 @@
 """Dataset routes for import/export."""
 
+import tempfile
+import os
+
+from app.services.smart_importer import SmartImporter
+
 import io
 
 import pandas as pd
@@ -96,6 +101,12 @@ async def import_dataset(
     project_id: str = Form(...),
     name: str | None = Form(None),
     description: str | None = Form(None),
+    # Smart import options
+    auto_detect: bool = Form(True),
+    delimiter: str | None = Form(None),
+    encoding: str | None = Form(None),
+    has_header: bool | None = Form(None),
+    sheet_name: str | None = Form(None),
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -112,26 +123,70 @@ async def import_dataset(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
 
-    # Read file content
+    # Save uploaded file to temp file for smart importer
+    filename = file.filename or "data.csv"
     content = await file.read()
     file_size = len(content)
-
+    
     # Determine file type
-    filename = file.filename or ""
-    if filename.endswith(".csv"):
-        file_type = "csv"
-        df = pd.read_csv(io.BytesIO(content))
-    elif filename.endswith((".xlsx", ".xls")):
+    file_ext = os.path.splitext(filename)[1].lower()
+    file_type = "csv"
+    if file_ext in (".xlsx", ".xls", ".xlsb", ".ods"):
         file_type = "excel"
-        df = pd.read_excel(io.BytesIO(content))
-    elif filename.endswith(".json"):
+    elif file_ext == ".json":
         file_type = "json"
-        df = pd.read_json(io.BytesIO(content))
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported file type. Use CSV, Excel, or JSON.",
-        )
+    
+    # Save to temp file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+    
+    try:
+        if auto_detect:
+            # Use smart importer for automatic detection
+            importer = SmartImporter()
+            analysis = importer.analyze(tmp_path)
+            
+            if not analysis.is_importable:
+                error_msgs = [m.message for m in analysis.messages if m.severity.value == "error"]
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot analyze file: {'; '.join(error_msgs)}"
+                )
+            
+            df = importer.import_file(
+                tmp_path,
+                analysis=analysis,
+                delimiter=delimiter,
+                encoding=encoding,
+                has_header=has_header,
+                sheet_name=sheet_name,
+            )
+        else:
+            # Use manual settings (no auto detection)
+            if file_type == "csv":
+                df = pd.read_csv(
+                    tmp_path,
+                    sep=delimiter or ',',
+                    encoding=encoding or 'utf-8',
+                    header=0 if has_header else None,
+                )
+            elif file_type == "excel":
+                df = pd.read_excel(
+                    tmp_path,
+                    sheet_name=sheet_name,
+                    header=0 if has_header else None,
+                )
+            elif file_type == "json":
+                df = pd.read_json(tmp_path)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Unsupported file type.",
+                )
+    finally:
+        # Clean up temp file
+        os.unlink(tmp_path)
 
     # Get column info and preview
     columns = detect_columns(df)
