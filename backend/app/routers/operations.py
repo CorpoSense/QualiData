@@ -595,3 +595,118 @@ async def sort_operations(
     await session.commit()
     
     return {"status": "success", "message": f"Sorted by {column}", "columns": dataset.columns}
+
+
+# Structural operations (rename, drop column, change type)
+@router.post("/datasets/{dataset_id}/operations/structural")
+async def structural_operations(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Structural operations like rename column, drop column, change type."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+    
+    df = pd.DataFrame(dataset.preview_data)
+    operation = request.get('operation')
+    column = request.get('column')
+    
+    if operation == 'rename':
+        new_name = request.get('new_name')
+        if not column or not new_name:
+            raise HTTPException(status_code=400, detail="column and new_name required")
+        if column not in df.columns:
+            raise HTTPException(status_code=400, detail=f"Column {column} not found")
+        df = df.rename(columns={column: new_name})
+        
+    elif operation == 'drop':
+        if column not in df.columns:
+            raise HTTPException(status_code=400, detail=f"Column {column} not found")
+        df = df.drop(columns=[column])
+        
+    elif operation == 'astype':
+        dtype = request.get('dtype')
+        if not column or not dtype:
+            raise HTTPException(status_code=400, detail="column and dtype required")
+        if column not in df.columns:
+            raise HTTPException(status_code=400, detail=f"Column {column} not found")
+        try:
+            df[column] = df[column].astype(dtype)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Cannot convert: {str(e)}")
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
+    
+    from app.routers.datasets import detect_columns, get_preview_data
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    dataset.row_count = len(df)
+    await session.commit()
+    
+    return {"status": "success", "message": f"Applied {operation}", "columns": dataset.columns}
+
+
+# Fuzzy deduplication
+@router.post("/datasets/{dataset_id}/operations/fuzzy-dedupe")
+async def fuzzy_dedupe(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Fuzzy deduplication based on column similarity."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+    
+    df = pd.DataFrame(dataset.preview_data)
+    column = request.get('column')
+    threshold = request.get('threshold', 0.8)
+    
+    if not column or column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column {column} not found")
+    
+    from difflib import SequenceMatcher
+    rows = df[column].astype(str).tolist()
+    to_keep = []
+    for row in rows:
+        is_duplicate = False
+        for kept in to_keep:
+            if SequenceMatcher(None, row, kept).ratio() > threshold:
+                is_duplicate = True
+                break
+        if not is_duplicate:
+            to_keep.append(row)
+    
+    df = df[df[column].astype(str).isin(to_keep)].reset_index(drop=True)
+    
+    from app.routers.datasets import detect_columns, get_preview_data
+    before_count = dataset.row_count
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    dataset.row_count = len(df)
+    await session.commit()
+    
+    return {"status": "success", "message": f"Removed {before_count - len(df)} fuzzy duplicates", "row_count": dataset.row_count}
+
+
+# Undo/Redo placeholders
+@router.post("/datasets/{dataset_id}/operations/undo")
+async def undo_operation(
+    dataset_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    raise HTTPException(status_code=501, detail="Undo not yet implemented")
+
+
+@router.post("/datasets/{dataset_id}/operations/redo")
+async def redo_operation(
+    dataset_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    raise HTTPException(status_code=501, detail="Redo not yet implemented")
