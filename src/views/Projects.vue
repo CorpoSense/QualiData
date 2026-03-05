@@ -103,7 +103,6 @@
             <BButton variant="primary" :loading="saving" @click="saveProject">
               {{ editingProject ? 'Update' : 'Create' }}
             </BButton>
-            
           </div>
         </div>
       </div>
