@@ -384,3 +384,214 @@ async def get_operation_history(
         }
         for op in operations
     ]
+
+
+# String operations
+@router.post("/datasets/{dataset_id}/operations/string-operations")
+async def string_operations(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """String operations like uppercase, lowercase, trim, etc."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+    
+    df = pd.DataFrame(dataset.preview_data)
+    column = request.get('column')
+    operation = request.get('operation')
+    
+    if column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
+    
+    before_data = df[column].tolist()
+    
+    if operation == 'uppercase':
+        df[column] = df[column].astype(str).str.upper()
+    elif operation == 'lowercase':
+        df[column] = df[column].astype(str).str.lower()
+    elif operation == 'trim':
+        df[column] = df[column].astype(str).str.strip()
+    elif operation == 'titlecase':
+        df[column] = df[column].astype(str).str.title()
+    elif operation == 'capitalize':
+        df[column] = df[column].astype(str).str.capitalize()
+    elif operation == 'remove_whitespace':
+        df[column] = df[column].astype(str).str.replace(r'\s+', '', regex=True)
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
+    
+    from app.routers.datasets import detect_columns, get_preview_data
+    before = {"columns": dataset.columns}
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    dataset.row_count = len(df)
+    after = {"columns": dataset.columns, "row_count": len(df)}
+    
+    # Skip saving operation for now - model has different fields
+# save_operation(dataset_id, "string_operations", request, before, after, session)
+    await session.commit()
+    
+    return {"status": "success", "message": f"Applied {operation} to column {column}", "columns": dataset.columns}
+
+
+# Datetime operations
+@router.post("/datasets/{dataset_id}/operations/datetime-operations")
+async def datetime_operations(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Datetime operations like parse, format, extract year, etc."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+    
+    df = pd.DataFrame(dataset.preview_data)
+    column = request.get('column')
+    operation = request.get('operation')
+    
+    if column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
+    
+    if operation == 'parse_datetime':
+        try:
+            df[column] = pd.to_datetime(df[column], errors='coerce')
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to parse datetime: {str(e)}")
+    elif operation == 'extract_year':
+        df[column] = pd.to_datetime(df[column], errors='coerce').dt.year
+    elif operation == 'extract_month':
+        df[column] = pd.to_datetime(df[column], errors='coerce').dt.month
+    elif operation == 'extract_day':
+        df[column] = pd.to_datetime(df[column], errors='coerce').dt.day
+    elif operation == 'extract_weekday':
+        df[column] = pd.to_datetime(df[column], errors='coerce').dt.day_name()
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
+    
+    from app.routers.datasets import detect_columns, get_preview_data
+    before = {"columns": dataset.columns}
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    dataset.row_count = len(df)
+    after = {"columns": dataset.columns, "row_count": len(df)}
+    
+    # save_operation(dataset_id, "datetime_operations", request, before, after, session)
+    await session.commit()
+    
+    return {"status": "success", "message": f"Applied {operation} to column {column}", "columns": dataset.columns}
+
+
+# Fill NA operations
+@router.post("/datasets/{dataset_id}/operations/fillna")
+async def fillna_operations(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Fill NA operations."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+    
+    df = pd.DataFrame(dataset.preview_data)
+    method = request.get('method')
+    fill_value = request.get('fill_value')
+    column = request.get('column')
+    
+    if method == 'drop':
+        df = df.dropna()
+    elif method == 'forward':
+        df = df.fillna(method='ffill')
+    elif method == 'backward':
+        df = df.fillna(method='bfill')
+    elif method == 'constant':
+        if fill_value:
+            df = df.fillna(fill_value)
+        else:
+            raise HTTPException(status_code=400, detail="fill_value required for constant method")
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown method: {method}")
+    
+    from app.routers.datasets import detect_columns, get_preview_data
+    before = {"columns": dataset.columns, "row_count": dataset.row_count}
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    dataset.row_count = len(df)
+    after = {"columns": dataset.columns, "row_count": len(df)}
+    
+    # save_operation(dataset_id, "fillna", request, before, after, session)
+    await session.commit()
+    
+    return {"status": "success", "message": f"Applied fillna ({method})", "columns": dataset.columns, "row_count": dataset.row_count}
+
+
+# Remove duplicates
+@router.post("/datasets/{dataset_id}/operations/remove-duplicates")
+async def remove_duplicates(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Remove duplicate rows."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+    
+    df = pd.DataFrame(dataset.preview_data)
+    before_count = len(df)
+    df = df.drop_duplicates()
+    after_count = len(df)
+    
+    from app.routers.datasets import detect_columns, get_preview_data
+    before = {"columns": dataset.columns, "row_count": before_count}
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    dataset.row_count = len(df)
+    after = {"columns": dataset.columns, "row_count": after_count}
+    
+    # save_operation(dataset_id, "remove_duplicates", request, before, after, session)
+    await session.commit()
+    
+    return {"status": "success", "message": f"Removed {before_count - after_count} duplicate rows", "columns": dataset.columns, "row_count": dataset.row_count}
+
+
+# Sort
+@router.post("/datasets/{dataset_id}/operations/sort")
+async def sort_operations(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Sort by column."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+    
+    df = pd.DataFrame(dataset.preview_data)
+    column = request.get('column')
+    ascending = request.get('ascending', True)
+    
+    if column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
+    
+    df = df.sort_values(by=column, ascending=ascending)
+    
+    from app.routers.datasets import detect_columns, get_preview_data
+    before = {"columns": dataset.columns}
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    dataset.row_count = len(df)
+    after = {"columns": dataset.columns, "row_count": len(df)}
+    
+    # save_operation(dataset_id, "sort", request, before, after, session)
+    await session.commit()
+    
+    return {"status": "success", "message": f"Sorted by {column}", "columns": dataset.columns}
