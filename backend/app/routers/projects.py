@@ -73,7 +73,7 @@ async def list_projects(
 ):
     """List all projects for current user."""
     # Build query
-    query = select(Project).where(current_user.id == current_user.id)
+    query = select(Project).where(Project.user_id == current_user.id)
 
     if search:
         query = query.where(Project.name.ilike(f"%{search}%"))
@@ -103,7 +103,7 @@ async def get_project(
     """Get a specific project."""
     result = await session.execute(
         select(Project).where(
-            Project.id == project_id, current_user.id == current_user.id
+            Project.id == project_id, Project.user_id == current_user.id
         )
     )
     project = result.scalar_one_or_none()
@@ -126,7 +126,7 @@ async def update_project(
     """Update a project."""
     result = await session.execute(
         select(Project).where(
-            Project.id == project_id, current_user.id == current_user.id
+            Project.id == project_id, Project.user_id == current_user.id
         )
     )
     project = result.scalar_one_or_none()
@@ -156,7 +156,7 @@ async def delete_project(
     """Delete a project."""
     result = await session.execute(
         select(Project).where(
-            Project.id == project_id, current_user.id == current_user.id
+            Project.id == project_id, Project.user_id == current_user.id
         )
     )
     project = result.scalar_one_or_none()

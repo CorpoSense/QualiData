@@ -49,12 +49,9 @@
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-3">
               <h3 class="h5 mb-0">{{ project.name }}</h3>
-              <BDropdown>
-                <template #button-content>
-                  <i class="bi bi-three-dots-vertical"></i>
-                </template>
-                <BDropdownItem @click.stop="editProject(project)">Edit</BDropdownItem>
-                <BDropdownItem @click.stop="deleteProject(project)" variant="danger">Delete</BDropdownItem>
+              <BDropdown text="Actions" variant="outline-secondary" size="sm">
+                <BDropdownItem @click="editProject(project)">Edit</BDropdownItem>
+                <BDropdownItem @click="deleteProject(project)" variant="danger">Delete</BDropdownItem>
               </BDropdown>
             </div>
             

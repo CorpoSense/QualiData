@@ -79,15 +79,12 @@
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                   <h3 class="h6 mb-0">{{ dataset.name }}</h3>
-                  <BDropdown>
-                    <template #button-content>
-                      <i class="bi bi-three-dots-vertical"></i>
-                    </template>
-                    <BDropdownItem @click.stop="viewDataset(dataset)">View Data</BDropdownItem>
-                    <BDropdownItem @click.stop="previewDataset(dataset)">Preview</BDropdownItem>
-                    <BDropdownItem @click.stop="exportDataset(dataset)">Export</BDropdownItem>
-                    <BDropdownItem @click.stop="profileDataset(dataset)" variant="info">Profile</BDropdownItem>
-                    <BDropdownItem @click.stop="deleteDataset(dataset)" variant="danger">Delete</BDropdownItem>
+                  <BDropdown text="Actions" variant="outline-secondary" size="sm">
+                    <BDropdownItem @click="viewDataset(dataset)">View Data</BDropdownItem>
+                    <BDropdownItem @click="previewDataset(dataset)">Preview</BDropdownItem>
+                    <BDropdownItem @click="exportDataset(dataset)">Export</BDropdownItem>
+                    <BDropdownItem @click="profileDataset(dataset)" variant="info">Profile</BDropdownItem>
+                    <BDropdownItem @click="deleteDataset(dataset)" variant="danger">Delete</BDropdownItem>
                   </BDropdown>
                 </div>
                 <p class="small text-muted mb-2">{{ dataset.description || 'No description' }}</p>

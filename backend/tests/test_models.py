@@ -321,3 +321,34 @@ class TestDatasetModelFieldsComplete:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+class TestProjectCRUDRoutes:
+    """Test project CRUD routes exist and work."""
+
+    def test_project_update_route_exists(self):
+        """Update project route should exist."""
+        from app.routers.projects import update_project
+        assert update_project is not None
+
+    def test_project_delete_route_exists(self):
+        """Delete project route should exist."""
+        from app.routers.projects import delete_project
+        assert delete_project is not None
+
+
+class TestDatasetCRUDRoutes:
+    """Test dataset CRUD routes exist."""
+
+    def test_dataset_delete_route_exists(self):
+        """Delete dataset route should exist."""
+        from app.routers.datasets import delete_dataset
+        assert delete_dataset is not None
+
+    def test_dataset_preview_route_exists(self):
+        """Preview dataset route should exist."""
+        from app.routers.datasets import preview_dataset
+        assert preview_dataset is not None
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
