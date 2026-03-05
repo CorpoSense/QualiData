@@ -1,6 +1,7 @@
 """Dataset operations routes - pandas-based data cleaning."""
 
 import pandas as pd
+import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select

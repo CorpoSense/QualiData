@@ -8,6 +8,7 @@ from app.services.smart_importer import SmartImporter
 import io
 
 import pandas as pd
+import numpy as np
 from datetime import datetime
 from fastapi import (
     APIRouter,
@@ -91,6 +92,8 @@ def detect_columns(df: pd.DataFrame) -> list[dict]:
 
 def get_preview_data(df: pd.DataFrame, max_rows: int = 10) -> list[dict]:
     """Get preview data from DataFrame."""
+    # Replace NaN/inf with None for JSON compatibility
+    df = df.replace([np.inf, -np.inf], np.nan).replace({np.nan: None})
     return df.head(max_rows).to_dict(orient="records")
 
 
