@@ -49,7 +49,7 @@
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-3">
               <h3 class="h5 mb-0">{{ project.name }}</h3>
-              <BDropdown text="Actions" variant="outline-secondary" size="sm">
+              <BDropdown text="Actions" variant="outline-secondary" size="sm" @click.stop>
                 <BDropdownItem @click="editProject(project)">Edit</BDropdownItem>
                 <BDropdownItem @click="deleteProject(project)" variant="danger">Delete</BDropdownItem>
               </BDropdown>
