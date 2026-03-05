@@ -1,0 +1,10 @@
+id;name;description;amount;is_active
+1;Product A;"This is a simple product";99.99;true
+2;Product B;"Product with ""quotes"" inside";149.50;true
+3;Product C;;75.00;false
+4;Product D;"Description with
+line break";199.99;true
+5;Product E;"Leading/trailing spaces";250.00;true
+6;Product F;"Unicode: café, naïve, résumé";300.00;true
+7;Product G;"Numeric string: 12345";0;false
+8;Product H;"Empty string: ";100.00;true
