@@ -76,9 +76,20 @@
     <!-- Backdrop for offcanvas -->
     <div v-if="showNotifications" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50" style="z-index: 1040;" @click="showNotifications = false"></div>
   </div>
+  <!-- Toast Notifications -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+    <div v-for="toast in toasts" :key="toast.id" class="toast show" role="alert">
+      <div :class="'alert-' + toast.variant" class="alert mb-1 py-2" role="alert">
+        {{ toast.message }}
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
+import { useToast } from './composables/useToast'
+const { toasts } = useToast()
+
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getApiUrl } from '@/utils/api'

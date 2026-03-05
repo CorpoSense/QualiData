@@ -274,6 +274,7 @@ const route = useRoute()
 const datasetId = computed(() => route.params.datasetId)
 
 const apiUrl = getApiUrl()
+const toast = useToast()
 
 const loading = ref(true)
 const dataset = ref(null)
@@ -379,20 +380,20 @@ async function applyOperation(endpoint, params) {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify({ column: col, ...params })
     })
-    if (res.ok) { alert('Operation applied successfully'); await refreshData() }
-    else { const err = await res.json(); alert(err.detail || 'Operation failed') }
-  } catch (e) { alert(e.message) }
+    if (res.ok) { toast.success('Operation applied successfully'); await refreshData() }
+    else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
+  } catch (e) { toast.error(e.message) }
   finally { operating.value = false; showFillnaModal.value = false }
 }
 
 async function applyStringOp(operation) {
   const col = selectedColumn.value || columns.value[0]?.field
-  if (!col) { alert('No column selected'); return }
+  if (!col) { toast.warning('No column selected'); return }
   await applyOperation('string-operations', { operation, column: col })
 }
 async function applyDatetimeOp(operation) {
   const col = selectedColumn.value || columns.value[0]?.field
-  if (!col) { alert('No column selected'); return }
+  if (!col) { toast.warning('No column selected'); return }
   await applyOperation('datetime-operations', { operation, column: col })
 }
 async function applyStructuralOp(operation) {
@@ -400,23 +401,23 @@ async function applyStructuralOp(operation) {
     const newName = prompt('Enter new column name:')
     if (!newName) return
     const col = selectedColumn.value || columns.value[0]?.field
-    if (!col) { alert('No column selected'); return }
+    if (!col) { toast.warning('No column selected'); return }
     await applyOperation('structural', { operation, column: col, new_name: newName })
   } else if (operation === 'astype') {
     const dtype = prompt('Enter new type (int, float, str, bool):')
     if (!dtype) return
     const col = selectedColumn.value || columns.value[0]?.field
-    if (!col) { alert('No column selected'); return }
+    if (!col) { toast.warning('No column selected'); return }
     await applyOperation('structural', { operation, column: col, dtype })
   } else if (operation === 'drop') {
     const col = selectedColumn.value || columns.value[0]?.field
-    if (!col) { alert('No column selected'); return }
+    if (!col) { toast.warning('No column selected'); return }
     await applyOperation('structural', { operation, column: col })
   }
 }
 async function applyNumericOp(operation) {
   const col = selectedColumn.value || columns.value[0]?.field
-  if (!col) { alert('No column selected'); return }
+  if (!col) { toast.warning('No column selected'); return }
   await applyOperation('numeric', { operation, column: col })
 }
 async function applyDedup(type) { await applyOperation(type === 'duplicates' ? 'remove-duplicates' : 'fuzzy-dedupe', {}) }
@@ -428,8 +429,8 @@ async function undo() {
       method: 'POST',
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
-    if (res.ok) { alert('Undo successful'); await refreshData() }
-  } catch (e) { alert(e.message) }
+    if (res.ok) { toast.success('Undo successful'); await refreshData() }
+  } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
 }
 
@@ -440,8 +441,8 @@ async function redo() {
       method: 'POST',
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
-    if (res.ok) { alert('Redo successful'); await refreshData() }
-  } catch (e) { alert(e.message) }
+    if (res.ok) { toast.success('Redo successful'); await refreshData() }
+  } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
 }
 
@@ -455,9 +456,9 @@ async function applyAiClean() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify({ column: col, instruction: aiInstruction.value, batch_size: 10 })
     })
-    if (res.ok) { alert('AI cleaning applied'); showAiModal.value = false; await refreshData() }
-    else { const err = await res.json(); alert(err.detail || 'AI cleaning failed') }
-  } catch (e) { alert(e.message) }
+    if (res.ok) { toast.success('AI cleaning applied'); showAiModal.value = false; await refreshData() }
+    else { const err = await res.json(); toast.error(err.detail || 'AI cleaning failed') }
+  } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
 }
 
@@ -476,14 +477,14 @@ async function importFromClipboard() {
       body: formData,
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
-    if (res.ok) { alert('Data imported successfully'); showClipboardImport.value = false; clipboardData.value = ''; await refreshData() }
+    if (res.ok) { toast.success('Data imported successfully'); showClipboardImport.value = false; clipboardData.value = ''; await refreshData() }
     else throw new Error('Import failed')
-  } catch (e) { alert(e.message) }
+  } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
 }
 
 async function copyToClipboard() {
-  if (!data.value || data.value.length === 0) { alert('No data to copy'); return }
+  if (!data.value || data.value.length === 0) { toast.warning('No data to copy'); return }
   try {
     const headers = Object.keys(data.value[0])
     const csvRows = [headers.join(','), ...data.value.map(row => headers.map(h => {
@@ -492,8 +493,8 @@ async function copyToClipboard() {
       return val ?? ''
     }).join(','))]
     await navigator.clipboard.writeText(csvRows.join('\n'))
-    alert('Data copied to clipboard')
-  } catch (e) { alert('Failed to copy: ' + e.message) }
+    toast.success('Data copied to clipboard')
+  } catch (e) { toast.error('Failed to copy: ' + e.message) }
 }
 
 function formatDate(dateStr) {
