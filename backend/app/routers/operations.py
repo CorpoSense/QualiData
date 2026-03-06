@@ -519,14 +519,22 @@ async def fillna_operations(
     column = request.get('column')
     
     if method == 'drop':
+        before_count = len(df)
         df = df.dropna()
+        modified = before_count - len(df)
     elif method == 'forward':
+        before = df.isna().sum().sum()
         df = df.ffill()
+        modified = before - df.isna().sum().sum()
     elif method == 'backward':
+        before = df.isna().sum().sum()
         df = df.bfill()
+        modified = before - df.isna().sum().sum()
     elif method == 'constant':
         if fill_value:
+            before = df.isna().sum().sum()
             df = df.fillna(fill_value)
+            modified = before - df.isna().sum().sum()
         else:
             raise HTTPException(status_code=400, detail="fill_value required for constant method")
     else:
@@ -542,7 +550,7 @@ async def fillna_operations(
     # save_operation(dataset_id, "fillna", request, before, after, session)
     await session.commit()
     
-    return {"status": "success", "message": f"Applied fillna ({method})", "columns": dataset.columns, "row_count": dataset.row_count}
+    return {"status": "success", "message": f"Applied fillna ({method}) - {modified} cells filled", "columns": dataset.columns, "row_count": dataset.row_count}
 
 
 # Remove duplicates
@@ -699,12 +707,13 @@ async def fuzzy_dedupe(
     
     from app.routers.datasets import detect_columns, get_preview_data
     before_count = dataset.row_count
+    removed = before_count - len(df)
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
     await session.commit()
     
-    return {"status": "success", "message": f"Removed {before_count - len(df)} fuzzy duplicates", "row_count": dataset.row_count}
+    return {"status": "success", "message": f"Removed {removed} fuzzy duplicates", "columns": dataset.columns, "row_count": dataset.row_count}
 
 
 # Undo/Redo placeholders
