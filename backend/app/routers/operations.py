@@ -409,6 +409,19 @@ async def string_operations(
     
     before_data = df[column].tolist()
     
+    # Validate column exists
+    if column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
+    
+    # Check if column is string-compatible for string operations
+    try:
+        df[column] = df[column].astype(str)
+    except:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Column '{column}' cannot be converted to string. String operations require text columns."
+        )
+    
     if operation == 'uppercase':
         df[column] = df[column].astype(str).str.upper()
     elif operation == 'lowercase':
@@ -508,9 +521,9 @@ async def fillna_operations(
     if method == 'drop':
         df = df.dropna()
     elif method == 'forward':
-        df = df.fillna(method='ffill')
+        df = df.ffill()
     elif method == 'backward':
-        df = df.fillna(method='bfill')
+        df = df.bfill()
     elif method == 'constant':
         if fill_value:
             df = df.fillna(fill_value)
@@ -732,6 +745,15 @@ async def numeric_operations(
     
     if not column or column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column {column} not found")
+    
+    # Check if column is numeric
+    try:
+        df[column] = pd.to_numeric(df[column], errors='raise')
+    except:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Column '{column}' is not numeric. Numeric operations require number columns."
+        )
     
     if operation == 'round':
         decimals = request.get('decimals', 2)
