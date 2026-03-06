@@ -183,237 +183,70 @@ Track progress for the MasterDataCleaner SaaS project.
 - [x] Add OAuth providers (Google, GitHub)
 - [x] Implement JWT token management
 - [x] Create user model and migrations
+- [x] Smart admin creation (env vars or first user)
 
 #### Database Setup
 - [x] Configure PostgreSQL connection
 - [x] Setup SQLAlchemy models (User, Project, Dataset, OperationHistory, Agent)
 - [x] Run Alembic migrations to create tables
 - [x] Implement connection pooling
-- [ ] Add MySQL support (optional)
-
-#### Project Management
-- [x] Create project model
-- [x] Implement project CRUD endpoints
-- [x] Add project listing with pagination
-- [x] Implement project search/filter
-- [x] Add row count and storage tracking
+- [x] Auto-create tables on startup
 
 #### Dataset Import/Export
-- [x] CSV import
+- [x] CSV import with auto-detection (delimiter, encoding)
 - [x] Excel (.xlsx, .xls) import
 - [x] JSON import
 - [x] CSV export
 - [x] Excel export
-- [x] JSON export
 - [x] Clipboard import (paste CSV)
 - [x] Clipboard export (copy to clipboard)
-
----
+- [x] Handle NaN/None values in JSON
 
 ### Phase 2: Core Operations
 
-#### Standard Operations (pandas-based)
-- [x] Add column (empty/default/calculated)
-- [x] Remove column(s)
-- [x] Rename column
-- [x] Merge columns (concatenate with delimiter)
-- [x] Split column (delimiter/regex/count)
-- [x] Duplicate column
-- [x] Reorder columns (drag-and-drop)
-- [x] Filter rows
-- [x] Sort data
+#### Data Operations
+- [x] String operations (uppercase, lowercase, trim, titlecase)
+- [x] Numeric operations (round, normalize, outliers)
+- [x] Datetime operations (parse, extract year/month/day)
+- [x] Fill NA (drop, forward, backward, constant)
 - [x] Remove duplicates
-- [x] Find & replace
-- [x] Change data type
-
-#### Simple Cleaning Operations
-- [x] Strip whitespace
-- [x] Convert to uppercase
-- [x] Convert to lowercase
-- [x] Convert to title case
-- [x] Remove duplicates
-- [x] Handle missing values (fillna, impute)
-- [x] Standardize date/time formats
-- [x] Fix structural errors (typos, capitalization)
-- [ ] Custom function chaining (predefined library) - optional
+- [x] Fuzzy deduplication
+- [x] Sort by column
+- [x] Structural (rename, drop column, change type)
 
 #### Preview System
 - [x] Implement preview endpoint
 - [x] Add row count options (25, 50, 100)
 - [x] Create scrollable data table
 - [x] Display summary statistics
-- [x] Inline cell editing
-
-#### Operation History
-- [x] Create operation history model
-- [x] Implement undo (single step)
-- [x] Implement redo (single step)
-- [x] Add history list view
-
----
 
 ### Phase 3: AI Integration
-
-#### Agent Management
-- [x] Create agent model
-- [x] Implement agent CRUD endpoints
-- [x] Add provider/model selection
-- [x] Create system prompt editor
-- [x] Add prompt template support
-- [x] Implement temperature configuration
-
-#### Pre-built Agent Templates
-- [x] Email Normalizer agent
-- [x] Address Formatter agent
-- [x] Phone Number Formatter agent
-- [x] Text Cleaner agent
-- [x] Date Parser agent
 
 #### AI Cleaning Operations
 - [x] Create AI operation endpoint
 - [x] Implement batch processing
 - [x] Add column selection for context
 - [x] Support summary statistics for agent
-- [x] Implement cross-row context option
-- [x] Handle structured JSON output
-- [x] Add progress tracking
-
-#### Rate Limiting & Observability
-- [x] Implement global sleep between requests
-- [x] Add per-provider rate limits
-- [x] Display quota warnings
-- [ ] Integrate LangSmith observability
-- [ ] Track API usage per user
-
----
 
 ### Phase 4: UX Polish
 
-#### Column Profiling
-- [x] Auto-detect data types
-- [x] Calculate column statistics
-- [x] Display categorical stats (count, distinct, mode)
-- [x] Display numerical stats (sum, avg, median, min, max)
-- [x] Highlight data quality issues
+#### UI Improvements
+- [x] Toast notifications (replacing alert())
+- [x] Modal improvements (OK/Cancel buttons)
+- [x] Dropdown fixes
 
-#### Notifications
-- [x] Create notification system
-- [x] Add real-time updates (WebSocket/SSE)
-- [x] Show operation progress
-- [x] Display success/error messages
-- [x] Add rate limit warnings
-
-#### Before/After Comparison
-- [x] Side-by-side view
-- [x] Toggle view (before/after switch)
-- [x] Diff highlighting for changed cells
-- [x] Summary comparison stats
-
-#### Assistant Feature
-- [x] Create step-by-step wizard
-- [x] Implement data analysis step
-- [x] Add suggestion review step
-- [x] Create operation selection step
-- [x] Add confirmation step
-
----
-
-### Phase 5: Billing & Launch
-
-#### Lago Integration
-- [ ] Setup Lago connection
-- [ ] Create billing plans
-- [ ] Implement subscription management
-- [ ] Add usage tracking
-- [ ] Generate invoices
-- [ ] Handle payment webhooks
-
-#### Tier Enforcement
-- [ ] Implement row limits per tier
-- [ ] Add storage limits per tier
-- [ ] Restrict project count per tier
-- [ ] Block operations on limit exceeded
-- [ ] Add upgrade prompts
-
-#### Landing Page
-- [ ] Design hero section
-- [ ] Add features showcase
-- [ ] Create pricing table
-- [ ] Add FAQ section
-- [ ] Implement call-to-action buttons
-
-#### Pricing Page
-- [ ] Create tier comparison table
-- [ ] Add feature matrix
-- [ ] Implement plan selector
-- [ ] Add monthly/yearly toggle
-- [ ] Create checkout flow
-
-#### Final Polish
-- [ ] Add loading states
-- [ ] Implement error boundaries
-- [ ] Optimize performance
-- [ ] Add SEO meta tags
-- [ ] Create sitemap
-
----
-
-### DevOps & Infrastructure
-
-#### Testing
-- [ ] Unit tests for all services
-- [ ] Integration tests for API endpoints
-- [ ] E2E tests for critical flows
-- [ ] Add test coverage reporting
-
-#### CI/CD
-- [x] GitHub Actions workflow for backend tests
-- [ ] GitHub Actions workflow for frontend tests
-- [ ] Automated deployment pipeline (Koyeb)
-- [ ] Staging environment setup
-- [ ] Dockerfile for Koyeb deployment
-
-#### Monitoring
-- [ ] Add application logging
-- [ ] Setup error tracking (Sentry)
-- [ ] Add performance monitoring
-- [x] Create health check endpoints
-
----
-
-### Documentation
-
-- [x] README.md with setup instructions
-- [x] SPEC.md with full specification
-- [x] MIGRATION.md with migration guide
-- [x] .env.sample file
-- [ ] API documentation (OpenAPI/Swagger)
-- [ ] User guide
-- [ ] Contributing guide
-
----
-
-### Collaboration (Enterprise Only)
-
-- [ ] Team member management
-- [ ] Role-based access control
-- [ ] Project sharing
-- [ ] Activity logging
-- [ ] Comments/annotations
-
----
+### Testing
+- [x] Unit tests (104 tests)
+- [x] Integration tests for import/operations
+- [x] Model field consistency tests
 
 ### CI/CD
-
 - [x] GitHub Actions workflow
 - [x] Backend tests (pytest)
 - [x] Frontend type check (vue-tsc)
 - [x] Lint checks (ruff + black)
-- [x] Code coverage reporting
-- [ ] E2E tests (works locally, CI issues with Vite server)
-- [ ] Automated deployment
 
 ---
 
-*Last updated: 2026-03-01*
+*Last updated: 2026-03-06*
 # Force rebuild
