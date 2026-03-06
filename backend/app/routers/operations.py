@@ -422,18 +422,33 @@ async def string_operations(
             detail=f"Column '{column}' cannot be converted to string. String operations require text columns."
         )
     
+    # Normalize operation names
+    op_map = {
+        'upper': 'uppercase',
+        'lower': 'lowercase', 
+        'strip': 'trim',
+        'title': 'titlecase',
+    }
+    operation = op_map.get(operation, operation)
+    
     if operation == 'uppercase':
         df[column] = df[column].astype(str).str.upper()
+        msg = f"Applied uppercase to column {column}"
     elif operation == 'lowercase':
         df[column] = df[column].astype(str).str.lower()
+        msg = f"Applied lowercase to column {column}"
     elif operation == 'trim':
         df[column] = df[column].astype(str).str.strip()
+        msg = f"Trimmed whitespace from column {column}"
     elif operation == 'titlecase':
         df[column] = df[column].astype(str).str.title()
+        msg = f"Applied title case to column {column}"
     elif operation == 'capitalize':
         df[column] = df[column].astype(str).str.capitalize()
+        msg = f"Capitalized column {column}"
     elif operation == 'remove_whitespace':
         df[column] = df[column].astype(str).str.replace(r'\s+', '', regex=True)
+        msg = f"Removed whitespace from column {column}"
     else:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
     
@@ -448,7 +463,7 @@ async def string_operations(
 # save_operation(dataset_id, "string_operations", request, before, after, session)
     await session.commit()
     
-    return {"status": "success", "message": f"Applied {operation} to column {column}", "columns": dataset.columns}
+    return {"status": "success", "message": msg, "columns": dataset.columns}
 
 
 # Datetime operations
@@ -471,19 +486,44 @@ async def datetime_operations(
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
     
+    # Normalize operation names
+    op_map = {
+        'parse': 'parse_datetime',
+        'year': 'extract_year',
+        'month': 'extract_month',
+        'day': 'extract_day',
+        'weekday': 'extract_weekday',
+    }
+    operation = op_map.get(operation, operation)
+    
+    # Validate datetime operations require datetime column
+    if operation in ['extract_year', 'extract_month', 'extract_day', 'extract_weekday']:
+        try:
+            test_df = pd.to_datetime(df[column], errors='raise')
+        except:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Column '{column}' is not a datetime column. Datetime extraction requires datetime data."
+            )
+    
     if operation == 'parse_datetime':
         try:
             df[column] = pd.to_datetime(df[column], errors='coerce')
+            msg = f"Parsed datetime in column {column}"
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to parse datetime: {str(e)}")
     elif operation == 'extract_year':
         df[column] = pd.to_datetime(df[column], errors='coerce').dt.year
+        msg = f"Extracted year from column {column}"
     elif operation == 'extract_month':
         df[column] = pd.to_datetime(df[column], errors='coerce').dt.month
+        msg = f"Extracted month from column {column}"
     elif operation == 'extract_day':
         df[column] = pd.to_datetime(df[column], errors='coerce').dt.day
+        msg = f"Extracted day from column {column}"
     elif operation == 'extract_weekday':
         df[column] = pd.to_datetime(df[column], errors='coerce').dt.day_name()
+        msg = f"Extracted weekday from column {column}"
     else:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
     
@@ -497,7 +537,7 @@ async def datetime_operations(
     # save_operation(dataset_id, "datetime_operations", request, before, after, session)
     await session.commit()
     
-    return {"status": "success", "message": f"Applied {operation} to column {column}", "columns": dataset.columns}
+    return {"status": "success", "message": msg, "columns": dataset.columns}
 
 
 # Fill NA operations
