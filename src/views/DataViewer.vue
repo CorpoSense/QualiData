@@ -5,7 +5,11 @@
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
-            <BFormSelect v-model="limit" :options="limitOptions" size="sm" style="width: auto;"></BFormSelect>
+            <BFormSelect v-model="limit" :options="limitOptions" size="sm" style="width: auto;" class="me-2"></BFormSelect>
+            <BButton size="sm" variant="outline-secondary" :disabled="page <= 1" @click="prevPage" class="me-1">← Prev</BButton>
+            <span class="align-middle mx-2">Page {{ page }} of {{ totalPages }}</span>
+            <BButton size="sm" variant="outline-secondary" :disabled="page >= totalPages" @click="nextPage" class="ms-1">Next →</BButton>
+            <span class="text-muted ms-3">{{ totalRows }} total rows</span>
             <BButton size="sm" variant="outline-secondary" @click="refreshData">
               <i class="bi bi-arrow-clockwise me-1"></i> Refresh
             </BButton>
@@ -283,6 +287,8 @@ const data = ref([])
 const columns = ref([])
 const operations = ref([])
 const limit = ref(25)
+const page = ref(1)
+const totalRows = ref(0)
 const searchQuery = ref('')
 const showProfile = ref(false)
 const showCompare = ref(false)
@@ -305,8 +311,31 @@ const clipboardDatasetName = ref('')
 const limitOptions = [
   { value: 25, text: '25 rows' },
   { value: 50, text: '50 rows' },
-  { value: 100, text: '100 rows' }
+  { value: 100, text: '100 rows' },
+  { value: 250, text: '250 rows' },
+  { value: 500, text: '500 rows' }
 ]
+
+const totalPages = computed(() => Math.ceil(totalRows.value / limit.value))
+
+function nextPage() {
+  if (page.value < totalPages.value) {
+    page.value++
+    refreshData()
+  }
+}
+
+function prevPage() {
+  if (page.value > 1) {
+    page.value--
+    refreshData()
+  }
+}
+
+function goToPage(p) {
+  page.value = p
+  refreshData()
+}
 
 const columnOptions = computed(() => columns.value.map(c => ({ value: c.field, text: c.label })))
 
@@ -319,13 +348,13 @@ const filteredData = computed(() => {
 })
 
 onMounted(async () => { await refreshData() })
-watch(limit, refreshData)
+watch(limit, () => { page.value = 1; refreshData() })
 
 async function refreshData() {
   loading.value = true
   try {
     const [previewRes, opsRes] = await Promise.all([
-      fetch(`${apiUrl}/api/datasets/${datasetId.value}/preview?limit=${limit.value}`, {
+      fetch(`${apiUrl}/api/datasets/${datasetId.value}/preview?limit=${limit.value}&page=${page.value}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       }),
       fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations`, {
@@ -338,6 +367,8 @@ async function refreshData() {
       data.value = preview.preview_data || []
       columns.value = (preview.columns || []).map(col => ({ field: col.name, label: col.name }))
       dataset.value = preview
+      totalRows.value = preview.row_count || 0
+      page.value = preview.page || 1
     }
     
     if (opsRes.ok) operations.value = await opsRes.json()

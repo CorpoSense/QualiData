@@ -90,11 +90,11 @@ def detect_columns(df: pd.DataFrame) -> list[dict]:
     return columns
 
 
-def get_preview_data(df: pd.DataFrame, max_rows: int = 10) -> list[dict]:
+def get_preview_data(df: pd.DataFrame, max_rows: int = 10, offset: int = 0) -> list[dict]:
     """Get preview data from DataFrame."""
     # Replace NaN/inf with None for JSON compatibility
     df = df.replace([np.inf, -np.inf], np.nan).replace({np.nan: None})
-    return df.head(max_rows).to_dict(orient="records")
+    return df.iloc[offset:offset + max_rows].to_dict(orient="records")
 
 
 # Routes
@@ -227,7 +227,8 @@ async def import_dataset(
 @router.get("/{dataset_id}/preview", response_model=DatasetPreviewResponse)
 async def preview_dataset(
     dataset_id: str,
-    limit: int = Query(10, ge=1, le=100),
+    limit: int = Query(10, ge=1, le=500),
+    page: int = Query(1, ge=1),
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -251,13 +252,16 @@ async def preview_dataset(
             status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
         )
 
-    # Apply limit to preview data
-    preview_data = (dataset.preview_data or [])[:limit]
+    # Apply limit and page to preview data
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    preview_data = (dataset.preview_data or [])[start_idx:end_idx]
 
     return {
         "columns": dataset.columns or [],
         "preview_data": preview_data,
         "row_count": dataset.row_count,
+        "page": page,
         "limit": limit,
     }
 
