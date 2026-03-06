@@ -381,7 +381,11 @@ async function applyOperation(endpoint, params) {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify({ column: col, ...params })
     })
-    if (res.ok) { toast.success('Operation applied successfully'); await refreshData() }
+    if (res.ok) { 
+      const data = await res.json()
+      toast.success(data.message || 'Operation applied successfully')
+      await refreshData() 
+    }
     else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
   } catch (e) { toast.error(e.message) }
   finally { operating.value = false; showFillnaModal.value = false }
