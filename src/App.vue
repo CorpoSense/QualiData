@@ -33,6 +33,9 @@
               {{ user?.email }}
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
+              <li><router-link class="dropdown-item" to="/profile">Profile</router-link></li>
+              <li><router-link v-if="user?.role === 'admin'" class="dropdown-item" to="/admin/users">User Management</router-link></li>
+              <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="#" @click.prevent="logout">Logout</a></li>
             </ul>
           </div>

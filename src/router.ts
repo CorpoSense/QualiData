@@ -11,6 +11,8 @@ import ForgotPassword from '@/views/ForgotPassword.vue'
 import ResetPassword from '@/views/ResetPassword.vue'
 import OAuthCallback from '@/views/OAuthCallback.vue'
 import Pricing from '@/views/Pricing.vue'
+import Profile from '@/views/Profile.vue'
+import Users from '@/views/admin/Users.vue'
 
 const routes = [
   { path: '/', component: Home },
@@ -24,6 +26,8 @@ const routes = [
   { path: '/forgot-password', component: ForgotPassword },
   { path: '/reset-password', component: ResetPassword },
   { path: '/oauth/callback/:provider', component: OAuthCallback },
+  { path: '/profile', component: Profile, meta: { requiresAuth: true } },
+  { path: '/admin/users', component: Users, meta: { requiresAuth: true, requiresAdmin: true } },
 ]
 
 const router = createRouter({
@@ -32,14 +36,34 @@ const router = createRouter({
 })
 
 // Navigation guard to check auth
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+  const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin)
   const token = localStorage.getItem('token')
   
   if (requiresAuth && !token) {
     next('/login')
   } else if (token && to.path === '/login') {
     next('/dashboard')
+  } else if (requiresAdmin && token) {
+    // Check if user is admin
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/users/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const user = await res.json()
+        if (user.role === 'admin') {
+          next()
+        } else {
+          next('/dashboard')
+        }
+      } else {
+        next('/dashboard')
+      }
+    } catch (e) {
+      next('/dashboard')
+    }
   } else {
     next()
   }
