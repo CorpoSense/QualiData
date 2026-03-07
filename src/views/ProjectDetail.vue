@@ -124,10 +124,14 @@
     </BTabs>
 
     <!-- Import Modal -->
-    <BModal v-model="showImportModal" :has-modal-card="true" :ok-title="'Import'" @ok="handleImport" :cancel-title="''">
-      <template #header>
-        <h5 class="m-0">Import Data</h5>
-      </template>
+    <BModal
+      v-model="showImportModal"
+      :has-modal-card="true"
+      title="Import Data"
+      ok-title="Import"
+      @ok="handleImport"
+      no-header-close
+    >
       <div class="p-3">
         <BFormGroup label="Dataset Name">
           <BFormInput v-model="importForm.name" placeholder="My Dataset"></BFormInput>
