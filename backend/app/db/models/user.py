@@ -1,25 +1,15 @@
 """User model for authentication and account management."""
 
-import enum
 import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, String
-from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
 
 
-class UserRole(str, enum.Enum):
-    """User role for RBAC."""
-
-    FREE = "free"
-    PRO = "pro"
-    ENTERPRISE = "enterprise"
-    ADMIN = "admin"
-
-
+# Simple role strings: admin, manager, user
 class User(Base):
     """User account model."""
 
@@ -35,10 +25,8 @@ class User(Base):
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
-    # Role and tier
-    role: Mapped[UserRole] = mapped_column(
-        SQLEnum(UserRole), default=UserRole.FREE, nullable=False
-    )
+    # Role: admin, manager, user
+    role: Mapped[str] = mapped_column(String(20), default="user", nullable=False)
 
     # OAuth providers
     google_id: Mapped[str | None] = mapped_column(
