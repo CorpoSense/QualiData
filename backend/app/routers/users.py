@@ -14,13 +14,13 @@ router = APIRouter(tags=["users"])
 
 # Pydantic models
 class UserResponse(BaseModel):
-    id: int
+    id: str
     email: str
-    full_name: Optional[str] = None
+    name: Optional[str] = None
     role: str
     timezone: Optional[str] = None
     is_active: bool
-    created_at: datetime
+    created_at: Optional[datetime] = None
     last_login: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
@@ -28,7 +28,7 @@ class UserResponse(BaseModel):
 
 class UserCreate(BaseModel):
     email: EmailStr
-    full_name: Optional[str] = None
+    name: Optional[str] = None
     password: str
     role: str = "user"
     timezone: Optional[str] = None
@@ -36,14 +36,14 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
-    full_name: Optional[str] = None
+    name: Optional[str] = None
     role: Optional[str] = None
     timezone: Optional[str] = None
     is_active: Optional[bool] = None
 
 
 class ProfileUpdate(BaseModel):
-    full_name: Optional[str] = None
+    name: Optional[str] = None
     timezone: Optional[str] = None
 
 
@@ -188,7 +188,7 @@ async def update_user(
         user.email = user_data.email
     
     if user_data.full_name is not None:
-        user.full_name = user_data.full_name
+        user.name = user_data.full_name
     
     if user_data.role is not None:
         if user_data.role not in ["admin", "manager", "user"]:
@@ -253,8 +253,8 @@ async def update_current_user_profile(
     session: AsyncSession = Depends(get_async_session),
 ):
     """Update current user profile."""
-    if profile_data.full_name is not None:
-        current_user.full_name = profile_data.full_name
+    if profile_data.name is not None:
+        current_user.name = profile_data.name
     
     if profile_data.timezone is not None:
         current_user.timezone = profile_data.timezone
