@@ -105,10 +105,10 @@ async def import_dataset(
     name: str | None = Form(None),
     description: str | None = Form(None),
     # Smart import options
-    auto_detect: bool = Form(True),
+    auto_detect: str | None = Form('true'),
     delimiter: str | None = Form(None),
     encoding: str | None = Form(None),
-    has_header: bool | None = Form(None),
+    has_header: str | None = Form(None),
     sheet_name: str | None = Form(None),
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
@@ -139,6 +139,10 @@ async def import_dataset(
     elif file_ext == ".json":
         file_type = "json"
     
+    # Convert string values from FormData
+    auto_detect_bool = auto_detect.lower() == 'true' if auto_detect else True
+    has_header_bool = has_header.lower() == 'true' if has_header else True
+    
     # Save to temp file
     with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
         tmp.write(content)
@@ -160,9 +164,9 @@ async def import_dataset(
             df = importer.import_file(
                 tmp_path,
                 analysis=analysis,
-                delimiter=delimiter,
+                delimiter=delimiter if not auto_detect_bool else None,
                 encoding=encoding,
-                has_header=has_header,
+                has_header=has_header_bool if not auto_detect_bool else None,
                 sheet_name=sheet_name,
             )
         else:
