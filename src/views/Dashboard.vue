@@ -105,32 +105,68 @@
     </div>
 
     <!-- Import Modal -->
-    <BModal v-model="showImportModal" :has-modal-card="true">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Import Data</h5>
-            <button type="button" class="btn-close" @click="showImportModal = false"></button>
-          </div>
-          <div class="modal-body">
-            <BFormGroup label="Select Project">
-              <BFormSelect v-model="importForm.projectId" :options="projectOptions"></BFormSelect>
-            </BFormGroup>
+    <BModal
+      v-model="showImportModal"
+      :has-modal-card="true"
+      title="Import Data"
+      ok-title="Import"
+      @ok="handleImport"
+      no-header-close
+    >
+      <div class="p-3">
+        <div class="mb-3">
+          <label class="form-label">Select Project</label>
+          <select class="form-select" v-model="importForm.projectId">
+            <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+          </select>
+        </div>
 
-            <BFormGroup label="Upload File" class="mt-3">
-              <BFormFile v-model="importForm.file" drop-placeholder="Drop your file here"></BFormFile>
-              <small class="text-muted">Supported: CSV, Excel, JSON</small>
-            </BFormGroup>
+        <div class="mb-3">
+          <label class="form-label">Upload File</label>
+          <input type="file" class="form-control" accept=".csv,.tsv,.txt,.xlsx,.xls,.json" @change="importForm.file = $event.target.files[0]">
+          <small class="text-muted">Supported: CSV, Excel, JSON</small>
+        </div>
 
-            <BFormGroup label="Dataset Name" class="mt-3">
-              <BFormInput v-model="importForm.name" placeholder="My Dataset"></BFormInput>
-            </BFormGroup>
+        <div class="mb-3">
+          <label class="form-label">Dataset Name</label>
+          <input type="text" class="form-control" v-model="importForm.name" placeholder="My Dataset">
+        </div>
+
+        <!-- Import Options -->
+        <div class="p-3 border rounded">
+          <div class="fw-bold mb-2">Import Options</div>
+          <div class="mb-2">
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" id="autoMode" :value="true" v-model="importForm.autoDetect">
+              <label class="form-check-label" for="autoMode">Auto (recommended)</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" id="manualMode" :value="false" v-model="importForm.autoDetect">
+              <label class="form-check-label" for="manualMode">Manual</label>
+            </div>
           </div>
-          <div class="modal-footer">
-            <BButton variant="primary" :loading="importing" @click="handleImport">
-              Import
-            </BButton>
-            <BButton @click="showImportModal = false">Cancel</BButton>
+          
+          <div v-if="importForm.autoDetect === false" class="mt-2 ps-2 border-start">
+            <div class="mb-2">
+              <label class="form-label">Has Header:</label>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" id="hasHeaderYes" :value="true" v-model="importForm.hasHeader">
+                <label class="form-check-label" for="hasHeaderYes">Yes</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" id="hasHeaderNo" :value="false" v-model="importForm.hasHeader">
+                <label class="form-check-label" for="hasHeaderNo">No</label>
+              </div>
+            </div>
+            <div class="mt-2">
+              <label class="form-label">Delimiter:</label>
+              <select class="form-select" v-model="importForm.delimiter">
+                <option value=",">Comma (,)</option>
+                <option value=";">Semicolon (;)</option>
+                <option value="	">Tab</option>
+                <option value="|">Pipe (|)</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -200,6 +236,11 @@ async function handleImport() {
     formData.append('project_id', importForm.projectId)
     if (importForm.name) {
       formData.append('name', importForm.name)
+    }
+    formData.append('auto_detect', importForm.autoDetect.toString())
+    if (!importForm.autoDetect) {
+      formData.append('has_header', importForm.hasHeader.toString())
+      formData.append('delimiter', importForm.delimiter)
     }
 
     const res = await fetch(`${apiUrl}/api/datasets/import`, {
