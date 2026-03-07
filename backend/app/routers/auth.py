@@ -150,14 +150,14 @@ async def register(
     user_count = len(result.scalars().all())
     
     # Determine user role: first user becomes admin
-    user_role = "free"  # Default role
+    user_role = "user"  # Default role
     if user_count == 0:
         user_role = "admin"
         # Also check if admin env vars were set (they would have created admin on startup)
         admin_email = os.environ.get("ADMIN_USER", "").strip()
         if admin_email and admin_email.lower() != email.lower():
             # Admin already created via env, this is not first user
-            user_role = "free"
+            user_role = "user"
 
     # Create new user
     password_hash = get_password_hash(password)

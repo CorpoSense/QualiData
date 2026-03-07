@@ -14,6 +14,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 from app.config import get_settings
 from app.routers import (
+    users,
     agents,
     ai,
     ai_operations,
@@ -102,7 +103,7 @@ async def create_admin_user():
             admin_user = User(
                 email=admin_email,
                 password_hash=password_hash,
-                name="Admin",
+                full_name="Admin",
                 role="admin",
             )
             
@@ -133,6 +134,7 @@ def create_app() -> FastAPI:
     )
 
     # Include routers
+    app.include_router(users.router, prefix="/api")
     app.include_router(health.router, prefix="/api")
     app.include_router(ai.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
