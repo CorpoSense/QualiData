@@ -144,14 +144,15 @@
         <!-- Import Options -->
         <div class="mt-3 p-3 border rounded">
           <div class="fw-bold mb-2">Import Options</div>
-          <BFormGroup label="Mode">
-            <BFormRadioGroup v-model="importForm.autoDetect" :options="autoModeOptions"></BFormRadioGroup>
-          </BFormGroup>
+          <div class="mb-2">
+            <span class="me-3">Mode:</span>
+            <BFormCheckbox v-model="importForm.autoDetect" switch inline>Auto Detect</BFormCheckbox>
+          </div>
           
           <!-- Manual options -->
           <div v-if="!importForm.autoDetect" class="mt-2 ps-2 border-start">
             <BFormGroup label="Has Header" class="mt-2">
-              <BFormRadioGroup v-model="importForm.hasHeader" :options="headerOptions"></BFormRadioGroup>
+              <BFormCheckbox v-model="importForm.hasHeader" inline>Yes</BFormCheckbox>
             </BFormGroup>
             <BFormGroup label="Delimiter" class="mt-2">
               <BFormSelect v-model="importForm.delimiter" :options="delimiterOptions"></BFormSelect>
