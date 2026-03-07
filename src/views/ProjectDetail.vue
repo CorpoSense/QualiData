@@ -220,8 +220,28 @@ const previewLimitOptions = [
 
 const importForm = reactive({
   name: '',
-  file: null
+  file: null,
+  autoDetect: true,
+  hasHeader: true,
+  delimiter: ','
 })
+
+const autoModeOptions = [
+  { value: true, text: 'Auto (recommended)' },
+  { value: false, text: 'Manual' }
+]
+
+const headerOptions = [
+  { value: true, text: 'Yes' },
+  { value: false, text: 'No' }
+]
+
+const delimiterOptions = [
+  { value: ',', text: 'Comma (,)' },
+  { value: ';', text: 'Semicolon (;)' },
+  { value: '\t', text: 'Tab' },
+  { value: '|', text: 'Pipe (|)' }
+]
 
 const previewColumns = computed(() => {
   if (previewData.value.length === 0) return []
