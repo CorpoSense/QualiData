@@ -145,18 +145,38 @@
         <div class="mt-3 p-3 border rounded">
           <div class="fw-bold mb-2">Import Options</div>
           <div class="mb-2">
-            <span class="me-3">Mode:</span>
-            <BFormCheckbox v-model="importForm.autoDetect" switch inline>Auto Detect</BFormCheckbox>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" id="autoMode" :value="true" v-model="importForm.autoDetect">
+              <label class="form-check-label" for="autoMode">Auto (recommended)</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" id="manualMode" :value="false" v-model="importForm.autoDetect">
+              <label class="form-check-label" for="manualMode">Manual</label>
+            </div>
           </div>
           
           <!-- Manual options -->
-          <div v-if="!importForm.autoDetect" class="mt-2 ps-2 border-start">
-            <BFormGroup label="Has Header" class="mt-2">
-              <BFormCheckbox v-model="importForm.hasHeader" inline>Yes</BFormCheckbox>
-            </BFormGroup>
-            <BFormGroup label="Delimiter" class="mt-2">
-              <BFormSelect v-model="importForm.delimiter" :options="delimiterOptions"></BFormSelect>
-            </BFormGroup>
+          <div v-if="importForm.autoDetect === false" class="mt-2 ps-2 border-start">
+            <div class="mb-2">
+              <label class="form-label">Has Header:</label>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" id="hasHeaderYes" :value="true" v-model="importForm.hasHeader">
+                <label class="form-check-label" for="hasHeaderYes">Yes</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" id="hasHeaderNo" :value="false" v-model="importForm.hasHeader">
+                <label class="form-check-label" for="hasHeaderNo">No</label>
+              </div>
+            </div>
+            <div class="mt-2">
+              <label class="form-label">Delimiter:</label>
+              <select class="form-select" v-model="importForm.delimiter">
+                <option value=",">Comma (,)</option>
+                <option value=";">Semicolon (;)</option>
+                <option value="	">Tab</option>
+                <option value="|">Pipe (|)</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
