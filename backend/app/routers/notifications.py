@@ -38,7 +38,7 @@ class NotificationListResponse(BaseModel):
 NOTIFICATIONS: dict[int, list[dict]] = {}
 
 
-@router.get("/api/notifications", response_model=NotificationListResponse)
+@router.get("/notifications", response_model=NotificationListResponse)
 async def list_notifications(
     unread_only: bool = False,
     current_user: User = Depends(get_current_active_user),
@@ -77,7 +77,7 @@ async def list_notifications(
 
 
 @router.post(
-    "/api/notifications/{notification_id}/read", response_model=NotificationResponse
+    "/notifications/{notification_id}/read", response_model=NotificationResponse
 )
 async def mark_read(
     notification_id: str, current_user: User = Depends(get_current_active_user)
@@ -103,7 +103,7 @@ async def mark_read(
     raise HTTPException(status_code=404, detail="Notification not found")
 
 
-@router.post("/api/notifications/read-all")
+@router.post("/notifications/read-all")
 async def mark_all_read(current_user: User = Depends(get_current_active_user)):
     """Mark all notifications as read."""
     user_id = current_user.id
@@ -115,7 +115,7 @@ async def mark_all_read(current_user: User = Depends(get_current_active_user)):
     return {"status": "success", "message": "All notifications marked as read"}
 
 
-@router.delete("/api/notifications/{notification_id}")
+@router.delete("/notifications/{notification_id}")
 async def delete_notification(
     notification_id: str, current_user: User = Depends(get_current_active_user)
 ):
@@ -132,7 +132,7 @@ async def delete_notification(
     return {"status": "success", "message": "Notification deleted"}
 
 
-@router.delete("/api/notifications")
+@router.delete("/notifications")
 async def clear_notifications(current_user: User = Depends(get_current_active_user)):
     """Clear all notifications."""
     user_id = current_user.id
