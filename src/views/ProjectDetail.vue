@@ -124,39 +124,34 @@
     </BTabs>
 
     <!-- Import Modal -->
-    <BModal v-model="showImportModal" :has-modal-card="true" ok-title="Import" @ok="handleImport" :cancel-title="null">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">Import Data</h5>
-            <button type="button" class="btn-close" @click="showImportModal = false"></button>
-          </div>
-          <div class="modal-body">
-            <BFormGroup label="Dataset Name">
-              <BFormInput v-model="importForm.name" placeholder="My Dataset"></BFormInput>
+    <BModal v-model="showImportModal" :has-modal-card="true" :ok-title="'Import'" @ok="handleImport" :cancel-title="''">
+      <template #header>
+        <h5 class="m-0">Import Data</h5>
+      </template>
+      <div class="p-3">
+        <BFormGroup label="Dataset Name">
+          <BFormInput v-model="importForm.name" placeholder="My Dataset"></BFormInput>
+        </BFormGroup>
+        <BFormGroup label="Upload File" class="mt-3">
+          <BFormFile v-model="importForm.file" accept=".csv,.tsv,.txt,.xlsx,.xls" drop-placeholder="Drop file here"></BFormFile>
+          <small class="text-muted">CSV, Excel</small>
+        </BFormGroup>
+        
+        <!-- Import Options -->
+        <div class="mt-3 p-3 border rounded">
+          <div class="fw-bold mb-2">Import Options</div>
+          <BFormGroup label="Mode">
+            <BFormRadioGroup v-model="importForm.autoDetect" :options="autoModeOptions"></BFormRadioGroup>
+          </BFormGroup>
+          
+          <!-- Manual options -->
+          <div v-if="!importForm.autoDetect" class="mt-2 ps-2 border-start">
+            <BFormGroup label="Has Header" class="mt-2">
+              <BFormRadioGroup v-model="importForm.hasHeader" :options="headerOptions"></BFormRadioGroup>
             </BFormGroup>
-            <BFormGroup label="Upload File" class="mt-3">
-              <BFormFile v-model="importForm.file" accept=".csv,.tsv,.txt,.xlsx,.xls" drop-placeholder="Drop file here"></BFormFile>
-              <small class="text-muted">CSV, Excel</small>
+            <BFormGroup label="Delimiter" class="mt-2">
+              <BFormSelect v-model="importForm.delimiter" :options="delimiterOptions"></BFormSelect>
             </BFormGroup>
-            
-            <!-- Import Options -->
-            <div class="mt-3 p-3 bg-light rounded">
-              <h6>Import Options</h6>
-              <BFormGroup label="Mode">
-                <BFormRadioGroup v-model="importForm.autoDetect" :options="[{value: true, text: 'Auto (recommended)'}, {value: false, text: 'Manual'}]"></BFormRadioGroup>
-              </BFormGroup>
-              
-              <!-- Manual options -->
-              <div v-if="importForm.autoDetect === false">
-                <BFormGroup label="Has Header" class="mt-2">
-                  <BFormRadioGroup v-model="importForm.hasHeader" :options="[{value: true, text: 'Yes'}, {value: false, text: 'No'}]"></BFormRadioGroup>
-                </BFormGroup>
-                <BFormGroup label="Delimiter" class="mt-2">
-                  <BFormSelect v-model="importForm.delimiter" :options="[{value: ',', text: 'Comma (,)'}, {value: ';', text: 'Semicolon (;)'}, {value: '\\t', text: 'Tab'}, {value: '|', text: 'Pipe (|)'}]"></BFormSelect>
-                </BFormGroup>
-              </div>
-            </div>
           </div>
         </div>
       </div>
