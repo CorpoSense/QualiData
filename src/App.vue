@@ -1,5 +1,6 @@
 <template>
   <div id="app">
+    <BOrchestrator />
     <!-- Public Navbar (when not authenticated) -->
     <nav v-if="!isAuthenticated" class="navbar navbar-light bg-white border-bottom mb-4">
       <div class="container">
@@ -98,6 +99,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getApiUrl } from '@/utils/api'
 import { canManageUsers } from '@/composables/useUser'
+import { BOrchestrator } from 'bootstrap-vue-next'
 
 const router = useRouter()
 
