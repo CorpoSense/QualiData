@@ -62,6 +62,7 @@ class User(Base):
     # Status
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    timezone: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Relationships
     projects = relationship(
