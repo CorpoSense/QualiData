@@ -19,6 +19,7 @@
         <div class="navbar-nav flex-row gap-3">
           <router-link class="nav-link" to="/dashboard">Dashboard</router-link>
           <router-link class="nav-link" to="/projects">Projects</router-link>
+          <router-link v-if="user?.role === 'admin'" class="nav-link" to="/admin/users">User Management</router-link>
         </div>
         <div class="navbar-nav flex-row gap-2 ms-auto align-items-center">
           <button class="btn btn-outline-light btn-sm position-relative" @click="showNotifications = true">
