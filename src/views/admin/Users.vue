@@ -22,32 +22,37 @@
       <div v-if="loading" class="text-center py-4">
         <BSpinner label="Loading..."></BSpinner>
       </div>
-      <BTable v-else :items="users" :fields="fields" striped hover>
-        <template #cell(name)="row">
-          {{ row.item.name || '-' }}
-        </template>
-        <template #cell(role)="row">
-          <BBadge :variant="getRoleVariant(row.item.role)">{{ row.item.role }}</BBadge>
-        </template>
-        <template #cell(is_active)="row">
-          <BBadge :variant="row.item.is_active ? 'success' : 'secondary'">
-            {{ row.item.is_active ? 'Active' : 'Inactive' }}
-          </BBadge>
-        </template>
-        <template #cell(created_at)="row">
-          {{ formatDate(row.item.created_at) }}
-        </template>
-        <template #cell(actions)="row">
-          <div class="d-flex gap-2">
-            <BButton size="sm" variant="outline-primary" @click="editUser(row.item)">
-              <i class="bi bi-pencil"></i>
-            </BButton>
-            <BButton size="sm" variant="outline-danger" @click="confirmDelete(row.item)" :disabled="row.item.id === currentUserId">
-              <i class="bi bi-trash"></i>
-            </BButton>
-          </div>
-        </template>
-      </BTable>
+      <table v-if="!loading" class="table table-striped table-hover">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="user in users" :key="user.id">
+            <td>{{ user.name || '-' }}</td>
+            <td>{{ user.email }}</td>
+            <td><BBadge :variant="getRoleVariant(user.role)">{{ user.role }}</BBadge></td>
+            <td><BBadge :variant="user.is_active ? 'success' : 'secondary'">{{ user.is_active ? 'Active' : 'Inactive' }}</BBadge></td>
+            <td>{{ formatDate(user.created_at) }}</td>
+            <td>
+              <div class="d-flex gap-2">
+                <BButton size="sm" variant="outline-primary" @click="editUser(user)">
+                  <i class="bi bi-pencil"></i>
+                </BButton>
+                <BButton size="sm" variant="outline-danger" @click="confirmDelete(user)" :disabled="user.id === currentUserId">
+                  <i class="bi bi-trash"></i>
+                </BButton>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
       <div v-if="!loading && users.length === 0" class="text-center py-4 text-muted">
         No users found
       </div>
