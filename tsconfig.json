@@ -30,6 +30,6 @@
   "ts-node": {
       "esm": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "index.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "src/**/*.d.ts", "index.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
