@@ -5,80 +5,66 @@
         <h1 class="mb-4">Profile Settings</h1>
         
         <!-- Profile Info -->
-        <div class="card mb-4">
-          <div class="card-header">
-            <h5 class="mb-0">Personal Information</h5>
-          </div>
-          <div class="card-body">
-            <div class="mb-3">
-              <label class="form-label">Email</label>
-              <input type="email" class="form-control" v-model="profile.email" disabled>
-              <small class="text-muted">Email cannot be changed</small>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Name</label>
-              <input type="text" class="form-control" v-model="profile.name" placeholder="Your name">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Timezone</label>
-              <input type="text" class="form-control" v-model="profile.timezone" placeholder="e.g., UTC, America/New_York, Europe/London">
-              <small class="text-muted">Used for datetime display</small>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Role</label>
-              <input type="text" class="form-control" :value="profile.role" disabled>
-            </div>
-            <BButton variant="primary" @click="saveProfile" :loading="saving">
-              Save Changes
-            </BButton>
-          </div>
-        </div>
+        <BCard header="Personal Information" class="mb-4">
+          <BFormGroup label="Email" class="mb-3">
+            <BFormInput type="email" v-model="profile.email" disabled></BFormInput>
+            <small class="text-muted">Email cannot be changed</small>
+          </BFormGroup>
+          
+          <BFormGroup label="Name" class="mb-3">
+            <BFormInput type="text" v-model="profile.name" placeholder="Your name"></BFormInput>
+          </BFormGroup>
+          
+          <BFormGroup label="Timezone" class="mb-3">
+            <BFormInput type="text" v-model="profile.timezone" placeholder="e.g., UTC, America/New_York, Europe/London"></BFormInput>
+            <small class="text-muted">Used for datetime display</small>
+          </BFormGroup>
+          
+          <BFormGroup label="Role" class="mb-3">
+            <BFormInput type="text" :modelValue="profile.role" disabled></BFormInput>
+          </BFormGroup>
+          
+          <BButton variant="primary" @click="saveProfile" :loading="saving">
+            Save Changes
+          </BButton>
+        </BCard>
 
         <!-- Change Password -->
-        <div class="card mb-4">
-          <div class="card-header">
-            <h5 class="mb-0">Change Password</h5>
-          </div>
-          <div class="card-body">
-            <div class="mb-3">
-              <label class="form-label">Current Password</label>
-              <input type="password" class="form-control" v-model="passwordForm.current">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">New Password</label>
-              <input type="password" class="form-control" v-model="passwordForm.new">
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Confirm New Password</label>
-              <input type="password" class="form-control" v-model="passwordForm.confirm">
-            </div>
-            <div v-if="passwordForm.new !== passwordForm.confirm && passwordForm.confirm" class="alert alert-warning">
-              Passwords do not match
-            </div>
-            <BButton variant="warning" @click="changePassword" :loading="changingPassword" :disabled="!canChangePassword">
-              Change Password
-            </BButton>
-          </div>
-        </div>
+        <BCard header="Change Password" class="mb-4">
+          <BFormGroup label="Current Password" class="mb-3">
+            <BFormInput type="password" v-model="passwordForm.current"></BFormInput>
+          </BFormGroup>
+          
+          <BFormGroup label="New Password" class="mb-3">
+            <BFormInput type="password" v-model="passwordForm.new"></BFormInput>
+          </BFormGroup>
+          
+          <BFormGroup label="Confirm New Password" class="mb-3">
+            <BFormInput type="password" v-model="passwordForm.confirm"></BFormInput>
+          </BFormGroup>
+          
+          <BAlert v-if="passwordForm.new !== passwordForm.confirm && passwordForm.confirm" variant="warning">
+            Passwords do not match
+          </BAlert>
+          
+          <BButton variant="warning" @click="changePassword" :loading="changingPassword" :disabled="!canChangePassword">
+            Change Password
+          </BButton>
+        </BCard>
 
         <!-- Account Info -->
-        <div class="card">
-          <div class="card-header">
-            <h5 class="mb-0">Account Information</h5>
-          </div>
-          <div class="card-body">
-            <div class="row">
-              <div class="col-sm-6 mb-3">
-                <label class="form-label text-muted">Member Since</label>
-                <div>{{ formatDate(profile.created_at) }}</div>
-              </div>
-              <div class="col-sm-6 mb-3">
-                <label class="form-label text-muted">Last Login</label>
-                <div>{{ formatDate(profile.last_login) }}</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <BCard header="Account Information">
+          <BRow>
+            <BCol sm="6">
+              <small class="text-muted">Member Since</small>
+              <div>{{ formatDate(profile.created_at) }}</div>
+            </BCol>
+            <BCol sm="6">
+              <small class="text-muted">Last Login</small>
+              <div>{{ formatDate(profile.last_login) }}</div>
+            </BCol>
+          </BRow>
+        </BCard>
       </div>
     </div>
   </div>
@@ -89,7 +75,6 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { getApiUrl } from '@/utils/api'
 
 const apiUrl = getApiUrl()
-const getToken = () => localStorage.getItem('token')
 
 const profile = reactive({
   email: '',
@@ -116,6 +101,10 @@ const canChangePassword = computed(() => {
          passwordForm.new.length >= 6
 })
 
+function getToken() {
+  return localStorage.getItem('token')
+}
+
 async function fetchProfile() {
   try {
     const res = await fetch(`${apiUrl}/api/users/me`, {
@@ -141,7 +130,7 @@ async function saveProfile() {
     const res = await fetch(`${apiUrl}/api/users/me`, {
       method: 'PATCH',
       headers: { 
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${getToken()}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -172,7 +161,7 @@ async function changePassword() {
     const res = await fetch(`${apiUrl}/api/users/me/change-password`, {
       method: 'POST',
       headers: { 
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${getToken()}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({

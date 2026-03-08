@@ -2,116 +2,87 @@
   <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1>User Management</h1>
-      <BButton variant="primary" @click="showAddModal = true">
+      <BButton variant="primary" @click="openAddModal">
         <i class="bi bi-plus-lg me-2"></i>Add User
       </BButton>
     </div>
 
     <!-- Search -->
     <div class="mb-3">
-      <input 
+      <BFormInput 
         type="text" 
-        class="form-control" 
         placeholder="Search users..." 
         v-model="search"
-        @input="debouncedSearch"
-      >
+        @update:modelValue="debouncedSearch"
+      ></BFormInput>
     </div>
 
     <!-- Users Table -->
-    <div class="card">
-      <div class="card-body">
-        <div v-if="loading" class="text-center py-4">
-          <div class="spinner-border" role="status">
-            <span class="visually-hidden">Loading...</span>
-          </div>
-        </div>
-        <table v-else class="table table-hover">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Created</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="user in users" :key="user.id">
-              <td>{{ user.name || '-' }}</td>
-              <td>{{ user.email }}</td>
-              <td>
-                <span :class="roleBadgeClass(user.role)">{{ user.role }}</span>
-              </td>
-              <td>
-                <span :class="user.is_active ? 'badge bg-success' : 'badge bg-secondary'">
-                  {{ user.is_active ? 'Active' : 'Inactive' }}
-                </span>
-              </td>
-              <td>{{ formatDate(user.created_at) }}</td>
-              <td>
-                <div class="d-flex gap-2">
-                  <BButton size="sm" variant="outline-primary" @click="editUser(user)">
-                    <i class="bi bi-pencil"></i>
-                  </BButton>
-                  <BButton size="sm" variant="outline-danger" @click="confirmDelete(user)" :disabled="user.id === currentUserId">
-                    <i class="bi bi-trash"></i>
-                  </BButton>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div v-if="!loading && users.length === 0" class="text-center py-4 text-muted">
-          No users found
-        </div>
+    <BCard>
+      <div v-if="loading" class="text-center py-4">
+        <BSpinner label="Loading..."></BSpinner>
       </div>
-    </div>
+      <BTable v-else :items="users" :fields="fields" striped hover>
+        <template #cell(name)="row">
+          {{ row.item.name || '-' }}
+        </template>
+        <template #cell(role)="row">
+          <BBadge :variant="getRoleVariant(row.item.role)">{{ row.item.role }}</BBadge>
+        </template>
+        <template #cell(is_active)="row">
+          <BBadge :variant="row.item.is_active ? 'success' : 'secondary'">
+            {{ row.item.is_active ? 'Active' : 'Inactive' }}
+          </BBadge>
+        </template>
+        <template #cell(created_at)="row">
+          {{ formatDate(row.item.created_at) }}
+        </template>
+        <template #cell(actions)="row">
+          <div class="d-flex gap-2">
+            <BButton size="sm" variant="outline-primary" @click="editUser(row.item)">
+              <i class="bi bi-pencil"></i>
+            </BButton>
+            <BButton size="sm" variant="outline-danger" @click="confirmDelete(row.item)" :disabled="row.item.id === currentUserId">
+              <i class="bi bi-trash"></i>
+            </BButton>
+          </div>
+        </template>
+      </BTable>
+      <div v-if="!loading && users.length === 0" class="text-center py-4 text-muted">
+        No users found
+      </div>
+    </BCard>
 
     <!-- Add/Edit Modal -->
-    <BModal v-model="showAddModal" :has-modal-card="true" :title="editingUser ? 'Edit User' : 'Add User'" @ok="saveUser" :ok-title="editingUser ? 'Update' : 'Create'">
-      <div class="p-3">
-        <div class="mb-3">
-          <label class="form-label">Email</label>
-          <input type="email" class="form-control" v-model="userForm.email" :disabled="editingUser">
-        </div>
-        <div class="mb-3" v-if="!editingUser">
-          <label class="form-label">Password</label>
-          <input type="password" class="form-control" v-model="userForm.password">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Name</label>
-          <input type="text" class="form-control" v-model="userForm.name">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Role</label>
-          <select class="form-select" v-model="userForm.role">
-            <option value="user">User</option>
-            <option value="manager">Manager</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Timezone</label>
-          <input type="text" class="form-control" v-model="userForm.timezone" placeholder="e.g., UTC, America/New_York">
-        </div>
-        <div class="mb-3" v-if="editingUser">
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" v-model="userForm.is_active" id="isActive">
-            <label class="form-check-label" for="isActive">Active</label>
-          </div>
-        </div>
-      </div>
+    <BModal v-model="showAddModal" :has-modal-card="true" :title="editingUser ? 'Edit User' : 'Add User'" @ok="saveUser" :ok-title="editingUser ? 'Update' : 'Create'" no-header-close>
+      <BFormGroup label="Email" class="mb-3">
+        <BFormInput type="email" v-model="userForm.email" :disabled="editingUser" placeholder="user@example.com"></BFormInput>
+      </BFormGroup>
+      
+      <BFormGroup v-if="!editingUser" label="Password" class="mb-3">
+        <BFormInput type="password" v-model="userForm.password" placeholder="Password"></BFormInput>
+      </BFormGroup>
+      
+      <BFormGroup label="Name" class="mb-3">
+        <BFormInput type="text" v-model="userForm.name" placeholder="Full Name"></BFormInput>
+      </BFormGroup>
+      
+      <BFormGroup label="Role" class="mb-3">
+        <BFormSelect v-model="userForm.role" :options="roleOptions"></BFormSelect>
+      </BFormGroup>
+      
+      <BFormGroup label="Timezone" class="mb-3">
+        <BFormInput type="text" v-model="userForm.timezone" placeholder="e.g., UTC, America/New_York"></BFormInput>
+      </BFormGroup>
+      
+      <BFormGroup v-if="editingUser">
+        <BFormCheckbox v-model="userForm.is_active">Active</BFormCheckbox>
+      </BFormGroup>
     </BModal>
 
     <!-- Delete Confirmation -->
-    <BModal v-model="showDeleteModal" title="Confirm Delete">
+    <BModal v-model="showDeleteModal" title="Confirm Delete" ok-title="Delete" ok-variant="danger" @ok="deleteUser">
       <p>Are you sure you want to delete user <strong>{{ deletingUser?.email }}</strong>?</p>
-      <template #footer>
-        <BButton variant="secondary" @click="showDeleteModal = false">Cancel</BButton>
-        <BButton variant="danger" @click="deleteUser">Delete</BButton>
-      </template>
     </BModal>
   </div>
 </template>
@@ -121,7 +92,6 @@ import { ref, reactive, onMounted } from 'vue'
 import { getApiUrl } from '@/utils/api'
 
 const apiUrl = getApiUrl()
-const getToken = () => localStorage.getItem('token')
 
 const users = ref([])
 const loading = ref(true)
@@ -131,6 +101,21 @@ const showDeleteModal = ref(false)
 const editingUser = ref(null)
 const deletingUser = ref(null)
 const currentUserId = ref(null)
+
+const fields = [
+  { key: 'name', label: 'Name' },
+  { key: 'email', label: 'Email' },
+  { key: 'role', label: 'Role' },
+  { key: 'is_active', label: 'Status' },
+  { key: 'created_at', label: 'Created' },
+  { key: 'actions', label: 'Actions' }
+]
+
+const roleOptions = [
+  { value: 'user', text: 'User' },
+  { value: 'manager', text: 'Manager' },
+  { value: 'admin', text: 'Admin' }
+]
 
 const userForm = reactive({
   email: '',
@@ -147,6 +132,10 @@ function debouncedSearch() {
   searchTimeout = setTimeout(() => {
     fetchUsers()
   }, 300)
+}
+
+function getToken() {
+  return localStorage.getItem('token')
 }
 
 async function fetchUsers() {
@@ -183,6 +172,17 @@ async function fetchCurrentUser() {
   }
 }
 
+function openAddModal() {
+  editingUser.value = null
+  userForm.email = ''
+  userForm.password = ''
+  userForm.name = ''
+  userForm.role = 'user'
+  userForm.timezone = ''
+  userForm.is_active = true
+  showAddModal.value = true
+}
+
 function editUser(user) {
   editingUser.value = user
   userForm.email = user.email
@@ -207,7 +207,7 @@ async function saveUser() {
     const res = await fetch(url, {
       method,
       headers: { 
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${getToken()}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
@@ -262,25 +262,18 @@ function resetForm() {
   userForm.is_active = true
 }
 
-function roleBadgeClass(role) {
-  return {
-    'badge': true,
-    'bg-primary': role === 'admin',
-    'bg-info': role === 'manager',
-    'bg-secondary': role === 'user'
+function getRoleVariant(role) {
+  const variants = {
+    'admin': 'primary',
+    'manager': 'info',
+    'user': 'secondary'
   }
+  return variants[role?.toLowerCase()] || 'secondary'
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return '-'
   return new Date(dateStr).toLocaleDateString()
-}
-
-// Close modal handler
-function handleModalClose() {
-  if (showAddModal.value === false) {
-    resetForm()
-  }
 }
 
 onMounted(() => {
