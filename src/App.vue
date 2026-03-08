@@ -19,7 +19,7 @@
         <div class="navbar-nav flex-row gap-3">
           <router-link class="nav-link" to="/dashboard">Dashboard</router-link>
           <router-link class="nav-link" to="/projects">Projects</router-link>
-          <router-link v-if="user && (user.role?.toLowerCase() === 'admin' || user.role?.toLowerCase() === 'manager')" class="nav-link" to="/admin/users">User Management</router-link>
+          <router-link v-if="canManageUsers(user)" class="nav-link" to="/admin/users">User Management</router-link>
         </div>
         <div class="navbar-nav flex-row gap-2 ms-auto align-items-center">
           <button class="btn btn-outline-light btn-sm position-relative" @click="showNotifications = true">
@@ -35,7 +35,7 @@
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
               <li><router-link class="dropdown-item" to="/profile">Profile</router-link></li>
-              <li><router-link v-if="user && (user.role?.toLowerCase() === 'admin' || user.role?.toLowerCase() === 'manager')" class="dropdown-item" to="/admin/users">User Management</router-link></li>
+              <li><router-link v-if="canManageUsers(user)" class="dropdown-item" to="/admin/users">User Management</router-link></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="#" @click.prevent="logout">Logout</a></li>
             </ul>
@@ -97,6 +97,7 @@ const { toasts } = useToast()
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getApiUrl } from '@/utils/api'
+import { canManageUsers } from '@/composables/useUser'
 
 const router = useRouter()
 

@@ -1,5 +1,6 @@
 import { createWebHistory, createRouter } from 'vue-router'
 import { getApiUrl } from '@/utils/api'
+import { isAdmin } from '@/composables/useUser'
 
 import Home from '@/views/Home.vue'
 import Login from '@/views/Login.vue'
@@ -54,7 +55,7 @@ router.beforeEach(async (to, _from, next) => {
       })
       if (res.ok) {
         const user = await res.json()
-        if (user.role === 'admin') {
+        if (isAdmin(user)) {
           next()
         } else {
           next('/dashboard')

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
@@ -59,7 +59,7 @@ class UserListResponse(BaseModel):
 
 def require_admin(user: User = Depends(get_current_active_user)):
     """Require admin role."""
-    if user.role != "admin":
+    if user.role and user.role.lower() != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -67,7 +67,8 @@ def require_admin(user: User = Depends(get_current_active_user)):
     return user
 
 
-# Admin endpoints
+# Admin endpoints - MUST come before /users/{user_id}
+
 @router.get("/users", response_model=UserListResponse)
 async def list_users(
     skip: int = 0,
@@ -82,18 +83,12 @@ async def list_users(
     if search:
         query = query.where(
             (User.email.ilike(f"%{search}%")) | 
-            (User.full_name.ilike(f"%{search}%"))
+            (User.name.ilike(f"%{search}%"))
         )
     
     # Get total count
-    count_query = select(User)
-    if search:
-        count_query = count_query.where(
-            (User.email.ilike(f"%{search}%")) | 
-            (User.full_name.ilike(f"%{search}%"))
-        )
-    total_result = await session.execute(count_query)
-    total = len(total_result.scalars().all())
+    count_result = await session.execute(select(User))
+    total = len(count_result.scalars().all())
     
     # Get paginated results
     query = query.offset(skip).limit(limit).order_by(User.created_at.desc())
@@ -127,8 +122,8 @@ async def create_user(
     
     new_user = User(
         email=user_data.email,
-        full_name=user_data.full_name,
-        hashed_password=get_password_hash(user_data.password),
+        name=user_data.name,
+        password_hash=get_password_hash(user_data.password),
         role=user_data.role,
         timezone=user_data.timezone,
         is_active=True,
@@ -140,104 +135,7 @@ async def create_user(
     return new_user
 
 
-@router.get("/users/{user_id}", response_model=UserResponse)
-async def get_user(
-    user_id: int,
-    current_user: User = Depends(require_admin),
-    session: AsyncSession = Depends(get_async_session),
-):
-    """Get user by ID (admin only)."""
-    result = await session.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
-    return user
-
-
-@router.patch("/users/{user_id}", response_model=UserResponse)
-async def update_user(
-    user_id: int,
-    user_data: UserUpdate,
-    current_user: User = Depends(require_admin),
-    session: AsyncSession = Depends(get_async_session),
-):
-    """Update user (admin only)."""
-    result = await session.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
-    # Update fields
-    if user_data.email is not None and user_data.email != user.email:
-        # Check if new email exists
-        email_check = await session.execute(select(User).where(User.email == user_data.email))
-        if email_check.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already in use"
-            )
-        user.email = user_data.email
-    
-    if user_data.full_name is not None:
-        user.name = user_data.full_name
-    
-    if user_data.role is not None:
-        if user_data.role not in ["admin", "manager", "user"]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid role"
-            )
-        user.role = user_data.role
-    
-    if user_data.timezone is not None:
-        user.timezone = user_data.timezone
-    
-    if user_data.is_active is not None:
-        user.is_active = user_data.is_active
-    
-    await session.commit()
-    await session.refresh(user)
-    
-    return user
-
-
-@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(
-    user_id: int,
-    current_user: User = Depends(require_admin),
-    session: AsyncSession = Depends(get_async_session),
-):
-    """Delete user (admin only)."""
-    # Prevent self-deletion
-    if user_id == current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete yourself"
-        )
-    
-    result = await session.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
-    await session.delete(user)
-    await session.commit()
-
-
-# User profile endpoints
+# User profile endpoints - MUST come before /users/{user_id}
 @router.get("/users/me", response_model=UserResponse)
 async def get_current_user_profile(
     current_user: User = Depends(get_current_active_user),
@@ -274,13 +172,102 @@ async def change_password(
     """Change current user password."""
     from app.routers.auth import verify_password
     
-    if not verify_password(password_data.current_password, current_user.hashed_password):
+    if not verify_password(password_data.current_password, current_user.password_hash or ""):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Current password is incorrect"
         )
     
-    current_user.hashed_password = get_password_hash(password_data.new_password)
+    current_user.password_hash = get_password_hash(password_data.new_password)
     await session.commit()
     
     return {"status": "success", "message": "Password changed successfully"}
+
+
+# /users/{user_id} endpoints - MUST come last
+
+@router.get("/users/{user_id}", response_model=UserResponse)
+async def get_user(
+    user_id: str,
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Get user by ID (admin only)."""
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    return user
+
+
+@router.patch("/users/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: str,
+    user_data: UserUpdate,
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Update user (admin only)."""
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Update fields
+    if user_data.name is not None:
+        user.name = user_data.name
+    
+    if user_data.role is not None:
+        if user_data.role not in ["admin", "manager", "user"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid role"
+            )
+        user.role = user_data.role
+    
+    if user_data.timezone is not None:
+        user.timezone = user_data.timezone
+    
+    if user_data.is_active is not None:
+        user.is_active = user_data.is_active
+    
+    await session.commit()
+    await session.refresh(user)
+    
+    return user
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user(
+    user_id: str,
+    current_user: User = Depends(require_admin),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Delete user (admin only)."""
+    # Prevent self-deletion
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete yourself"
+        )
+    
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    await session.delete(user)
+    await session.commit()
