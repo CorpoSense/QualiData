@@ -75,27 +75,30 @@ class User(Base):
     @property
     def tier_limits(self) -> dict:
         """Get tier limits based on role."""
-        limits = {
-            UserRole.FREE: {
+        role_value = self.role.value if hasattr(self.role, 'value') else str(self.role)
+        
+        # Simple role-based limits
+        if role_value == 'admin':
+            return {
+                "max_projects": -1,
+                "max_rows": 1_000_000,
+                "max_storage_mb": 5000,
+                "history_size": 500,
+                "collaboration": True,
+            }
+        elif role_value == 'manager':
+            return {
+                "max_projects": 50,
+                "max_rows": 200_000,
+                "max_storage_mb": 500,
+                "history_size": 200,
+                "collaboration": True,
+            }
+        else:  # user
+            return {
                 "max_projects": 1,
                 "max_rows": 1_000,
                 "max_storage_mb": 5,
                 "history_size": 10,
                 "collaboration": False,
-            },
-            UserRole.PRO: {
-                "max_projects": 10,
-                "max_rows": 50_000,
-                "max_storage_mb": 100,
-                "history_size": 50,
-                "collaboration": False,
-            },
-            UserRole.ENTERPRISE: {
-                "max_projects": -1,  # Unlimited
-                "max_rows": 500_000,
-                "max_storage_mb": 1000,
-                "history_size": 100,
-                "collaboration": True,
-            },
-        }
-        return limits.get(self.role, limits[UserRole.FREE])
+            }

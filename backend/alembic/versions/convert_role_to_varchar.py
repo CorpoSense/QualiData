@@ -14,15 +14,24 @@ branch_labels = None
 depends_on = None
 
 def upgrade() -> None:
-    # Update any existing values to string
+    # First, convert all uppercase values to lowercase
+    # Handle various formats: ADMIN, UserRole.ADMIN, etc.
     op.execute("""
-        UPDATE users SET role = LOWER(REGEXP_REPLACE(role::text, 'UserRole[.]', ''))
+        UPDATE users SET role = LOWER(
+            COALESCE(
+                NULLIF(REGEXP_REPLACE(role::text, 'UserRole[.]', '', 'g'), ''),
+                role::text
+            )
+        )
         WHERE role IS NOT NULL
     """)
     
-    # Alter the column type using ALTER COLUMN
+    # Drop the old enum type if it exists
+    op.execute("DROP TYPE IF EXISTS userrole CASCADE")
+    
+    # Recreate as varchar
     op.alter_column('users', 'role',
-                   existing_type=sa.String(20),
+                   existing_type=sa.Enum('ADMIN', 'MANAGER', 'USER', name='userrole'),
                    type_=sa.String(20),
                    existing_nullable=True,
                    postgresql_using='role::character varying')
