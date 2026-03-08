@@ -1,7 +1,6 @@
 """Dataset operations routes - pandas-based data cleaning."""
 
 import pandas as pd
-import numpy as np
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -395,75 +394,96 @@ async def string_operations(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """String operations like uppercase, lowercase, trim, etc."""
+    """String operations like uppercase, lowercase, trim, etc.
+
+    Supports both single-column and batch (multi-column) mode:
+    - Single: { "column": "name", "operation": "uppercase" }
+    - Batch:  { "columns": ["name", "email"], "operation": "uppercase" }
+    """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     df = pd.DataFrame(dataset.preview_data)
+
+    # Support both single column and batch (multiple columns)
     column = request.get('column')
+    columns = request.get('columns')
     operation = request.get('operation')
-    
-    if column not in df.columns:
-        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
-    
-    before_data = df[column].tolist()
-    
-    # Validate column exists
-    if column not in df.columns:
-        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
-    
-    # Check if column is string-compatible for string operations
-    try:
-        df[column] = df[column].astype(str)
-    except:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Column '{column}' cannot be converted to string. String operations require text columns."
-        )
-    
-    # Normalize operation names
-    op_map = {
-        'upper': 'uppercase',
-        'lower': 'lowercase', 
-        'strip': 'trim',
-        'title': 'titlecase',
-    }
-    operation = op_map.get(operation, operation)
-    
-    if operation == 'uppercase':
-        df[column] = df[column].astype(str).str.upper()
-        msg = f"Applied uppercase to column {column}"
-    elif operation == 'lowercase':
-        df[column] = df[column].astype(str).str.lower()
-        msg = f"Applied lowercase to column {column}"
-    elif operation == 'trim':
-        df[column] = df[column].astype(str).str.strip()
-        msg = f"Trimmed whitespace from column {column}"
-    elif operation == 'titlecase':
-        df[column] = df[column].astype(str).str.title()
-        msg = f"Applied title case to column {column}"
-    elif operation == 'capitalize':
-        df[column] = df[column].astype(str).str.capitalize()
-        msg = f"Capitalized column {column}"
-    elif operation == 'remove_whitespace':
-        df[column] = df[column].astype(str).str.replace(r'\s+', '', regex=True)
-        msg = f"Removed whitespace from column {column}"
+
+    # Determine target columns
+    if columns and isinstance(columns, list):
+        target_columns = columns
+    elif column:
+        target_columns = [column]
     else:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
-    
+        raise HTTPException(status_code=400, detail="Either 'column' or 'columns' required")
+
+    # Validate all columns exist
+    missing = [c for c in target_columns if c not in df.columns]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
+
+    # Track results
+    results = []
+
+    # Apply operation to each column
+    for col in target_columns:
+        # Check if column is string-compatible
+        try:
+            df[col] = df[col].astype(str)
+        except Exception:
+            results.append({"column": col, "status": "skipped", "reason": "cannot convert to string"})
+            continue
+
+        # Normalize operation names
+        op_map = {
+            'upper': 'uppercase',
+            'lower': 'lowercase',
+            'strip': 'trim',
+            'title': 'titlecase',
+        }
+        op = op_map.get(operation, operation)
+
+        try:
+            if op == 'uppercase':
+                df[col] = df[col].astype(str).str.upper()
+            elif op == 'lowercase':
+                df[col] = df[col].astype(str).str.lower()
+            elif op == 'trim':
+                df[col] = df[col].astype(str).str.strip()
+            elif op == 'titlecase':
+                df[col] = df[col].astype(str).str.title()
+            elif op == 'capitalize':
+                df[col] = df[col].astype(str).str.capitalize()
+            elif op == 'remove_whitespace':
+                df[col] = df[col].astype(str).str.replace(r'\s+', '', regex=True)
+            else:
+                results.append({"column": col, "status": "skipped", "reason": f"unknown operation: {operation}"})
+                continue
+
+            results.append({"column": col, "status": "success", "operation": op})
+        except Exception as e:
+            results.append({"column": col, "status": "error", "reason": str(e)})
+
+    # Check if any operations succeeded
+    successful = [r for r in results if r.get('status') == 'success']
+    if not successful:
+        raise HTTPException(status_code=400, detail=f"No operations succeeded: {results}")
+
     from app.routers.datasets import detect_columns, get_preview_data
-    before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df)}
-    
-    # Skip saving operation for now - model has different fields
-# save_operation(dataset_id, "string_operations", request, before, after, session)
+    {"columns": dataset.columns, "row_count": len(df)}
+
+    # save_operation(dataset_id, "string_operations", request, before, after, session)
     await session.commit()
-    
-    return {"status": "success", "message": msg, "columns": dataset.columns}
+
+    success_count = len(successful)
+    msg = f"Applied {operation} to {success_count} column(s)"
+
+    return {"status": "success", "message": msg, "columns": dataset.columns, "results": results}
 
 
 # Datetime operations
@@ -474,18 +494,36 @@ async def datetime_operations(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Datetime operations like parse, format, extract year, etc."""
+    """Datetime operations like parse, format, extract year, etc.
+
+    Supports both single-column and batch (multi-column) mode:
+    - Single: { "column": "date", "operation": "extract_year" }
+    - Batch:  { "columns": ["date1", "date2"], "operation": "extract_year" }
+    """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     df = pd.DataFrame(dataset.preview_data)
+
+    # Support both single column and batch (multiple columns)
     column = request.get('column')
+    columns = request.get('columns')
     operation = request.get('operation')
-    
-    if column not in df.columns:
-        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
-    
+
+    # Determine target columns
+    if columns and isinstance(columns, list):
+        target_columns = columns
+    elif column:
+        target_columns = [column]
+    else:
+        raise HTTPException(status_code=400, detail="Either 'column' or 'columns' required")
+
+    # Validate all columns exist
+    missing = [c for c in target_columns if c not in df.columns]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
+
     # Normalize operation names
     op_map = {
         'parse': 'parse_datetime',
@@ -495,49 +533,61 @@ async def datetime_operations(
         'weekday': 'extract_weekday',
     }
     operation = op_map.get(operation, operation)
-    
+
     # Validate datetime operations require datetime column
     if operation in ['extract_year', 'extract_month', 'extract_day', 'extract_weekday']:
+        for col in target_columns:
+            try:
+                pd.to_datetime(df[col], errors='raise')
+            except Exception:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Column '{col}' is not a datetime column. Datetime extraction requires datetime data."
+                )
+
+    results = []
+
+    # Apply operation to each column
+    for col in target_columns:
         try:
-            test_df = pd.to_datetime(df[column], errors='raise')
-        except:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Column '{column}' is not a datetime column. Datetime extraction requires datetime data."
-            )
-    
-    if operation == 'parse_datetime':
-        try:
-            df[column] = pd.to_datetime(df[column], errors='coerce')
-            msg = f"Parsed datetime in column {column}"
+            if operation == 'parse_datetime':
+                df[col] = pd.to_datetime(df[col], errors='coerce')
+                results.append({"column": col, "status": "success", "operation": "parse_datetime"})
+            elif operation == 'extract_year':
+                df[col] = pd.to_datetime(df[col], errors='coerce').dt.year
+                results.append({"column": col, "status": "success", "operation": "extract_year"})
+            elif operation == 'extract_month':
+                df[col] = pd.to_datetime(df[col], errors='coerce').dt.month
+                results.append({"column": col, "status": "success", "operation": "extract_month"})
+            elif operation == 'extract_day':
+                df[col] = pd.to_datetime(df[col], errors='coerce').dt.day
+                results.append({"column": col, "status": "success", "operation": "extract_day"})
+            elif operation == 'extract_weekday':
+                df[col] = pd.to_datetime(df[col], errors='coerce').dt.day_name()
+                results.append({"column": col, "status": "success", "operation": "extract_weekday"})
+            else:
+                results.append({"column": col, "status": "skipped", "reason": f"unknown operation: {operation}"})
         except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Failed to parse datetime: {str(e)}")
-    elif operation == 'extract_year':
-        df[column] = pd.to_datetime(df[column], errors='coerce').dt.year
-        msg = f"Extracted year from column {column}"
-    elif operation == 'extract_month':
-        df[column] = pd.to_datetime(df[column], errors='coerce').dt.month
-        msg = f"Extracted month from column {column}"
-    elif operation == 'extract_day':
-        df[column] = pd.to_datetime(df[column], errors='coerce').dt.day
-        msg = f"Extracted day from column {column}"
-    elif operation == 'extract_weekday':
-        df[column] = pd.to_datetime(df[column], errors='coerce').dt.day_name()
-        msg = f"Extracted weekday from column {column}"
-    else:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
-    
+            results.append({"column": col, "status": "error", "reason": str(e)})
+
+    # Check if any operations succeeded
+    successful = [r for r in results if r.get('status') == 'success']
+    if not successful:
+        raise HTTPException(status_code=400, detail=f"No operations succeeded: {results}")
+
     from app.routers.datasets import detect_columns, get_preview_data
-    before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df)}
-    
+    {"columns": dataset.columns, "row_count": len(df)}
+
     # save_operation(dataset_id, "datetime_operations", request, before, after, session)
     await session.commit()
-    
-    return {"status": "success", "message": msg, "columns": dataset.columns}
+
+    success_count = len(successful)
+    msg = f"Applied {operation} to {success_count} column(s)"
+
+    return {"status": "success", "message": msg, "columns": dataset.columns, "results": results}
 
 
 # Fill NA operations
@@ -552,12 +602,12 @@ async def fillna_operations(
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     df = pd.DataFrame(dataset.preview_data)
     method = request.get('method')
     fill_value = request.get('fill_value')
-    column = request.get('column')
-    
+    request.get('column')
+
     if method == 'drop':
         before_count = len(df)
         df = df.dropna()
@@ -579,17 +629,17 @@ async def fillna_operations(
             raise HTTPException(status_code=400, detail="fill_value required for constant method")
     else:
         raise HTTPException(status_code=400, detail=f"Unknown method: {method}")
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
     before = {"columns": dataset.columns, "row_count": dataset.row_count}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df)}
-    
+    {"columns": dataset.columns, "row_count": len(df)}
+
     # save_operation(dataset_id, "fillna", request, before, after, session)
     await session.commit()
-    
+
     return {"status": "success", "message": f"Applied fillna ({method}) - {modified} cells filled", "columns": dataset.columns, "row_count": dataset.row_count}
 
 
@@ -605,22 +655,20 @@ async def remove_duplicates(
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     df = pd.DataFrame(dataset.preview_data)
     before_count = len(df)
     df = df.drop_duplicates()
     after_count = len(df)
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
-    before = {"columns": dataset.columns, "row_count": before_count}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": after_count}
-    
+
     # save_operation(dataset_id, "remove_duplicates", request, before, after, session)
     await session.commit()
-    
+
     return {"status": "success", "message": f"Removed {before_count - after_count} duplicate rows", "columns": dataset.columns, "row_count": dataset.row_count}
 
 
@@ -636,26 +684,25 @@ async def sort_operations(
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     df = pd.DataFrame(dataset.preview_data)
     column = request.get('column')
     ascending = request.get('ascending', True)
-    
+
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
-    
+
     df = df.sort_values(by=column, ascending=ascending)
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
-    before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df)}
-    
+    {"columns": dataset.columns, "row_count": len(df)}
+
     # save_operation(dataset_id, "sort", request, before, after, session)
     await session.commit()
-    
+
     return {"status": "success", "message": f"Sorted by {column}", "columns": dataset.columns}
 
 
@@ -667,48 +714,83 @@ async def structural_operations(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Structural operations like rename column, drop column, change type."""
+    """Structural operations like rename column, drop column, change type.
+
+    Supports both single-column and batch (multi-column) mode for drop/astype:
+    - Single: { "operation": "drop", "column": "name" }
+    - Batch:  { "operation": "drop", "columns": ["name", "email"] }
+    - Rename is single-column only.
+    """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     df = pd.DataFrame(dataset.preview_data)
     operation = request.get('operation')
     column = request.get('column')
-    
+    columns = request.get('columns')
+
+    results = []
+
     if operation == 'rename':
+        # Rename is single-column only
         new_name = request.get('new_name')
         if not column or not new_name:
             raise HTTPException(status_code=400, detail="column and new_name required")
         if column not in df.columns:
             raise HTTPException(status_code=400, detail=f"Column {column} not found")
         df = df.rename(columns={column: new_name})
-        
+        results.append({"column": column, "status": "success", "new_name": new_name})
+
     elif operation == 'drop':
-        if column not in df.columns:
-            raise HTTPException(status_code=400, detail=f"Column {column} not found")
-        df = df.drop(columns=[column])
-        
+        # Support batch drop
+        target_columns = columns if isinstance(columns, list) else ([column] if column else [])
+        if not target_columns:
+            raise HTTPException(status_code=400, detail="column or columns required")
+
+        missing = [c for c in target_columns if c not in df.columns]
+        if missing:
+            raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
+
+        df = df.drop(columns=target_columns)
+        results.append({"columns": target_columns, "status": "success"})
+
     elif operation == 'astype':
+        # Support batch astype
+        target_columns = columns if isinstance(columns, list) else ([column] if column else [])
         dtype = request.get('dtype')
-        if not column or not dtype:
-            raise HTTPException(status_code=400, detail="column and dtype required")
-        if column not in df.columns:
-            raise HTTPException(status_code=400, detail=f"Column {column} not found")
-        try:
-            df[column] = df[column].astype(dtype)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Cannot convert: {str(e)}")
+
+        if not target_columns:
+            raise HTTPException(status_code=400, detail="column or columns required")
+        if not dtype:
+            raise HTTPException(status_code=400, detail="dtype required")
+
+        missing = [c for c in target_columns if c not in df.columns]
+        if missing:
+            raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
+
+        for col in target_columns:
+            try:
+                df[col] = df[col].astype(dtype)
+                results.append({"column": col, "status": "success", "dtype": dtype})
+            except Exception as e:
+                results.append({"column": col, "status": "error", "reason": str(e)})
     else:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
     await session.commit()
-    
-    return {"status": "success", "message": f"Applied {operation}", "columns": dataset.columns}
+
+    msg = f"Applied {operation}"
+    if operation == 'drop' and isinstance(columns, list):
+        msg = f"Dropped {len(columns)} columns"
+    elif operation == 'astype' and isinstance(columns, list):
+        msg = f"Changed type on {len(columns)} columns"
+
+    return {"status": "success", "message": msg, "columns": dataset.columns, "results": results}
 
 
 # Fuzzy deduplication
@@ -723,14 +805,14 @@ async def fuzzy_dedupe(
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     df = pd.DataFrame(dataset.preview_data)
     column = request.get('column')
     threshold = request.get('threshold', 0.8)
-    
+
     if not column or column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column {column} not found")
-    
+
     from difflib import SequenceMatcher
     rows = df[column].astype(str).tolist()
     to_keep = []
@@ -742,9 +824,9 @@ async def fuzzy_dedupe(
                 break
         if not is_duplicate:
             to_keep.append(row)
-    
+
     df = df[df[column].astype(str).isin(to_keep)].reset_index(drop=True)
-    
+
     from app.routers.datasets import detect_columns, get_preview_data
     before_count = dataset.row_count
     removed = before_count - len(df)
@@ -752,7 +834,7 @@ async def fuzzy_dedupe(
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
     await session.commit()
-    
+
     return {"status": "success", "message": f"Removed {removed} fuzzy duplicates", "columns": dataset.columns, "row_count": dataset.row_count}
 
 
@@ -783,63 +865,88 @@ async def numeric_operations(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Numeric operations like round, normalize, detect outliers."""
+    """Numeric operations like round, normalize, detect outliers.
+
+    Supports both single-column and batch (multi-column) mode:
+    - Single: { "column": "score", "operation": "round" }
+    - Batch:  { "columns": ["score", "price", "qty"], "operation": "round" }
+    """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    
+
     df = pd.DataFrame(dataset.preview_data)
     operation = request.get('operation')
+
+    # Support both single column and batch (multiple columns)
     column = request.get('column')
-    
-    if not column or column not in df.columns:
-        raise HTTPException(status_code=400, detail=f"Column {column} not found")
-    
-    # Check if column is numeric
-    try:
-        df[column] = pd.to_numeric(df[column], errors='raise')
-    except:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Column '{column}' is not numeric. Numeric operations require number columns."
-        )
-    
-    if operation == 'round':
-        decimals = request.get('decimals', 2)
-        try:
-            df[column] = df[column].round(decimals)
-        except:
-            raise HTTPException(status_code=400, detail="Cannot round this column")
-            
-    elif operation == 'normalize':
-        # Min-max normalization to 0-1
-        try:
-            col_min = df[column].min()
-            col_max = df[column].max()
-            if col_max - col_min != 0:
-                df[column] = (df[column] - col_min) / (col_max - col_min)
-        except:
-            raise HTTPException(status_code=400, detail="Cannot normalize this column")
-            
-    elif operation == 'outliers':
-        # Simple IQR-based outlier detection - replace with median
-        try:
-            Q1 = df[column].quantile(0.25)
-            Q3 = df[column].quantile(0.75)
-            IQR = Q3 - Q1
-            lower = Q1 - 1.5 * IQR
-            upper = Q3 + 1.5 * IQR
-            median = df[column].median()
-            df[column] = df[column].apply(lambda x: median if x < lower or x > upper else x)
-        except:
-            raise HTTPException(status_code=400, detail="Cannot detect outliers in this column")
+    columns = request.get('columns')
+
+    # Determine target columns
+    if columns and isinstance(columns, list):
+        target_columns = columns
+    elif column:
+        target_columns = [column]
     else:
-        raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
-    
+        raise HTTPException(status_code=400, detail="Either 'column' or 'columns' required")
+
+    # Validate all columns exist
+    missing = [c for c in target_columns if c not in df.columns]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
+
+    results = []
+
+    # Apply operation to each column
+    for col in target_columns:
+        # Check if column is numeric
+        try:
+            df[col] = pd.to_numeric(df[col], errors='raise')
+        except Exception:
+            results.append({"column": col, "status": "skipped", "reason": "not numeric"})
+            continue
+
+        try:
+            if operation == 'round':
+                decimals = request.get('decimals', 2)
+                df[col] = df[col].round(decimals)
+
+            elif operation == 'normalize':
+                # Min-max normalization to 0-1
+                col_min = df[col].min()
+                col_max = df[col].max()
+                if col_max - col_min != 0:
+                    df[col] = (df[col] - col_min) / (col_max - col_min)
+
+            elif operation == 'outliers':
+                # Simple IQR-based outlier detection - replace with median
+                Q1 = df[col].quantile(0.25)
+                Q3 = df[col].quantile(0.75)
+                IQR = Q3 - Q1
+                lower = Q1 - 1.5 * IQR
+                upper = Q3 + 1.5 * IQR
+                median = df[col].median()
+                df[col] = df[col].apply(lambda x: median if x < lower or x > upper else x)
+            else:
+                results.append({"column": col, "status": "skipped", "reason": f"unknown operation: {operation}"})
+                continue
+
+            results.append({"column": col, "status": "success", "operation": operation})
+        except Exception as e:
+            results.append({"column": col, "status": "error", "reason": str(e)})
+
+    # Check if any operations succeeded
+    successful = [r for r in results if r.get('status') == 'success']
+    if not successful:
+        raise HTTPException(status_code=400, detail=f"No operations succeeded: {results}")
+
     from app.routers.datasets import detect_columns, get_preview_data
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
     await session.commit()
-    
-    return {"status": "success", "message": f"Applied {operation}", "columns": dataset.columns}
+
+    success_count = len(successful)
+    msg = f"Applied {operation} to {success_count} column(s)"
+
+    return {"status": "success", "message": msg, "columns": dataset.columns, "results": results}
