@@ -165,6 +165,7 @@ async def register(
         email=email,
         password_hash=password_hash,
         name=full_name,
+        role=user_role,
         is_active=True,
     )
     session.add(new_user)
