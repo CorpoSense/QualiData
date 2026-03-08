@@ -2,7 +2,7 @@
   <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1>User Management</h1>
-      <BButton variant="primary" @click="openAddModal">
+      <BButton variant="primary" @click="showAddModal = true">
         <i class="bi bi-plus-lg me-2"></i>Add User
       </BButton>
     </div>
@@ -54,7 +54,7 @@
     </BCard>
 
     <!-- Add/Edit Modal -->
-    <BModal v-model="showAddModal" :has-modal-card="true" :title="editingUser ? 'Edit User' : 'Add User'" @ok="saveUser" :ok-title="editingUser ? 'Update' : 'Create'" no-header-close>
+    <BModal v-model="showAddModal" :has-modal-card="true" :title="editingUser ? 'Edit User' : 'Add User'" @ok.prevent="saveUser" :ok-title="editingUser ? 'Update' : 'Create'" no-header-close>
       <BFormGroup label="Email" class="mb-3">
         <BFormInput type="email" v-model="userForm.email" :disabled="editingUser" placeholder="user@example.com"></BFormInput>
       </BFormGroup>
@@ -81,7 +81,7 @@
     </BModal>
 
     <!-- Delete Confirmation -->
-    <BModal v-model="showDeleteModal" title="Confirm Delete" ok-title="Delete" ok-variant="danger" @ok="deleteUser">
+    <BModal v-model="showDeleteModal" title="Confirm Delete" ok-title="Delete" ok-variant="danger" @ok.prevent="deleteUser">
       <p>Are you sure you want to delete user <strong>{{ deletingUser?.email }}</strong>?</p>
     </BModal>
   </div>
