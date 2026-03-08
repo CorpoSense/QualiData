@@ -237,7 +237,12 @@ function confirmDelete(user) {
   showDeleteModal.value = true
 }
 
+const deleting = ref(false)
+
 async function deleteUser() {
+  if (deleting.value || !deletingUser.value) return
+  deleting.value = true
+  
   try {
     const res = await fetch(`${apiUrl}/api/users/${deletingUser.value.id}`, {
       method: 'DELETE',
@@ -247,8 +252,10 @@ async function deleteUser() {
     if (res.ok) {
       showDeleteModal.value = false
       deletingUser.value = null
+      deleting.value = false
       fetchUsers()
     } else {
+      deleting.value = false
       alert('Error deleting user')
     }
   } catch (e) {
