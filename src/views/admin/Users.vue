@@ -121,7 +121,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { getApiUrl } from '@/utils/api'
 
 const apiUrl = getApiUrl()
-const token = localStorage.getItem('token')
+const getToken = () => localStorage.getItem('token')
 
 const users = ref([])
 const loading = ref(true)
@@ -156,7 +156,7 @@ async function fetchUsers() {
       ? `${apiUrl}/api/users?search=${encodeURIComponent(search.value)}`
       : `${apiUrl}/api/users`
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${getToken()}` }
     })
     if (res.ok) {
       const data = await res.json()
@@ -172,7 +172,7 @@ async function fetchUsers() {
 async function fetchCurrentUser() {
   try {
     const res = await fetch(`${apiUrl}/api/users/me`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${getToken()}` }
     })
     if (res.ok) {
       const data = await res.json()
@@ -236,7 +236,7 @@ async function deleteUser() {
   try {
     const res = await fetch(`${apiUrl}/api/users/${deletingUser.value.id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${getToken()}` }
     })
     
     if (res.ok) {

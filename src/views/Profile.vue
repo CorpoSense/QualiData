@@ -89,7 +89,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { getApiUrl } from '@/utils/api'
 
 const apiUrl = getApiUrl()
-const token = localStorage.getItem('token')
+const getToken = () => localStorage.getItem('token')
 
 const profile = reactive({
   email: '',
@@ -119,7 +119,7 @@ const canChangePassword = computed(() => {
 async function fetchProfile() {
   try {
     const res = await fetch(`${apiUrl}/api/users/me`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${getToken()}` }
     })
     if (res.ok) {
       const data = await res.json()
