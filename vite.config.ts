@@ -20,11 +20,7 @@ export default defineConfig({
     minify: 'esbuild'
   },
   plugins: [
-    vue({
-      compilerOptions: {
-        isCustomElement: (tag) => tag.startsWith('b-')
-      }
-    }),
+    vue(),
   ],
   resolve: {
     alias: {
