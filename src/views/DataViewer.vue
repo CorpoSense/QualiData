@@ -92,9 +92,9 @@
           </BDropdown>
 
           <BDropdown text="Structure" size="sm">
-            <BDropdownItem @click="applyStructuralOp('rename')" :disabled="operationMode === 'batch' && selectedColumns.length > 1">
+            <BDropdownItem @click="applyStructuralOp('rename')" :disabled="selectedColumns.length !== 1">
               <i class="bi bi-pencil-square me-2"></i>Rename column
-              <span v-if="operationMode === 'batch' && selectedColumns.length > 1" class="text-muted small ms-2">(single only)</span>
+              <span v-if="selectedColumns.length !== 1" class="text-muted small ms-2">(select 1)</span>
             </BDropdownItem>
             <BDropdownItem @click="applyStructuralOp('drop')">
               <i class="bi bi-trash me-2"></i>Drop column
@@ -129,50 +129,23 @@
       </div>
     </div>
 
-    <!-- Stats Bar -->
-    <div class="d-flex gap-3 mb-3 flex-wrap align-items-center">
+    <!-- Selection Bar - click columns in table to select -->
+    <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
       <BBadge variant="secondary" pill>{{ data.length }} rows</BBadge>
       <BBadge variant="secondary" pill>{{ columns.length }} columns</BBadge>
       <BBadge variant="warning" pill>{{ nullCount }} nulls</BBadge>
       
-      <!-- Mode Toggle -->
-      <div class="btn-group btn-group-sm ms-2" role="group">
-        <button type="button" class="btn" :class="operationMode === 'single' ? 'btn-primary' : 'btn-outline-secondary'" @click="operationMode = 'single'">
-          <i class="bi bi-person"></i> Single
-        </button>
-        <button type="button" class="btn" :class="operationMode === 'batch' ? 'btn-primary' : 'btn-outline-secondary'" @click="operationMode = 'batch'">
-          <i class="bi bi-people"></i> Batch
-        </button>
-      </div>
-      
-      <!-- Single Column Selector -->
-      <template v-if="operationMode === 'single'">
-        <BFormSelect v-model="selectedColumn" :options="columnOptions" size="sm" style="width: 150px;" class="ms-2"></BFormSelect>
-        <BBadge v-if="selectedColumn" variant="info" pill>
-          Selected: {{ selectedColumn }}
-        </BBadge>
-      </template>
-      
-      <!-- Batch Column Selector -->
-      <template v-else>
-        <div class="dropdown ms-2">
-          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-check2-square me-1"></i>
-            {{ selectedColumns.length > 0 ? `${selectedColumns.length} selected` : 'Select columns' }}
-          </button>
-          <ul class="dropdown-menu" style="max-height: 200px; overflow-y: auto;">
-            <li v-for="col in columns" :key="col.field">
-              <label class="dropdown-item">
-                <input type="checkbox" :value="col.field" v-model="selectedColumns" class="form-check-input me-2">
-                {{ col.label }}
-              </label>
-            </li>
-          </ul>
-        </div>
-        <BBadge v-if="selectedColumns.length > 0" variant="info" pill>
-          {{ selectedColumns.length }} columns
-        </BBadge>
-      </template>
+      <!-- Selected columns display -->
+      <BBadge v-if="selectedColumns.length > 0" variant="info" pill class="ms-2">
+        <i class="bi bi-check2-square me-1"></i>
+        {{ selectedColumns.length === 1 ? `1 column: ${selectedColumns[0]}` : `${selectedColumns.length} columns selected` }}
+      </BBadge>
+      <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-secondary" @click="selectedColumns = []">
+        Clear
+      </BButton>
+      <span v-else class="text-muted small ms-2">
+        <i class="bi bi-info-circle me-1"></i>Click column headers to select
+      </span>
     </div>
 
     <!-- Loading -->
@@ -188,9 +161,8 @@
         <table class="table table-hover mb-0">
           <thead class="table-light">
             <tr>
-              <th v-for="col in columns" :key="col.field" @click="selectedColumn = col.field" style="cursor: pointer;">
+              <th v-for="col in columns" :key="col.field" @click="toggleColumnSelection(col.field)" :class="{'table-primary': selectedColumns.includes(col.field)}" style="cursor: pointer;">
                 {{ col.label }}
-                <i v-if="selectedColumn === col.field" class="bi bi-check-circle-fill text-primary"></i>
               </th>
             </tr>
           </thead>
@@ -255,7 +227,7 @@
     <!-- AI Clean Modal -->
     <BModal v-model="showAiModal" title="AI Clean" @ok="applyAiClean">
       <BFormGroup label="Column">
-        <BFormSelect v-model="selectedColumn" :options="columnOptions"></BFormSelect>
+        <BFormSelect v-model="selectedColumns[0]" :options="columnOptions"></BFormSelect>
       </BFormGroup>
       <BFormGroup label="Instruction">
         <BFormTextarea v-model="aiInstruction" placeholder="e.g., Extract the email domain, Convert to title case"></BFormTextarea>
@@ -336,9 +308,7 @@ const profileData = ref(null)
 const comparing = ref(false)
 const compareOpId = ref(null)
 const nullCount = ref(0)
-const selectedColumn = ref(null)
-const selectedColumns = ref([])  // For batch mode
-const operationMode = ref('single')  // 'single' or 'batch'
+const selectedColumns = ref([])  // Selected columns (click on table headers)
 const showColumnSelector = ref(false)
 const fillValue = ref('')
 const canUndo = ref(false)
@@ -379,23 +349,19 @@ function goToPage(p) {
 
 const columnOptions = computed(() => columns.value.map(c => ({ value: c.field, text: c.label })))
 
-// Operations that support batch mode (multi-column)
-const batchSupportedOperations = ['string-operations', 'numeric', 'datetime-operations', 'structural']
-
-// Check if operation is available in current mode
-function isOperationEnabled(operation) {
-  const isBatchMode = operationMode.value === 'batch'
-  const hasMultipleSelected = selectedColumns.value && selectedColumns.value.length > 1
-  
-  // Single-column only operations
-  const singleColumnOnly = ['rename']
-  
-  if (isBatchMode && hasMultipleSelected) {
-    // In batch mode with multiple columns, disable single-column-only ops
-    if (operation === 'rename') return false
+// Toggle column selection (click on table header)
+function toggleColumnSelection(field) {
+  const idx = selectedColumns.value.indexOf(field)
+  if (idx === -1) {
+    selectedColumns.value.push(field)
+  } else {
+    selectedColumns.value.splice(idx, 1)
   }
-  
-  return true
+}
+
+// Check if single-column only operation (like rename)
+function isSingleColumnOnly(operation) {
+  return ['rename'].includes(operation)
 }
 
 const operationOptions = computed(() => operations.value.map(op => ({ value: op.id, text: `${op.operation_type} - ${formatDate(op.created_at)}` })))
@@ -462,8 +428,10 @@ function handleRowClick(row) { console.log('Row clicked:', row) }
 function handleCellClick(row, col) { console.log('Cell clicked:', row, col) }
 
 async function applyOperation(endpoint, params) {
-  const col = selectedColumn.value || columns.value[0]?.field
-  if (!col) return
+  if (!selectedColumns.value || selectedColumns.value.length === 0) {
+    toast.warning('No columns selected'); return
+  }
+  const col = selectedColumns.value[0]
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/${endpoint}`, {
@@ -482,137 +450,67 @@ async function applyOperation(endpoint, params) {
 }
 
 async function applyStringOp(operation) {
-  if (operationMode.value === 'batch') {
-    // Batch mode: use selectedColumns array
-    if (!selectedColumns.value || selectedColumns.value.length === 0) {
-      toast.warning('No columns selected for batch operation'); return
-    }
-    operating.value = true
-    try {
-      const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/string-operations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ columns: selectedColumns.value, operation })
-      })
-      if (res.ok) { 
-        const data = await res.json()
-        toast.success(data.message || 'Operation applied successfully')
-        await refreshData() 
-      }
-      else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
-    } catch (e) { toast.error(e.message) }
-    finally { operating.value = false }
-  } else {
-    // Single mode: use selectedColumn
-    const col = selectedColumn.value || columns.value[0]?.field
-    if (!col) { toast.warning('No column selected'); return }
-    await applyOperation('string-operations', { operation, column: col })
+  if (!selectedColumns.value || selectedColumns.value.length === 0) {
+    toast.warning('No columns selected'); return
   }
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/string-operations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ columns: selectedColumns.value, operation })
+    })
+    if (res.ok) { 
+      const data = await res.json()
+      toast.success(data.message || 'Operation applied successfully')
+      await refreshData() 
+    }
+    else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
 }
 async function applyDatetimeOp(operation) {
-  if (operationMode.value === 'batch') {
-    if (!selectedColumns.value || selectedColumns.value.length === 0) {
-      toast.warning('No columns selected for batch operation'); return
-    }
-    operating.value = true
-    try {
-      const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/datetime-operations`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ columns: selectedColumns.value, operation })
-      })
-      if (res.ok) { 
-        const data = await res.json()
-        toast.success(data.message || 'Operation applied successfully')
-        await refreshData() 
-      }
-      else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
-    } catch (e) { toast.error(e.message) }
-    finally { operating.value = false }
-  } else {
-    const col = selectedColumn.value || columns.value[0]?.field
-    if (!col) { toast.warning('No column selected'); return }
-    await applyOperation('datetime-operations', { operation, column: col })
+  if (!selectedColumns.value || selectedColumns.value.length === 0) {
+    toast.warning('No columns selected'); return
   }
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/datetime-operations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ columns: selectedColumns.value, operation })
+    })
+    if (res.ok) { 
+      const data = await res.json()
+      toast.success(data.message || 'Operation applied successfully')
+      await refreshData() 
+    }
+    else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
 }
 async function applyStructuralOp(operation) {
   if (operation === 'rename') {
     // Rename is single-column only
+    if (selectedColumns.value.length !== 1) {
+      toast.warning('Select exactly 1 column to rename'); return
+    }
     const newName = prompt('Enter new column name:')
     if (!newName) return
-    const col = selectedColumn.value || columns.value[0]?.field
-    if (!col) { toast.warning('No column selected'); return }
+    const col = selectedColumns.value[0]
     await applyOperation('structural', { operation, column: col, new_name: newName })
   } else if (operation === 'astype') {
-    if (operationMode.value === 'batch') {
-      const dtype = prompt('Enter new type (int, float, str, bool):')
-      if (!dtype) return
-      if (!selectedColumns.value || selectedColumns.value.length === 0) {
-        toast.warning('No columns selected'); return
-      }
-      operating.value = true
-      try {
-        const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/structural`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-          body: JSON.stringify({ operation, columns: selectedColumns.value, dtype })
-        })
-        if (res.ok) { 
-          const data = await res.json()
-          toast.success(data.message || 'Operation applied successfully')
-          await refreshData() 
-        }
-        else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
-      } catch (e) { toast.error(e.message) }
-      finally { operating.value = false }
-    } else {
-      const dtype = prompt('Enter new type (int, float, str, bool):')
-      if (!dtype) return
-      const col = selectedColumn.value || columns.value[0]?.field
-      if (!col) { toast.warning('No column selected'); return }
-      await applyOperation('structural', { operation, column: col, dtype })
-    }
-  } else if (operation === 'drop') {
-    if (operationMode.value === 'batch') {
-      if (!selectedColumns.value || selectedColumns.value.length === 0) {
-        toast.warning('No columns selected'); return
-      }
-      if (!confirm(`Are you sure you want to delete ${selectedColumns.value.length} columns?`)) return
-      operating.value = true
-      try {
-        const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/structural`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-          body: JSON.stringify({ operation, columns: selectedColumns.value })
-        })
-        if (res.ok) { 
-          const data = await res.json()
-          toast.success(data.message || 'Operation applied successfully')
-          await refreshData() 
-          selectedColumns.value = []
-        }
-        else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
-      } catch (e) { toast.error(e.message) }
-      finally { operating.value = false }
-    } else {
-      const col = selectedColumn.value || columns.value[0]?.field
-      if (!col) { toast.warning('No column selected'); return }
-      if (!confirm(`Are you sure you want to delete column "${col}"?`)) return
-      await applyOperation('structural', { operation, column: col })
-    }
-  }
-}
-async function applyNumericOp(operation) {
-  if (operationMode.value === 'batch') {
     if (!selectedColumns.value || selectedColumns.value.length === 0) {
-      toast.warning('No columns selected for batch operation'); return
+      toast.warning('No columns selected'); return
     }
+    const dtype = prompt('Enter new type (int, float, str, bool):')
+    if (!dtype) return
     operating.value = true
     try {
-      const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/numeric`, {
+      const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/structural`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ columns: selectedColumns.value, operation })
+        body: JSON.stringify({ operation, columns: selectedColumns.value, dtype })
       })
       if (res.ok) { 
         const data = await res.json()
@@ -622,11 +520,48 @@ async function applyNumericOp(operation) {
       else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
     } catch (e) { toast.error(e.message) }
     finally { operating.value = false }
-  } else {
-    const col = selectedColumn.value || columns.value[0]?.field
-    if (!col) { toast.warning('No column selected'); return }
-    await applyOperation('numeric', { operation, column: col })
+  } else if (operation === 'drop') {
+    if (!selectedColumns.value || selectedColumns.value.length === 0) {
+      toast.warning('No columns selected'); return
+    }
+    if (!confirm(`Are you sure you want to delete ${selectedColumns.value.length} columns?`)) return
+    operating.value = true
+    try {
+      const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/structural`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ operation, columns: selectedColumns.value })
+      })
+      if (res.ok) { 
+        const data = await res.json()
+        toast.success(data.message || 'Operation applied successfully')
+        await refreshData() 
+        selectedColumns.value = []
+      }
+      else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
+    } catch (e) { toast.error(e.message) }
+    finally { operating.value = false }
   }
+}
+async function applyNumericOp(operation) {
+  if (!selectedColumns.value || selectedColumns.value.length === 0) {
+    toast.warning('No columns selected'); return
+  }
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/numeric`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ columns: selectedColumns.value, operation })
+    })
+    if (res.ok) { 
+      const data = await res.json()
+      toast.success(data.message || 'Operation applied successfully')
+      await refreshData() 
+    }
+    else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
 }
 async function applyDedup(type) { await applyOperation(type === 'duplicates' ? 'remove-duplicates' : 'fuzzy-dedupe', {}) }
 
@@ -655,8 +590,11 @@ async function redo() {
 }
 
 async function applyAiClean() {
-  const col = selectedColumn.value || columns.value[0]?.field
-  if (!col || !aiInstruction.value) return
+  if (!selectedColumns.value || selectedColumns.value.length === 0) {
+    toast.warning('No column selected'); return
+  }
+  if (!aiInstruction.value) return
+  const col = selectedColumns.value[0]
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/ai-clean`, {
