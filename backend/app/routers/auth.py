@@ -159,13 +159,14 @@ async def register(
             # Admin already created via env, this is not first user
             user_role = "user"
 
-    # Create new user
+    # Create new user with enum role
+    from app.db.models import UserRole
     password_hash = get_password_hash(password)
     new_user = User(
         email=email,
         password_hash=password_hash,
         name=full_name,
-        role=user_role,
+        role=UserRole(user_role),
         is_active=True,
     )
     session.add(new_user)

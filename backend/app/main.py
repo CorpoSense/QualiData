@@ -104,7 +104,7 @@ async def create_admin_user():
                 email=admin_email,
                 password_hash=password_hash,
                 full_name="Admin",
-                role="admin",
+                role=UserRole("admin"),
             )
             
             session.add(admin_user)
