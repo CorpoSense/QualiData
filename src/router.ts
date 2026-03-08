@@ -1,4 +1,5 @@
 import { createWebHistory, createRouter } from 'vue-router'
+import { getApiUrl } from '@/utils/api'
 
 import Home from '@/views/Home.vue'
 import Login from '@/views/Login.vue'
@@ -48,7 +49,7 @@ router.beforeEach(async (to, _from, next) => {
   } else if (requiresAdmin && token) {
     // Check if user is admin
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/users/me`, {
+      const res = await fetch(`${getApiUrl()}/api/users/me`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (res.ok) {
