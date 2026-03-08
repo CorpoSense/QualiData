@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -24,6 +24,13 @@ class UserResponse(BaseModel):
     last_login: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+    
+    @field_validator('role', mode='before')
+    @classmethod
+    def serialize_role(cls, v):
+        if hasattr(v, 'value'):
+            return v.value
+        return v
 
 
 class UserCreate(BaseModel):
@@ -59,7 +66,8 @@ class UserListResponse(BaseModel):
 
 def require_admin(user: User = Depends(get_current_active_user)):
     """Require admin role."""
-    if user.role and user.role.lower() != "admin":
+    role_value = user.role.value if hasattr(user.role, 'value') else str(user.role)
+    if role_value != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -113,8 +121,11 @@ async def create_user(
             detail="Email already registered"
         )
     
-    # Validate role
-    if user_data.role not in ["admin", "manager", "user"]:
+    # Validate and convert role
+    from app.db.models import UserRole
+    try:
+        role = UserRole(user_data.role)
+    except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid role"
@@ -124,7 +135,7 @@ async def create_user(
         email=user_data.email,
         name=user_data.name,
         password_hash=get_password_hash(user_data.password),
-        role=user_data.role,
+        role=role,
         timezone=user_data.timezone,
         is_active=True,
     )
@@ -227,12 +238,14 @@ async def update_user(
         user.name = user_data.name
     
     if user_data.role is not None:
-        if user_data.role not in ["admin", "manager", "user"]:
+        from app.db.models import UserRole
+        try:
+            user.role = UserRole(user_data.role)
+        except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid role"
             )
-        user.role = user_data.role
     
     if user_data.timezone is not None:
         user.timezone = user_data.timezone
