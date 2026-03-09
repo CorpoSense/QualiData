@@ -472,12 +472,13 @@ async def string_operations(
         raise HTTPException(status_code=400, detail=f"No operations succeeded: {results}")
 
     from app.routers.datasets import detect_columns, get_preview_data
+    before = {"columns": dataset.columns, "row_count": dataset.row_count}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    {"columns": dataset.columns, "row_count": len(df)}
+    after = {"columns": dataset.columns, "row_count": len(df)}
 
-    # save_operation(dataset_id, "string_operations", request, before, after, session)
+    save_operation(dataset_id, "string_operations", request, before, after, session)
     await session.commit()
 
     success_count = len(successful)
@@ -576,12 +577,13 @@ async def datetime_operations(
         raise HTTPException(status_code=400, detail=f"No operations succeeded: {results}")
 
     from app.routers.datasets import detect_columns, get_preview_data
+    before = {"columns": dataset.columns, "row_count": dataset.row_count}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    {"columns": dataset.columns, "row_count": len(df)}
+    after = {"columns": dataset.columns, "row_count": len(df)}
 
-    # save_operation(dataset_id, "datetime_operations", request, before, after, session)
+    save_operation(dataset_id, "datetime_operations", request, before, after, session)
     await session.commit()
 
     success_count = len(successful)
@@ -631,13 +633,13 @@ async def fillna_operations(
         raise HTTPException(status_code=400, detail=f"Unknown method: {method}")
 
     from app.routers.datasets import detect_columns, get_preview_data
-    before = {"columns": dataset.columns, "row_count": dataset.row_count}
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    {"columns": dataset.columns, "row_count": len(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
 
-    # save_operation(dataset_id, "fillna", request, before, after, session)
+    save_operation(dataset_id, "fillna", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
     return {"status": "success", "message": f"Applied fillna ({method}) - {modified} cells filled", "columns": dataset.columns, "row_count": dataset.row_count}
@@ -662,11 +664,13 @@ async def remove_duplicates(
     after_count = len(df)
 
     from app.routers.datasets import detect_columns, get_preview_data
+    before_snapshot = {"columns": dataset.columns, "row_count": before_count}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
+    after_snapshot = {"columns": dataset.columns, "row_count": after_count}
 
-    # save_operation(dataset_id, "remove_duplicates", request, before, after, session)
+    save_operation(dataset_id, "remove_duplicates", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
     return {"status": "success", "message": f"Removed {before_count - after_count} duplicate rows", "columns": dataset.columns, "row_count": dataset.row_count}
@@ -695,12 +699,13 @@ async def sort_operations(
     df = df.sort_values(by=column, ascending=ascending)
 
     from app.routers.datasets import detect_columns, get_preview_data
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    {"columns": dataset.columns, "row_count": len(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
 
-    # save_operation(dataset_id, "sort", request, before, after, session)
+    save_operation(dataset_id, "sort", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
     return {"status": "success", "message": f"Sorted by {column}", "columns": dataset.columns}
