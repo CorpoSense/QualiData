@@ -23,6 +23,9 @@
             <BButton size="sm" variant="success" @click="showCompare = true">
               <i class="bi bi-columns-gap me-1"></i> Compare
             </BButton>
+            <BButton size="sm" variant="secondary" @click="showHistory = !showHistory">
+              <i class="bi bi-clock-history me-1"></i> History
+            </BButton>
             <BButton size="sm" variant="warning" outline @click="showClipboardImport = true">
               <i class="bi bi-clipboard me-1"></i> Paste
             </BButton>
@@ -379,6 +382,44 @@
         </BButton>
       </template>
     </BModal>
+
+    <!-- History Sidebar -->
+    <div v-if="showHistory" class="history-sidebar">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Operation History</h6>
+        <BButton size="sm" variant="outline-secondary" @click="showHistory = false">
+          <i class="bi bi-x-lg"></i>
+        </BButton>
+      </div>
+      
+      <div v-if="operations.length === 0" class="text-muted text-center py-4">
+        <i class="bi bi-inbox fs-4"></i>
+        <p class="small mb-0">No operations yet</p>
+      </div>
+      
+      <div v-else class="operation-list" style="max-height: 70vh; overflow-y: auto;">
+        <div v-for="op in operations" :key="op.id" class="card mb-2">
+          <div class="card-body py-2 px-3">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <span class="badge" :class="op.is_undone ? 'bg-secondary' : 'bg-primary'">
+                  {{ op.operation_type }}
+                </span>
+                <small class="text-muted d-block mt-1">
+                  {{ formatDate(op.created_at) }}
+                </small>
+              </div>
+              <BButton v-if="!op.is_undone" size="sm" variant="outline-warning" @click="undoOperation(op.id)">
+                Undo
+              </BButton>
+            </div>
+            <div v-if="op.operation_params" class="mt-2">
+              <small class="text-muted">{{ formatOperationParams(op.operation_params) }}</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -406,6 +447,7 @@ const totalRows = ref(0)
 const searchQuery = ref('')
 const showProfile = ref(false)
 const showCompare = ref(false)
+const showHistory = ref(false)
 const showClipboardImport = ref(false)
 const showFillnaModal = ref(false)
 const showAiModal = ref(false)
@@ -763,7 +805,46 @@ async function copyToClipboard() {
 
 function formatDate(dateStr) {
   if (!dateStr) return ''
-  return new Date(dateStr).toLocaleDateString()
+  const date = new Date(dateStr)
+  return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function formatOperationParams(params) {
+  if (!params) return ''
+  try {
+    const p = typeof params === 'string' ? JSON.parse(params) : params
+    const parts = []
+    if (p.column) parts.push(`column: ${p.column}`)
+    if (p.columns) parts.push(`columns: ${p.columns.join(', ')}`)
+    if (p.operation) parts.push(`op: ${p.operation}`)
+    if (p.method) parts.push(`method: ${p.method}`)
+    if (p.new_name) parts.push(`→ ${p.new_name}`)
+    return parts.join(' | ')
+  } catch {
+    return ''
+  }
+}
+
+async function undoOperation(opId) {
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/undo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ operation_id: opId })
+    })
+    if (res.ok) {
+      toast.success('Operation undone')
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed to undo')
+    }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    operating.value = false
+  }
 }
 </script>
 
@@ -771,5 +852,17 @@ function formatDate(dateStr) {
 .data-viewer {
   background: #f8f9fa;
   min-height: 100vh;
+}
+.history-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 350px;
+  height: 100vh;
+  background: white;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+  padding: 1rem;
+  z-index: 1000;
+  overflow-y: auto;
 }
 </style>
