@@ -264,14 +264,119 @@
     </BModal>
 
     <!-- Compare Modal -->
-    <BModal v-model="showCompare" title="Compare Operations">
-      <p class="text-muted">Compare current data with a previous operation.</p>
-      <BFormGroup label="Select Operation">
+    <BModal v-model="showCompare" title="Compare Operations" size="lg">
+      <p class="text-muted">Compare data before and after a cleaning operation.</p>
+      
+      <BFormGroup label="Select Operation" class="mb-3">
         <BFormSelect v-model="compareOpId" :options="operationOptions"></BFormSelect>
       </BFormGroup>
+
+      <!-- Comparison Results -->
+      <div v-if="comparisonResult" class="comparison-results">
+        <!-- Summary Cards -->
+        <div class="row g-2 mb-3">
+          <div class="col-6 col-md-3">
+            <div class="card text-center">
+              <div class="card-body py-2">
+                <h4 class="mb-0 text-success">{{ comparisonResult.changes_summary?.columns_added?.length || 0 }}</h4>
+                <small class="text-muted">Columns Added</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="card text-center">
+              <div class="card-body py-2">
+                <h4 class="mb-0 text-danger">{{ comparisonResult.changes_summary?.columns_removed?.length || 0 }}</h4>
+                <small class="text-muted">Columns Removed</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="card text-center">
+              <div class="card-body py-2">
+                <h4 class="mb-0 text-warning">{{ comparisonResult.changes_summary?.columns_renamed?.length || 0 }}</h4>
+                <small class="text-muted">Columns Changed</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="card text-center">
+              <div class="card-body py-2">
+                <h4 class="mb-0" :class="comparisonResult.changes_summary?.rows_changed > 0 ? 'text-success' : comparisonResult.changes_summary?.rows_changed < 0 ? 'text-danger' : ''">
+                  {{ comparisonResult.changes_summary?.rows_changed || 0 }}
+                </h4>
+                <small class="text-muted">Rows Changed</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Columns Added -->
+        <div v-if="comparisonResult.changes_summary?.columns_added?.length" class="mb-3">
+          <h6 class="text-success"><i class="bi bi-plus-circle me-1"></i>Columns Added</h6>
+          <div class="d-flex flex-wrap gap-1">
+            <BBadge v-for="col in comparisonResult.changes_summary.columns_added" :key="col" variant="success">
+              {{ col }}
+            </BBadge>
+          </div>
+        </div>
+
+        <!-- Columns Removed -->
+        <div v-if="comparisonResult.changes_summary?.columns_removed?.length" class="mb-3">
+          <h6 class="text-danger"><i class="bi bi-dash-circle me-1"></i>Columns Removed</h6>
+          <div class="d-flex flex-wrap gap-1">
+            <BBadge v-for="col in comparisonResult.changes_summary.columns_removed" :key="col" variant="danger">
+              {{ col }}
+            </BBadge>
+          </div>
+        </div>
+
+        <!-- Columns Changed -->
+        <div v-if="comparisonResult.changes_summary?.columns_renamed?.length" class="mb-3">
+          <h6 class="text-warning"><i class="bi bi-pencil me-1"></i>Columns Changed</h6>
+          <div class="d-flex flex-wrap gap-1">
+            <BBadge v-for="col in comparisonResult.changes_summary.columns_renamed" :key="col.from" variant="warning">
+              {{ col.from }} → {{ col.to }}
+            </BBadge>
+          </div>
+        </div>
+
+        <!-- Column Details -->
+        <div class="row">
+          <div class="col-6">
+            <h6>Before ({{ comparisonResult.before_columns?.length || 0 }} columns)</h6>
+            <ul class="list-group" style="max-height: 200px; overflow-y: auto;">
+              <li v-for="col in comparisonResult.before_columns" :key="col.name" class="list-group-item py-1 small">
+                {{ col.name }}
+              </li>
+            </ul>
+          </div>
+          <div class="col-6">
+            <h6>After ({{ comparisonResult.after_columns?.length || 0 }} columns)</h6>
+            <ul class="list-group" style="max-height: 200px; overflow-y: auto;">
+              <li v-for="col in comparisonResult.after_columns" :key="col.name" class="list-group-item py-1 small">
+                {{ col.name }}
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="comparing" class="text-center py-4">
+        <div class="spinner-border text-primary"></div>
+        <p class="mt-2 text-muted">Loading comparison...</p>
+      </div>
+
+      <div v-else class="text-center py-4 text-muted">
+        <i class="bi bi-arrow-left-right fs-1"></i>
+        <p>Select an operation and click Compare</p>
+      </div>
+
       <template #footer>
-        <BButton @click="showCompare = false">Cancel</BButton>
-        <BButton variant="primary" :loading="comparing" @click="loadComparison">Compare</BButton>
+        <BButton @click="showCompare = false">Close</BButton>
+        <BButton variant="primary" :loading="comparing" :disabled="!compareOpId" @click="loadComparison">
+          Compare
+        </BButton>
       </template>
     </BModal>
   </div>
@@ -307,6 +412,7 @@ const showAiModal = ref(false)
 const profileData = ref(null)
 const comparing = ref(false)
 const compareOpId = ref(null)
+const comparisonResult = ref(null)
 const nullCount = ref(0)
 const selectedColumns = ref([])  // Selected columns (click on table headers)
 const showColumnSelector = ref(false)
@@ -374,6 +480,12 @@ const filteredData = computed(() => {
 
 onMounted(async () => { await refreshData() })
 watch(limit, () => { page.value = 1; refreshData() })
+watch(showCompare, (val) => {
+  if (!val) {
+    comparisonResult.value = null
+    compareOpId.value = null
+  }
+})
 
 async function refreshData() {
   loading.value = true
@@ -412,15 +524,21 @@ async function refreshData() {
 async function loadComparison() {
   if (!compareOpId.value) return
   comparing.value = true
+  comparisonResult.value = null
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/compare/${compareOpId.value}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
     if (res.ok) {
-      const comparison = await res.json()
-      console.log('Comparison:', comparison)
+      comparisonResult.value = await res.json()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed to load comparison')
     }
-  } catch (e) { console.error(e) }
+  } catch (e) { 
+    console.error(e)
+    toast.error('Failed to load comparison')
+  }
   finally { comparing.value = false }
 }
 
