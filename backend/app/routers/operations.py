@@ -79,9 +79,20 @@ def save_operation(
     after: dict,
     session: AsyncSession,
 ):
+    # Get project_id from dataset synchronously (need to use sync query)
+    from sqlalchemy import select
+    from app.db.models import Dataset
+    result = session.execute(
+        select(Dataset).where(Dataset.id == dataset_id)
+    )
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        return  # Can't save operation without dataset
+    
     op = OperationHistory(
-        dataset_id=dataset_id,
+        project_id=dataset.project_id,
         operation_type=operation_type,
+        operation_name=operation_type,
         operation_params=params,
         before_snapshot=before,
         after_snapshot=after,

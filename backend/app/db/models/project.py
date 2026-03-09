@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, BigInteger, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, JSON, BigInteger, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
@@ -122,6 +122,15 @@ class OperationHistory(Base):
         String(100), nullable=False
     )  # e.g., "strip", "ai_clean"
     operation_config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    # Legacy compatibility fields (used by save_operation)
+    operation_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    is_undone: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_applied: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Snapshots for comparison (before/after state)
+    before_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    after_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Affected columns
     columns_affected: Mapped[list | None] = mapped_column(JSON, nullable=True)
