@@ -43,11 +43,44 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan event handler for startup/shutdown."""
+    # Startup: Run database migrations
+    await run_migrations()
     # Startup: Create admin user if configured
     await create_admin_user()
     yield
     # Shutdown: cleanup if needed
     pass
+
+
+async def run_migrations():
+    """Run database migrations on startup."""
+    from sqlalchemy import text
+    from app.db.database import get_async_engine
+    
+    try:
+        engine = get_async_engine()
+        async with engine.begin() as conn:
+            # Add missing columns to operation_history if they don't exist
+            columns_to_add = [
+                ("operation_params", "JSON"),
+                ("is_undone", "BOOLEAN DEFAULT false"),
+                ("is_applied", "BOOLEAN DEFAULT true"),
+                ("before_snapshot", "JSON"),
+                ("after_snapshot", "JSON"),
+            ]
+            
+            for col_name, col_type in columns_to_add:
+                try:
+                    await conn.execute(text(
+                        f"ALTER TABLE operation_history ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
+                    ))
+                except Exception as e:
+                    # Column might already exist, continue
+                    logger.debug(f"Migration: {col_name} - {e}")
+                    
+        logger.info("Database migrations completed")
+    except Exception as e:
+        logger.warning(f"Migration check failed (may need manual migration): {e}")
 
 
 
