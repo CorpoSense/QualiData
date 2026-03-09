@@ -19,7 +19,7 @@ class OperationResponse(BaseModel):
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/operations/fix-case", response_model=OperationResponse
+    "/datasets/{dataset_id}/operations/fix-case", response_model=OperationResponse
 )
 async def fix_case(
     dataset_id: str,
@@ -72,7 +72,7 @@ async def fix_case(
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/operations/trim-whitespace",
+    "/datasets/{dataset_id}/operations/trim-whitespace",
     response_model=OperationResponse,
 )
 async def trim_whitespace(
@@ -120,7 +120,7 @@ async def trim_whitespace(
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/operations/fix-typos", response_model=OperationResponse
+    "/datasets/{dataset_id}/operations/fix-typos", response_model=OperationResponse
 )
 async def fix_typos(
     dataset_id: str,
@@ -168,7 +168,7 @@ async def fix_typos(
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/operations/standardize-values",
+    "/datasets/{dataset_id}/operations/standardize-values",
     response_model=OperationResponse,
 )
 async def standardize_values(

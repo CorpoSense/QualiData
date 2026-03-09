@@ -30,7 +30,7 @@ class AICleaningResponse(BaseModel):
 # This creates a bridge between dataset operations and AI
 
 
-@router.post("/api/datasets/{dataset_id}/ai-clean", response_model=AICleaningResponse)
+@router.post("/datasets/{dataset_id}/ai-clean", response_model=AICleaningResponse)
 async def ai_clean_column(
     dataset_id: str,
     request: AICleaningRequest,
@@ -82,7 +82,7 @@ async def ai_clean_column(
     )
 
 
-@router.post("/api/datasets/{dataset_id}/ai-analyze", response_model=AICleaningResponse)
+@router.post("/datasets/{dataset_id}/ai-analyze", response_model=AICleaningResponse)
 async def ai_analyze_column(
     dataset_id: str,
     column: str,
@@ -149,7 +149,7 @@ async def ai_analyze_column(
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/ai-json-clean", response_model=AICleaningResponse
+    "/datasets/{dataset_id}/ai-json-clean", response_model=AICleaningResponse
 )
 async def ai_clean_json(
     dataset_id: str,

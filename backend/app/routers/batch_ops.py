@@ -36,7 +36,7 @@ class BatchProgressResponse(BaseModel):
 BATCH_JOBS = {}
 
 
-@router.post("/api/datasets/{dataset_id}/ai-batch", response_model=BatchProcessResponse)
+@router.post("/datasets/{dataset_id}/ai-batch", response_model=BatchProcessResponse)
 async def ai_batch_process(
     dataset_id: str,
     request: BatchProcessRequest,
@@ -97,7 +97,7 @@ async def ai_batch_process(
 
 
 @router.get(
-    "/api/datasets/{dataset_id}/ai-batch/{job_id}", response_model=BatchProgressResponse
+    "/datasets/{dataset_id}/ai-batch/{job_id}", response_model=BatchProgressResponse
 )
 async def get_batch_progress(
     dataset_id: str,
@@ -121,7 +121,7 @@ async def get_batch_progress(
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/ai-cross-row", response_model=BatchProcessResponse
+    "/datasets/{dataset_id}/ai-cross-row", response_model=BatchProcessResponse
 )
 async def ai_cross_row_context(
     dataset_id: str,

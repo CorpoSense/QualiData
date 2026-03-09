@@ -26,7 +26,7 @@ class OperationResponse(BaseModel):
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/operations/fillna", response_model=OperationResponse
+    "/datasets/{dataset_id}/operations/fillna", response_model=OperationResponse
 )
 async def fill_na(
     dataset_id: str,
@@ -97,7 +97,7 @@ async def fill_na(
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/operations/dropna", response_model=OperationResponse
+    "/datasets/{dataset_id}/operations/dropna", response_model=OperationResponse
 )
 async def drop_na(
     dataset_id: str,
@@ -152,7 +152,7 @@ async def drop_na(
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/operations/string-operations",
+    "/datasets/{dataset_id}/operations/string-operations",
     response_model=OperationResponse,
 )
 async def string_operations(

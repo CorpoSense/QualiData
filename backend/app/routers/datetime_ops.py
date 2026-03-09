@@ -19,7 +19,7 @@ class OperationResponse(BaseModel):
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/operations/parse-datetime",
+    "/datasets/{dataset_id}/operations/parse-datetime",
     response_model=OperationResponse,
 )
 async def parse_datetime(
@@ -86,7 +86,7 @@ async def parse_datetime(
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/operations/extract-datetime",
+    "/datasets/{dataset_id}/operations/extract-datetime",
     response_model=OperationResponse,
 )
 async def extract_datetime_parts(
@@ -172,7 +172,7 @@ async def extract_datetime_parts(
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/operations/standardize-date",
+    "/datasets/{dataset_id}/operations/standardize-date",
     response_model=OperationResponse,
 )
 async def standardize_date(
@@ -192,7 +192,7 @@ async def standardize_date(
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/operations/standardize-datetime",
+    "/datasets/{dataset_id}/operations/standardize-datetime",
     response_model=OperationResponse,
 )
 async def standardize_datetime(

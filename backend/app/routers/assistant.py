@@ -32,7 +32,7 @@ class WizardResponse(BaseModel):
     data: dict[str, Any]
 
 
-@router.post("/api/assistant/analyze", response_model=WizardResponse)
+@router.post("/assistant/analyze", response_model=WizardResponse)
 async def analyze_dataset(
     request: AnalysisRequest,
     current_user: User = Depends(get_current_active_user),
@@ -146,7 +146,7 @@ async def analyze_dataset(
     )
 
 
-@router.post("/api/assistant/suggest", response_model=WizardResponse)
+@router.post("/assistant/suggest", response_model=WizardResponse)
 async def get_suggestions(
     dataset_id: str,
     operation_type: str,
@@ -211,7 +211,7 @@ async def get_suggestions(
     )
 
 
-@router.post("/api/assistant/execute", response_model=WizardResponse)
+@router.post("/assistant/execute", response_model=WizardResponse)
 async def execute_operation(
     dataset_id: str,
     operation: dict[str, Any],

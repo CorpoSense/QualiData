@@ -33,7 +33,7 @@ def get_dataset_with_owner_check(dataset_id: str, user_id: str, session: AsyncSe
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/operations/undo", response_model=OperationResponse
+    "/datasets/{dataset_id}/operations/undo", response_model=OperationResponse
 )
 async def undo_operation(
     dataset_id: str,
@@ -81,7 +81,7 @@ async def undo_operation(
 
 
 @router.post(
-    "/api/datasets/{dataset_id}/operations/redo", response_model=OperationResponse
+    "/datasets/{dataset_id}/operations/redo", response_model=OperationResponse
 )
 async def redo_operation(
     dataset_id: str,
