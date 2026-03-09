@@ -795,9 +795,13 @@ async def structural_operations(
         raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
 
     from app.routers.datasets import detect_columns, get_preview_data
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
+
+    save_operation(dataset_id, "structural", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
     msg = f"Applied {operation}"
@@ -845,10 +849,14 @@ async def fuzzy_dedupe(
 
     from app.routers.datasets import detect_columns, get_preview_data
     before_count = dataset.row_count
+    before_snapshot = {"columns": dataset.columns, "row_count": before_count}
     removed = before_count - len(df)
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
+
+    save_operation(dataset_id, "fuzzy_dedupe", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
     return {"status": "success", "message": f"Removed {removed} fuzzy duplicates", "columns": dataset.columns, "row_count": dataset.row_count}
@@ -957,9 +965,13 @@ async def numeric_operations(
         raise HTTPException(status_code=400, detail=f"No operations succeeded: {results}")
 
     from app.routers.datasets import detect_columns, get_preview_data
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
+
+    save_operation(dataset_id, "numeric", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
     success_count = len(successful)
