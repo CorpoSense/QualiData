@@ -1,6 +1,6 @@
 """Tests for operations including save_operation."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 
 import pytest
 
@@ -15,17 +15,22 @@ with patch("app.db.database.get_async_session_maker"):
 class TestSaveOperation:
     """Test save_operation function."""
 
-    def test_save_operation_creates_history_record(self):
+    @pytest.mark.asyncio
+    async def test_save_operation_creates_history_record(self):
         """Test that save_operation creates an OperationHistory record."""
-        # Create mock session
+        # Create mock session with async execute
         mock_session = MagicMock()
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = MagicMock(project_id="project-123")
-        mock_session.execute.return_value = mock_result
+        
+        # Make execute return a coroutine that resolves to the result
+        async def mock_execute(*args, **kwargs):
+            return mock_result
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
         mock_session.add = MagicMock()
 
-        # Call save_operation
-        save_operation(
+        # Call save_operation (now async)
+        await save_operation(
             dataset_id="dataset-456",
             operation_type="string_operations",
             params={"operation": "uppercase", "columns": ["name", "email"]},
@@ -49,16 +54,20 @@ class TestSaveOperation:
         assert call_args.is_applied is True
         assert call_args.is_undone is False
 
-    def test_save_operation_handles_missing_dataset(self):
+    @pytest.mark.asyncio
+    async def test_save_operation_handles_missing_dataset(self):
         """Test that save_operation handles missing dataset gracefully."""
         # Create mock session
         mock_session = MagicMock()
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None  # Dataset not found
-        mock_session.execute.return_value = mock_result
+        
+        async def mock_execute(*args, **kwargs):
+            return mock_result
+        mock_session.execute = AsyncMock(side_effect=mock_execute)
 
         # Call save_operation - should not raise
-        save_operation(
+        await save_operation(
             dataset_id="nonexistent-dataset",
             operation_type="string_operations",
             params={},

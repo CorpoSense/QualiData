@@ -71,7 +71,7 @@ async def get_dataset_with_owner_check(dataset_id: str, user_id: str, session: A
     return dataset
 
 
-def save_operation(
+async def save_operation(
     dataset_id: str,
     operation_type: str,
     params: dict,
@@ -79,10 +79,10 @@ def save_operation(
     after: dict,
     session: AsyncSession,
 ):
-    # Get project_id from dataset synchronously (need to use sync query)
+    # Get project_id from dataset
     from sqlalchemy import select
     from app.db.models import Dataset
-    result = session.execute(
+    result = await session.execute(
         select(Dataset).where(Dataset.id == dataset_id)
     )
     dataset = result.scalar_one_or_none()
@@ -132,7 +132,7 @@ async def add_column(
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
-    save_operation(dataset_id, "add_column", request.dict(), before, after, session)
+    await save_operation(dataset_id, "add_column", request.dict(), before, after, session)
     await session.commit()
     return OperationResponse(
         status="success",
@@ -165,7 +165,7 @@ async def remove_columns(
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
-    save_operation(dataset_id, "remove_columns", request.dict(), before, after, session)
+    await save_operation(dataset_id, "remove_columns", request.dict(), before, after, session)
     await session.commit()
     return OperationResponse(
         status="success",
@@ -198,7 +198,7 @@ async def rename_column(
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    save_operation(dataset_id, "rename_column", request.dict(), before, after, session)
+    await save_operation(dataset_id, "rename_column", request.dict(), before, after, session)
     await session.commit()
     return OperationResponse(
         status="success",
@@ -232,7 +232,7 @@ async def merge_columns(
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    save_operation(dataset_id, "merge_columns", request.dict(), before, after, session)
+    await save_operation(dataset_id, "merge_columns", request.dict(), before, after, session)
     await session.commit()
     return OperationResponse(
         status="success",
@@ -269,7 +269,7 @@ async def split_column(
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    save_operation(dataset_id, "split_column", request.dict(), before, after, session)
+    await save_operation(dataset_id, "split_column", request.dict(), before, after, session)
     await session.commit()
     return OperationResponse(
         status="success",
@@ -303,7 +303,7 @@ async def duplicate_column(
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    save_operation(
+    await save_operation(
         dataset_id, "duplicate_column", request.dict(), before, after, session
     )
     await session.commit()
@@ -337,7 +337,7 @@ async def reorder_columns(
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    save_operation(
+    await save_operation(
         dataset_id, "reorder_columns", request.dict(), before, after, session
     )
     await session.commit()
@@ -489,7 +489,7 @@ async def string_operations(
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
 
-    save_operation(dataset_id, "string_operations", request, before, after, session)
+    await save_operation(dataset_id, "string_operations", request, before, after, session)
     await session.commit()
 
     success_count = len(successful)
@@ -594,7 +594,7 @@ async def datetime_operations(
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
 
-    save_operation(dataset_id, "datetime_operations", request, before, after, session)
+    await save_operation(dataset_id, "datetime_operations", request, before, after, session)
     await session.commit()
 
     success_count = len(successful)
@@ -650,7 +650,7 @@ async def fillna_operations(
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
 
-    save_operation(dataset_id, "fillna", request, before_snapshot, after_snapshot, session)
+    await save_operation(dataset_id, "fillna", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
     return {"status": "success", "message": f"Applied fillna ({method}) - {modified} cells filled", "columns": dataset.columns, "row_count": dataset.row_count}
@@ -681,7 +681,7 @@ async def remove_duplicates(
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": after_count}
 
-    save_operation(dataset_id, "remove_duplicates", request, before_snapshot, after_snapshot, session)
+    await save_operation(dataset_id, "remove_duplicates", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
     return {"status": "success", "message": f"Removed {before_count - after_count} duplicate rows", "columns": dataset.columns, "row_count": dataset.row_count}
@@ -716,7 +716,7 @@ async def sort_operations(
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
 
-    save_operation(dataset_id, "sort", request, before_snapshot, after_snapshot, session)
+    await save_operation(dataset_id, "sort", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
     return {"status": "success", "message": f"Sorted by {column}", "columns": dataset.columns}
@@ -801,7 +801,7 @@ async def structural_operations(
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
 
-    save_operation(dataset_id, "structural", request, before_snapshot, after_snapshot, session)
+    await save_operation(dataset_id, "structural", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
     msg = f"Applied {operation}"
@@ -856,7 +856,7 @@ async def fuzzy_dedupe(
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
 
-    save_operation(dataset_id, "fuzzy_dedupe", request, before_snapshot, after_snapshot, session)
+    await save_operation(dataset_id, "fuzzy_dedupe", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
     return {"status": "success", "message": f"Removed {removed} fuzzy duplicates", "columns": dataset.columns, "row_count": dataset.row_count}
@@ -971,7 +971,7 @@ async def numeric_operations(
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
 
-    save_operation(dataset_id, "numeric", request, before_snapshot, after_snapshot, session)
+    await save_operation(dataset_id, "numeric", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
     success_count = len(successful)
