@@ -29,7 +29,7 @@ class ComparisonResponse(BaseModel):
 )
 async def compare_operation(
     dataset_id: str,
-    operation_id: int,
+    operation_id: str,  # Changed from int to str (UUID)
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
