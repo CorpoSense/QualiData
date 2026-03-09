@@ -24,7 +24,7 @@ class ComparisonResponse(BaseModel):
 
 
 @router.get(
-    "/api/datasets/{dataset_id}/compare/{operation_id}",
+    "/datasets/{dataset_id}/compare/{operation_id}",
     response_model=ComparisonResponse,
 )
 async def compare_operation(
@@ -100,7 +100,7 @@ async def compare_operation(
     )
 
 
-@router.get("/api/datasets/{dataset_id}/history/{limit}", response_model=list[dict])
+@router.get("/datasets/{dataset_id}/history/{limit}", response_model=list[dict])
 async def get_operation_history_summary(
     dataset_id: str,
     limit: int = 10,
