@@ -138,6 +138,14 @@ class TestDatabaseMigrations:
         assert hasattr(Project, 'user_id'), "Project should have user_id field"
         assert not hasattr(Project, 'owner_id'), "Project should NOT have owner_id field"
 
+    def test_operation_history_uses_project_id_not_dataset_id(self):
+        """Verify OperationHistory model uses project_id, not dataset_id."""
+        from app.db.models.project import OperationHistory
+        
+        # OperationHistory should have project_id, not dataset_id
+        assert hasattr(OperationHistory, 'project_id'), "OperationHistory should have project_id field"
+        assert not hasattr(OperationHistory, 'dataset_id'), "OperationHistory should NOT have dataset_id field"
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

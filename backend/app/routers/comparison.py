@@ -50,11 +50,11 @@ async def compare_operation(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Get operation
+    # Get operation - use dataset.project_id to get operations for this dataset
     op_result = await session.execute(
         select(OperationHistory).where(
             OperationHistory.id == operation_id,
-            OperationHistory.dataset_id == dataset_id,
+            OperationHistory.project_id == dataset.project_id,
         )
     )
     operation = op_result.scalar_one_or_none()
@@ -124,10 +124,10 @@ async def get_operation_history_summary(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Get operations
+    # Get operations - use dataset.project_id
     ops_result = await session.execute(
         select(OperationHistory)
-        .where(OperationHistory.dataset_id == dataset_id)
+        .where(OperationHistory.project_id == dataset.project_id)
         .order_by(OperationHistory.created_at.desc())
         .limit(limit)
     )
