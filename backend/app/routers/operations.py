@@ -127,11 +127,11 @@ async def add_column(
         df[request.column_name] = request.default_value or None
     from app.routers.datasets import detect_columns, get_preview_data
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df)}
+    after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
     await save_operation(dataset_id, "add_column", request.dict(), before, after, session)
     await session.commit()
     return OperationResponse(
@@ -159,12 +159,12 @@ async def remove_columns(
         raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
     from app.routers.datasets import detect_columns, get_preview_data
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
     df = df.drop(columns=request.columns)
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df)}
+    after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
     await save_operation(dataset_id, "remove_columns", request.dict(), before, after, session)
     await session.commit()
     return OperationResponse(
@@ -193,7 +193,7 @@ async def rename_column(
         )
     from app.routers.datasets import detect_columns, get_preview_data
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
     df = df.rename(columns={request.old_name: request.new_name})
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
@@ -225,7 +225,7 @@ async def merge_columns(
         raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
     from app.routers.datasets import detect_columns, get_preview_data
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
     df[request.new_column] = (
         df[request.columns].astype(str).agg(request.delimiter.join, axis=1)
     )
@@ -260,7 +260,7 @@ async def split_column(
         )
     from app.routers.datasets import detect_columns, get_preview_data
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
     split_data = (
         df[request.column].astype(str).str.split(request.delimiter, expand=True)
     )
@@ -298,7 +298,7 @@ async def duplicate_column(
         )
     from app.routers.datasets import detect_columns, get_preview_data
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
     df[request.new_column] = df[request.source_column]
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
@@ -332,7 +332,7 @@ async def reorder_columns(
         raise HTTPException(status_code=400, detail="Column mismatch")
     from app.routers.datasets import detect_columns, get_preview_data
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
     df = df[request.columns]
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
@@ -483,11 +483,11 @@ async def string_operations(
         raise HTTPException(status_code=400, detail=f"No operations succeeded: {results}")
 
     from app.routers.datasets import detect_columns, get_preview_data
-    before = {"columns": dataset.columns, "row_count": dataset.row_count}
+    before = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df)}
+    after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
     await save_operation(dataset_id, "string_operations", request, before, after, session)
     await session.commit()
@@ -588,11 +588,11 @@ async def datetime_operations(
         raise HTTPException(status_code=400, detail=f"No operations succeeded: {results}")
 
     from app.routers.datasets import detect_columns, get_preview_data
-    before = {"columns": dataset.columns, "row_count": dataset.row_count}
+    before = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df)}
+    after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
     await save_operation(dataset_id, "datetime_operations", request, before, after, session)
     await session.commit()
@@ -644,11 +644,11 @@ async def fillna_operations(
         raise HTTPException(status_code=400, detail=f"Unknown method: {method}")
 
     from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count}
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
     await save_operation(dataset_id, "fillna", request, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -675,11 +675,11 @@ async def remove_duplicates(
     after_count = len(df)
 
     from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": before_count}
+    before_snapshot = {"columns": dataset.columns, "row_count": before_count, "preview_data": dataset.preview_data}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": after_count}
+    after_snapshot = {"columns": dataset.columns, "row_count": after_count, "preview_data": get_preview_data(df)}
 
     await save_operation(dataset_id, "remove_duplicates", request, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -710,11 +710,11 @@ async def sort_operations(
     df = df.sort_values(by=column, ascending=ascending)
 
     from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count}
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
     await save_operation(dataset_id, "sort", request, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -795,11 +795,11 @@ async def structural_operations(
         raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
 
     from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count}
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
     await save_operation(dataset_id, "structural", request, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -849,12 +849,12 @@ async def fuzzy_dedupe(
 
     from app.routers.datasets import detect_columns, get_preview_data
     before_count = dataset.row_count
-    before_snapshot = {"columns": dataset.columns, "row_count": before_count}
+    before_snapshot = {"columns": dataset.columns, "row_count": before_count, "preview_data": dataset.preview_data}
     removed = before_count - len(df)
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
     await save_operation(dataset_id, "fuzzy_dedupe", request, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -946,11 +946,11 @@ async def numeric_operations(
         raise HTTPException(status_code=400, detail=f"No operations succeeded: {results}")
 
     from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count}
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": len(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
     await save_operation(dataset_id, "numeric", request, before_snapshot, after_snapshot, session)
     await session.commit()

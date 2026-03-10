@@ -152,6 +152,21 @@ class TestDatabaseMigrations:
         assert len(undo_routes) == 1, f"Found {len(undo_routes)} undo routes: {undo_routes}"
         assert len(redo_routes) == 1, f"Found {len(redo_routes)} redo routes: {redo_routes}"
 
+    def test_operations_save_preview_data_for_undo(self):
+        """Verify all operations save preview_data in snapshots for undo to work."""
+        import inspect
+        from app.routers import operations
+        
+        source = inspect.getsource(operations)
+        
+        # All before/before_snapshot should include preview_data
+        assert 'preview_data": dataset.preview_data' in source or "preview_data': dataset.preview_data" in source, \
+            "Operations should save preview_data in before_snapshot for undo to work"
+        
+        # Check that after snapshots also include preview_data
+        assert 'preview_data": get_preview_data(df)' in source or "preview_data': get_preview_data(df)" in source, \
+            "Operations should save preview_data in after_snapshot"
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
