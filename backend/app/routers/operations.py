@@ -862,25 +862,6 @@ async def fuzzy_dedupe(
     return {"status": "success", "message": f"Removed {removed} fuzzy duplicates", "columns": dataset.columns, "row_count": dataset.row_count}
 
 
-# Undo/Redo placeholders
-@router.post("/datasets/{dataset_id}/operations/undo")
-async def undo_operation(
-    dataset_id: str,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session),
-):
-    raise HTTPException(status_code=501, detail="Undo not yet implemented")
-
-
-@router.post("/datasets/{dataset_id}/operations/redo")
-async def redo_operation(
-    dataset_id: str,
-    current_user: User = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_async_session),
-):
-    raise HTTPException(status_code=501, detail="Redo not yet implemented")
-
-
 # Numeric operations (round, normalize, outliers)
 @router.post("/datasets/{dataset_id}/operations/numeric")
 async def numeric_operations(
