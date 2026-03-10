@@ -45,8 +45,8 @@ async def undo_operation(
         select(OperationHistory)
         .where(
             OperationHistory.project_id == dataset.project_id,
-            OperationHistory.is_applied is True,
-            OperationHistory.is_undone is False,
+            OperationHistory.is_applied == True,
+            OperationHistory.is_undone == False,
         )
         .order_by(OperationHistory.created_at.desc())
         .limit(1)
