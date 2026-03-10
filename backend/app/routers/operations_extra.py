@@ -56,7 +56,7 @@ def get_dataset_with_owner_check(dataset_id: str, user_id: str, session: AsyncSe
         raise HTTPException(status_code=404, detail="Dataset not found")
     project_result = session.execute(
         select(Project).where(
-            Project.id == dataset.project_id, Project.owner_id == user_id
+            Project.id == dataset.project_id, Project.user_id == user_id
         )
     )
     if not project_result.scalar_one_or_none():

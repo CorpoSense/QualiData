@@ -56,7 +56,7 @@ async def ai_batch_process(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id, Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.user_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
@@ -145,7 +145,7 @@ async def ai_cross_row_context(
     # Verify ownership
     project_result = await session.execute(
         select(Project).where(
-            Project.id == dataset.project_id, Project.owner_id == current_user.id
+            Project.id == dataset.project_id, Project.user_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
