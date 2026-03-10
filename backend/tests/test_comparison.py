@@ -8,7 +8,7 @@ import pytest
 # Mock database before importing app
 with patch("app.db.database.get_async_session_maker"):
     with patch("app.db.database.get_sync_session_maker"):
-        from app.routers.comparison import compare_operation
+        from app.routers.comparison import compare_operation, ComparisonResponse
 
 
 class TestComparisonEndpoint:
@@ -51,6 +51,32 @@ class TestOperationHistoryId:
         id_column = OperationHistory.__mapper__.columns['id']
         assert id_column.type.python_type == str, \
             f"OperationHistory.id should be str (UUID), got {id_column.type.python_type}"
+
+
+class TestComparisonResponse:
+    """Test ComparisonResponse model."""
+
+    def test_operation_id_is_string_in_response(self):
+        """Verify ComparisonResponse uses string operation_id, not int."""
+        # Check that the model has operation_id as str
+        assert ComparisonResponse.model_fields['operation_id'].annotation == str, \
+            "ComparisonResponse.operation_id should be str"
+
+    def test_comparison_response_validation_with_uuid(self):
+        """Test that ComparisonResponse can validate with UUID string."""
+        # Create a valid response with UUID operation_id
+        response = ComparisonResponse(
+            status="success",
+            operation_id="6de25b0f-57e8-4306-9e94-870225303a58",
+            operation_type="string_operations",
+            before_columns=[],
+            after_columns=[],
+            changes_summary={}
+        )
+        
+        # Verify it was created successfully
+        assert response.status == "success"
+        assert response.operation_id == "6de25b0f-57e8-4306-9e94-870225303a58"
 
 
 if __name__ == "__main__":

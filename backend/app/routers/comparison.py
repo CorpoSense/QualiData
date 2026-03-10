@@ -16,7 +16,7 @@ router = APIRouter(tags=["comparison"])
 
 class ComparisonResponse(BaseModel):
     status: str
-    operation_id: int
+    operation_id: str
     operation_type: str
     before_columns: list[dict]
     after_columns: list[dict]
