@@ -357,7 +357,7 @@ async def list_operations(
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     result = await session.execute(
         select(OperationHistory)
-        .where(OperationHistory.project_id == dataset.project_id)
+        .where(OperationHistory.dataset_id == dataset_id)
         .order_by(OperationHistory.created_at.desc())
     )
     operations = result.scalars().all()
