@@ -247,6 +247,14 @@
         <BFormInput v-model="clipboardDatasetName" placeholder="My Dataset"></BFormInput>
       </BFormGroup>
       <BFormGroup label="CSV Data">
+        <template #label>
+          <div class="d-flex justify-content-between align-items-center">
+            <span>CSV Data</span>
+            <BButton size="sm" @click="pasteFromClipboard">
+              <i class="bi bi-clipboard me-1"></i> Paste from Clipboard
+            </BButton>
+          </div>
+        </template>
         <BFormTextarea v-model="clipboardData" :rows="10" placeholder="Paste your CSV data here..."></BFormTextarea>
       </BFormGroup>
       <template #footer>
@@ -768,6 +776,16 @@ async function applyAiClean() {
   finally { operating.value = false }
 }
 
+async function pasteFromClipboard() {
+  try {
+    const text = await navigator.clipboard.readText()
+    clipboardData.value = text
+    toast.success('Pasted from clipboard')
+  } catch (e) { 
+    toast.error('Failed to paste: ' + e.message + '. Make sure you are using HTTPS.') 
+  }
+}
+
 async function importFromClipboard() {
   if (!clipboardData.value.trim()) return
   operating.value = true
@@ -800,7 +818,7 @@ async function copyToClipboard() {
     }).join(','))]
     await navigator.clipboard.writeText(csvRows.join('\n'))
     toast.success('Data copied to clipboard')
-  } catch (e) { toast.error('Failed to copy: ' + e.message) }
+  } catch (e) { toast.error('Failed to copy: ' + e.message + '. Make sure you are using HTTPS.') }
 }
 
 function formatDate(dateStr) {
