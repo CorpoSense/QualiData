@@ -23,6 +23,16 @@ class TestDatasetRoutes:
         # Should fail auth, not 404
         assert response.status_code in [401, 422, 500]
 
+    def test_import_endpoint_requires_project_id(self):
+        """Test that import endpoint requires project_id in form data."""
+        # Send request without project_id - should fail validation (after auth)
+        response = client.post("/api/datasets/import", data={})
+        # Should return 401 (auth) or 422 (validation error) - never 200
+        assert response.status_code in [401, 422]
+        # If validation error, verify it's about project_id
+        if response.status_code == 422:
+            assert "project_id" in response.text
+
     def test_list_endpoint_requires_auth(self):
         """Test that list endpoint requires authentication."""
         response = client.get("/api/datasets?project_id=1")

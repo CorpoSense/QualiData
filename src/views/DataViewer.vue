@@ -794,6 +794,7 @@ async function importFromClipboard() {
     const file = new File([blob], 'clipboard.csv', { type: 'text/csv' })
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('project_id', route.params.id)
     if (clipboardDatasetName.value) formData.append('name', clipboardDatasetName.value)
     
     const res = await fetch(`${apiUrl}/api/datasets/import`, {
