@@ -32,6 +32,7 @@ async def save_operation(
         project_id=dataset.project_id,
         dataset_id=dataset.id,  # Use dataset.id which is UUID
         operation_type=operation_type,
+        operation_name=operation_type,  # Required field
         operation_params=params,
         before_snapshot=before,
         after_snapshot=after,
