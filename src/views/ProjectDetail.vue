@@ -308,21 +308,9 @@ function handleFileSelect() {
   const file = importForm.file
   if (!file) return
   
-  Papa.parse(file, {
-    complete: function(results) {
-      if (results.data && results.data.length > 0) {
-        // Filter out empty rows
-        const filtered = results.data.filter(row => row.some(cell => cell && cell.trim()))
-        if (filtered.length > 0) {
-          importPreviewHeaders.value = filtered[0]
-          importPreview.value = filtered.slice(1)
-        }
-      }
-    },
-    error: function(err) {
-      console.error('Parse error:', err)
-    }
-  })
+  // Preview disabled - import goes directly to backend
+  importPreviewHeaders.value = []
+  importPreview.value = []
 }
 
 async function confirmImport() {
