@@ -40,11 +40,11 @@ async def undo_operation(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Find the last applied operation that hasn't been undone
+    # Find the last applied operation that hasn't been undone for this dataset
     op_result = await session.execute(
         select(OperationHistory)
         .where(
-            OperationHistory.project_id == dataset.project_id,
+            OperationHistory.dataset_id == dataset_id,
             OperationHistory.is_applied == True,
             OperationHistory.is_undone == False,
         )
@@ -103,12 +103,12 @@ async def redo_operation(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Find the last undone operation (is_undone = True)
+    # Find the last undone operation for this dataset
     op_result = await session.execute(
         select(OperationHistory)
         .where(
-            OperationHistory.project_id == dataset.project_id,
-            OperationHistory.is_undone is True,
+            OperationHistory.dataset_id == dataset_id,
+            OperationHistory.is_undone == True,
         )
         .order_by(OperationHistory.created_at.desc())
         .limit(1)

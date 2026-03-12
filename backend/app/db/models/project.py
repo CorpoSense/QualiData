@@ -113,6 +113,12 @@ class OperationHistory(Base):
         nullable=False,
         index=True,
     )
+    dataset_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("datasets.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
 
     # Operation details
     operation_type: Mapped[str] = mapped_column(

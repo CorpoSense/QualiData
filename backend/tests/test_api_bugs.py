@@ -167,6 +167,28 @@ class TestDatabaseMigrations:
         assert 'preview_data": get_preview_data(df)' in source or "preview_data': get_preview_data(df)" in source, \
             "Operations should save preview_data in after_snapshot"
 
+    def test_operation_history_has_dataset_id(self):
+        """Verify OperationHistory has dataset_id field for dataset-specific history."""
+        from app.db.models.project import OperationHistory
+        
+        # OperationHistory should have dataset_id
+        assert hasattr(OperationHistory, 'dataset_id'), "OperationHistory should have dataset_id field"
+
+    def test_history_queries_use_dataset_id(self):
+        """Verify history queries filter by dataset_id, not project_id."""
+        import inspect
+        from app.routers import comparison, undo_redo
+        
+        # Check comparison.py
+        comp_source = inspect.getsource(comparison)
+        assert 'OperationHistory.dataset_id == dataset_id' in comp_source, \
+            "History query should filter by dataset_id"
+        
+        # Check undo_redo.py
+        undo_source = inspect.getsource(undo_redo)
+        assert 'OperationHistory.dataset_id == dataset_id' in undo_source, \
+            "Undo/redo should filter by dataset_id"
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

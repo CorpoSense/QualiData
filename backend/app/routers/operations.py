@@ -91,6 +91,7 @@ async def save_operation(
     
     op = OperationHistory(
         project_id=dataset.project_id,
+        dataset_id=dataset_id,
         operation_type=operation_type,
         operation_name=operation_type,
         operation_params=params,

@@ -67,6 +67,7 @@ async def run_migrations():
                 ("is_applied", "BOOLEAN DEFAULT true"),
                 ("before_snapshot", "JSON"),
                 ("after_snapshot", "JSON"),
+                ("dataset_id", "UUID"),
             ]
             
             for col_name, col_type in columns_to_add:

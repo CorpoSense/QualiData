@@ -124,10 +124,10 @@ async def get_operation_history_summary(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Get operations - use dataset.project_id
+    # Get operations - filter by dataset_id to show only this dataset's history
     ops_result = await session.execute(
         select(OperationHistory)
-        .where(OperationHistory.project_id == dataset.project_id)
+        .where(OperationHistory.dataset_id == dataset_id)
         .order_by(OperationHistory.created_at.desc())
         .limit(limit)
     )
