@@ -64,7 +64,7 @@ def get_dataset_with_owner_check(dataset_id: str, user_id: str, session: AsyncSe
     return dataset
 
 
-def save_operation(
+async def save_operation(
     dataset_id: str,
     operation_type: str,
     params: dict,
@@ -72,8 +72,19 @@ def save_operation(
     after: dict,
     session: AsyncSession,
 ):
+    # Get dataset to get proper UUID id
+    from sqlalchemy import select
+    from app.db.models import Dataset
+    result = await session.execute(
+        select(Dataset).where(Dataset.id == dataset_id)
+    )
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        return
+    
     op = OperationHistory(
-        dataset_id=dataset_id,
+        project_id=dataset.project_id,
+        dataset_id=dataset.id,  # Use dataset.id which is UUID
         operation_type=operation_type,
         operation_params=params,
         before_snapshot=before,
@@ -146,7 +157,7 @@ async def filter_rows(
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
 
-    save_operation(dataset_id, "filter_rows", request.dict(), before, after, session)
+    await save_operation(dataset_id, "filter_rows", request.dict(), before, after, session)
     await session.commit()
 
     return OperationResponse(
@@ -188,7 +199,7 @@ async def sort_data(
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
 
-    save_operation(dataset_id, "sort_data", request.dict(), before, after, session)
+    await save_operation(dataset_id, "sort_data", request.dict(), before, after, session)
     await session.commit()
 
     return OperationResponse(
@@ -232,7 +243,7 @@ async def remove_duplicates(
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
 
-    save_operation(
+    await save_operation(
         dataset_id, "remove_duplicates", request.dict(), before, after, session
     )
     await session.commit()
@@ -289,7 +300,7 @@ async def find_replace(
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
 
-    save_operation(dataset_id, "find_replace", request.dict(), before, after, session)
+    await save_operation(dataset_id, "find_replace", request.dict(), before, after, session)
     await session.commit()
 
     return OperationResponse(
@@ -349,7 +360,7 @@ async def change_type(
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
 
-    save_operation(dataset_id, "change_type", request.dict(), before, after, session)
+    await save_operation(dataset_id, "change_type", request.dict(), before, after, session)
     await session.commit()
 
     return OperationResponse(
