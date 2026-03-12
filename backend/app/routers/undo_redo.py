@@ -1,7 +1,7 @@
 """Undo/Redo operations for datasets."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_async_session
 from app.db.models import User, Dataset, Project
@@ -44,7 +44,7 @@ async def undo_operation(
     op_result = await session.execute(
         select(OperationHistory)
         .where(
-            OperationHistory.dataset_id == dataset_id,
+            cast(OperationHistory.dataset_id, String) == dataset_id,
             OperationHistory.is_applied == True,
             OperationHistory.is_undone == False,
         )
@@ -107,7 +107,7 @@ async def redo_operation(
     op_result = await session.execute(
         select(OperationHistory)
         .where(
-            OperationHistory.dataset_id == dataset_id,
+            cast(OperationHistory.dataset_id, String) == dataset_id,
             OperationHistory.is_undone == True,
         )
         .order_by(OperationHistory.created_at.desc())

@@ -3,7 +3,7 @@
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
@@ -357,7 +357,7 @@ async def list_operations(
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     result = await session.execute(
         select(OperationHistory)
-        .where(OperationHistory.dataset_id == dataset_id)
+        .where(cast(OperationHistory.dataset_id, String) == dataset_id)
         .order_by(OperationHistory.created_at.desc())
     )
     operations = result.scalars().all()

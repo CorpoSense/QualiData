@@ -4,7 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
@@ -127,7 +127,7 @@ async def get_operation_history_summary(
     # Get operations - filter by dataset_id to show only this dataset's history
     ops_result = await session.execute(
         select(OperationHistory)
-        .where(OperationHistory.dataset_id == dataset_id)
+        .where(cast(OperationHistory.dataset_id, String) == dataset_id)
         .order_by(OperationHistory.created_at.desc())
         .limit(limit)
     )

@@ -177,16 +177,21 @@ class TestDatabaseMigrations:
     def test_history_queries_use_dataset_id(self):
         """Verify history queries filter by dataset_id, not project_id."""
         import inspect
-        from app.routers import comparison, undo_redo
+        from app.routers import comparison, undo_redo, operations
+        
+        # Check operations.py
+        ops_source = inspect.getsource(operations)
+        assert 'OperationHistory.dataset_id == dataset_id' in ops_source or 'cast(OperationHistory.dataset_id' in ops_source, \
+            "Operations query should filter by dataset_id"
         
         # Check comparison.py
         comp_source = inspect.getsource(comparison)
-        assert 'OperationHistory.dataset_id == dataset_id' in comp_source, \
+        assert 'OperationHistory.dataset_id == dataset_id' in comp_source or 'cast(OperationHistory.dataset_id' in comp_source, \
             "History query should filter by dataset_id"
         
         # Check undo_redo.py
         undo_source = inspect.getsource(undo_redo)
-        assert 'OperationHistory.dataset_id == dataset_id' in undo_source, \
+        assert 'OperationHistory.dataset_id == dataset_id' in undo_source or 'cast(OperationHistory.dataset_id' in undo_source, \
             "Undo/redo should filter by dataset_id"
 
 
