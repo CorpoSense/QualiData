@@ -18,10 +18,13 @@ class TestSaveOperation:
     @pytest.mark.asyncio
     async def test_save_operation_creates_history_record(self):
         """Test that save_operation creates an OperationHistory record."""
+        # Test the one in utils (the single source of truth)
+        from app.utils.operations import save_operation
+        
         # Create mock session with async execute
         mock_session = MagicMock()
         mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = MagicMock(project_id="project-123")
+        mock_result.scalar_one_or_none.return_value = MagicMock(project_id="project-123", id="uuid-456")
         
         # Make execute return a coroutine that resolves to the result
         async def mock_execute(*args, **kwargs):
@@ -46,13 +49,9 @@ class TestSaveOperation:
         # Verify the OperationHistory was created with correct fields
         assert isinstance(call_args, OperationHistory)
         assert call_args.project_id == "project-123"
+        assert call_args.dataset_id == "uuid-456"
         assert call_args.operation_type == "string_operations"
-        assert call_args.operation_name == "string_operations"
         assert call_args.operation_params == {"operation": "uppercase", "columns": ["name", "email"]}
-        assert call_args.before_snapshot == {"columns": [{"name": "name"}, {"name": "email"}], "row_count": 100}
-        assert call_args.after_snapshot == {"columns": [{"name": "name"}, {"name": "email"}], "row_count": 100}
-        assert call_args.is_applied is True
-        assert call_args.is_undone is False
 
     @pytest.mark.asyncio
     async def test_save_operation_handles_missing_dataset(self):

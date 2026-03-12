@@ -71,36 +71,7 @@ async def get_dataset_with_owner_check(dataset_id: str, user_id: str, session: A
     return dataset
 
 
-async def save_operation(
-    dataset_id: str,
-    operation_type: str,
-    params: dict,
-    before: dict,
-    after: dict,
-    session: AsyncSession,
-):
-    # Get project_id from dataset
-    from sqlalchemy import select
-    from app.db.models import Dataset
-    result = await session.execute(
-        select(Dataset).where(Dataset.id == dataset_id)
-    )
-    dataset = result.scalar_one_or_none()
-    if not dataset:
-        return  # Can't save operation without dataset
-    
-    op = OperationHistory(
-        project_id=dataset.project_id,
-        dataset_id=dataset.id,  # Use dataset.id which is UUID
-        operation_type=operation_type,
-        operation_name=operation_type,
-        operation_params=params,
-        before_snapshot=before,
-        after_snapshot=after,
-        is_applied=True,
-        is_undone=False,
-    )
-    session.add(op)
+from app.utils.operations import save_operation
 
 
 # Routes

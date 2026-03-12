@@ -49,33 +49,33 @@ class TestSaveOperationBugs:
     def test_save_operation_uses_dataset_id_from_dataset_object(self):
         """Verify save_operation uses dataset.id (UUID), not string dataset_id."""
         import inspect
+        from app.utils.operations import save_operation
         
-        # Check operations.py
-        ops_source = inspect.getsource(operations)
-        assert 'dataset_id=dataset.id' in ops_source, \
-            "operations.save_operation should use dataset.id (UUID)"
+        source = inspect.getsource(save_operation)
         
-        # Check operations_extra.py
-        extra_source = inspect.getsource(operations_extra)
-        assert 'dataset_id=dataset.id' in extra_source, \
-            "operations_extra.save_operation should use dataset.id (UUID)"
+        # Should use dataset.id, not dataset_id parameter
+        assert 'dataset_id=dataset.id' in source, \
+            "save_operation should use dataset.id (UUID)"
 
-    def test_no_duplicate_save_operation_functions(self):
-        """Verify there's only one save_operation implementation or they're consistent."""
+    def test_only_one_save_operation_implementation(self):
+        """Verify there's only ONE save_operation implementation in utils."""
+        # Check that save_operation exists in utils
+        from app.utils import operations as utils_ops
+        
+        assert hasattr(utils_ops, 'save_operation'), "save_operation should be in utils"
+        
+        # Check that routers don't define their own
         import inspect
+        from app.routers import operations, operations_extra
         
-        # Check if both files have save_operation
-        ops_has = hasattr(operations, 'save_operation')
-        extra_has = hasattr(operations_extra, 'save_operation')
+        ops_source = inspect.getsource(operations)
+        extra_source = inspect.getsource(operations_extra)
         
-        if ops_has and extra_has:
-            # Both have it - check they have same signature or one calls the other
-            ops_sig = str(inspect.signature(operations.save_operation))
-            extra_sig = str(inspect.signature(operations_extra.save_operation))
-            
-            # At least both should be async
-            assert 'async' in inspect.getsource(operations.save_operation)
-            assert 'async' in inspect.getsource(operations_extra.save_operation)
+        # They should import, not define
+        assert 'from app.utils.operations import save_operation' in ops_source, \
+            "operations.py should import save_operation from utils"
+        assert 'from app.utils.operations import save_operation' in extra_source, \
+            "operations_extra.py should import save_operation from utils"
 
 
 class TestDatasetIdUsage:

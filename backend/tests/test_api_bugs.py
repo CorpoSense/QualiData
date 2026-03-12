@@ -196,14 +196,14 @@ class TestDatabaseMigrations:
 
     def test_save_operation_uses_dataset_id_from_dataset_object(self):
         """Verify save_operation uses dataset.id (UUID), not string dataset_id."""
+        from app.utils.operations import save_operation
         import inspect
-        from app.routers import operations
         
-        source = inspect.getsource(operations)
+        source = inspect.getsource(save_operation)
         
         # Should use dataset.id, not dataset_id parameter
-        assert 'dataset_id=dataset.id' in source or "dataset_id=dataset.id" in source, \
-            "save_operation should use dataset.id (UUID) not string dataset_id"
+        assert 'dataset_id=dataset.id' in source, \
+            "save_operation should use dataset.id (UUID)"
 
 
 if __name__ == "__main__":
