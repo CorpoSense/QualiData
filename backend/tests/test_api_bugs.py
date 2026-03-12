@@ -194,6 +194,17 @@ class TestDatabaseMigrations:
         assert 'OperationHistory.dataset_id == dataset_id' in undo_source or 'cast(OperationHistory.dataset_id' in undo_source, \
             "Undo/redo should filter by dataset_id"
 
+    def test_save_operation_uses_dataset_id_from_dataset_object(self):
+        """Verify save_operation uses dataset.id (UUID), not string dataset_id."""
+        import inspect
+        from app.routers import operations
+        
+        source = inspect.getsource(operations)
+        
+        # Should use dataset.id, not dataset_id parameter
+        assert 'dataset_id=dataset.id' in source or "dataset_id=dataset.id" in source, \
+            "save_operation should use dataset.id (UUID) not string dataset_id"
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
