@@ -275,12 +275,15 @@ const previewColumns = computed(() => {
 onMounted(async () => {
   await fetchProject()
   await fetchDatasets()
+  await fetchOperations() // Load operations on mount
   loading.value = false
 })
 
-// Watch for tab changes to fetch operations when Operations tab is active
+// Watch for tab changes to refresh operations when Operations tab is active
 watch(activeTab, async (newTab) => {
   if (newTab === 1) { // Operations tab
+    // Already loaded in onMounted, but refresh to get latest
+    operations.value = [] 
     await fetchOperations()
   }
 })
@@ -312,7 +315,6 @@ async function fetchDatasets() {
 }
 
 async function fetchOperations() {
-  if (operations.value.length > 0) return // Already loaded
   try {
     const res = await fetch(`${apiUrl}/api/datasets?project_id=${projectId}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
