@@ -278,6 +278,13 @@ onMounted(async () => {
   loading.value = false
 })
 
+// Watch for tab changes to fetch operations when Operations tab is active
+watch(activeTab, async (newTab) => {
+  if (newTab === 1) { // Operations tab
+    await fetchOperations()
+  }
+})
+
 async function fetchProject() {
   try {
     const res = await fetch(`${apiUrl}/api/projects/${projectId}`, {
@@ -298,6 +305,34 @@ async function fetchDatasets() {
     })
     if (res.ok) {
       datasets.value = await res.json()
+    }
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+async function fetchOperations() {
+  if (operations.value.length > 0) return // Already loaded
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets?project_id=${projectId}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) {
+      const datasets = await res.json()
+      // Get operations for each dataset
+      const allOps = []
+      for (const ds of datasets) {
+        const opsRes = await fetch(`${apiUrl}/api/datasets/${ds.id}/operations`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        })
+        if (opsRes.ok) {
+          const ops = await opsRes.json()
+          allOps.push(...ops.map(op => ({ ...op, dataset_name: ds.name })))
+        }
+      }
+      // Sort by date descending
+      allOps.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      operations.value = allOps
     }
   } catch (e) {
     console.error(e)
