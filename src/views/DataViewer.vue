@@ -231,7 +231,8 @@
     <BModal v-model="showAiModal" title="AI Clean" @ok="applyAiClean">
       <div class="alert alert-info">
         <i class="bi bi-info-circle me-2"></i>
-        <strong>Selected column:</strong> {{ selectedColumns[0] }}
+        <strong>Selected {{ selectedColumns.length === 1 ? 'column' : 'columns' }}:</strong> 
+        {{ selectedColumns.length === 1 ? selectedColumns[0] : selectedColumns.join(', ') }}
       </div>
       <BFormGroup label="Instruction">
         <BFormTextarea v-model="aiInstruction" placeholder="e.g., Extract the email domain, Convert to title case"></BFormTextarea>
@@ -763,13 +764,16 @@ async function applyAiClean() {
     toast.warning('No column selected'); return
   }
   if (!aiInstruction.value) return
-  const col = selectedColumns.value[0]
+  // Send columns (array) for multiple, column (string) for single
+  const payload = selectedColumns.value.length === 1
+    ? { column: selectedColumns.value[0], instruction: aiInstruction.value, batch_size: 10 }
+    : { columns: selectedColumns.value, instruction: aiInstruction.value, batch_size: 10 }
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/ai-clean`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ column: col, instruction: aiInstruction.value, batch_size: 10 })
+      body: JSON.stringify(payload)
     })
     if (res.ok) { toast.success('AI cleaning applied'); showAiModal.value = false; await refreshData() }
     else { const err = await res.json(); toast.error(err.detail || 'AI cleaning failed') }

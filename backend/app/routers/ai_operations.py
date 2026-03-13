@@ -12,10 +12,20 @@ router = APIRouter(tags=["ai-operations"])
 
 
 class AICleaningRequest(BaseModel):
-    column: str
+    column: str | None = None
+    columns: list[str] | None = None
     instruction: str
     batch_size: int = Field(default=10, ge=1, le=100)
     agent_id: int | None = None
+
+    @property
+    def column_list(self) -> list[str]:
+        """Get columns as a list."""
+        if self.columns:
+            return self.columns
+        elif self.column:
+            return [self.column]
+        return []
 
 
 class AICleaningResponse(BaseModel):
@@ -40,6 +50,13 @@ async def ai_clean_column(
     """Apply AI cleaning to a column based on natural language instruction."""
     from sqlalchemy import select
 
+    # Validate that at least one column is provided
+    columns_to_clean = request.column_list
+    if not columns_to_clean:
+        raise HTTPException(
+            status_code=422, detail="Either 'column' or 'columns' must be provided"
+        )
+
     # Get dataset
     result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
@@ -63,22 +80,27 @@ async def ai_clean_column(
 
     df = pd.DataFrame(dataset.preview_data)
 
-    if request.column not in df.columns:
-        raise HTTPException(
-            status_code=400, detail=f"Column '{request.column}' not found"
-        )
+    # Validate all columns exist
+    for col in columns_to_clean:
+        if col not in df.columns:
+            raise HTTPException(
+                status_code=400, detail=f"Column '{col}' not found"
+            )
 
-    # Get the column data as a list
-    column_data = df[request.column].head(request.batch_size).tolist()
+    # Get the column data as a list for each column
+    column_data = {}
+    for col in columns_to_clean:
+        column_data[col] = df[col].head(request.batch_size).tolist()
 
     # Call AI to process the data
     # This would integrate with the existing AI router
     # For now, return a placeholder response
 
+    columns_str = ", ".join(columns_to_clean) if len(columns_to_clean) > 1 else columns_to_clean[0]
     return AICleaningResponse(
         status="success",
-        message=f"AI cleaning request queued for column '{request.column}' with instruction: {request.instruction}",
-        results=[{"value": v, "status": "pending"} for v in column_data],
+        message=f"AI cleaning request queued for column(s) '{columns_str}' with instruction: {request.instruction}",
+        results=[{"column": col, "values": column_data[col]} for col in columns_to_clean],
     )
 
 

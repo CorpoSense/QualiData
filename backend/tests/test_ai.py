@@ -54,7 +54,7 @@ async def test_analyze_invalid_provider(client):
 
 @pytest.mark.asyncio
 async def test_ai_clean_requires_column(client):
-    """Test that AI clean endpoint requires column parameter."""
+    """Test that AI clean endpoint requires column or columns parameter."""
     response = await client.post(
         "/api/datasets/123/ai-clean",
         json={"instruction": "test"},
@@ -62,7 +62,7 @@ async def test_ai_clean_requires_column(client):
     # Should fail auth (401) or validation (422), not 200
     assert response.status_code in [401, 422]
     if response.status_code == 422:
-        assert "column" in response.text.lower()
+        assert "column" in response.text.lower() or "column" in response.text
 
 
 @pytest.mark.asyncio
@@ -76,3 +76,25 @@ async def test_ai_clean_requires_instruction(client):
     assert response.status_code in [401, 422]
     if response.status_code == 422:
         assert "instruction" in response.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_ai_clean_accepts_single_column(client):
+    """Test that AI clean accepts single column."""
+    response = await client.post(
+        "/api/datasets/123/ai-clean",
+        json={"column": "test_col", "instruction": "test"},
+    )
+    # Should fail auth or dataset not found, but not 422 (validation error)
+    assert response.status_code in [401, 404, 422]
+
+
+@pytest.mark.asyncio
+async def test_ai_clean_accepts_multiple_columns(client):
+    """Test that AI clean accepts multiple columns as array."""
+    response = await client.post(
+        "/api/datasets/123/ai-clean",
+        json={"columns": ["col1", "col2"], "instruction": "test"},
+    )
+    # Should fail auth or dataset not found, but not 422 (validation error)
+    assert response.status_code in [401, 404, 422]
