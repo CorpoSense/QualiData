@@ -1,52 +1,71 @@
 <template>
   <div id="app">
     <BOrchestrator />
-    <!-- Public Navbar (when not authenticated) -->
-    <nav v-if="!isAuthenticated" class="navbar navbar-light bg-white border-bottom mb-4">
+    
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg fixed-top" :class="isAuthenticated ? 'navbar-auth' : 'navbar-public'">
       <div class="container">
-        <router-link class="navbar-brand fw-bold" to="/">MasterDataCleaner</router-link>
-        <div class="navbar-nav ms-auto flex-row gap-2">
-          <router-link class="nav-link" to="/">Home</router-link>
-          <router-link class="nav-link" to="/pricing">Pricing</router-link>
-          <router-link class="btn btn-primary btn-sm" to="/login">Sign In</router-link>
-        </div>
-      </div>
-    </nav>
-
-    <!-- Authenticated Navbar -->
-    <nav v-if="isAuthenticated" class="navbar navbar-dark bg-dark fixed-top">
-      <div class="container">
-        <router-link class="navbar-brand fw-bold" to="/">MasterDataCleaner</router-link>
-        <div class="navbar-nav flex-row gap-3">
-          <router-link class="nav-link" to="/dashboard">Dashboard</router-link>
-          <router-link class="nav-link" to="/projects">Projects</router-link>
-          <router-link v-if="canManageUsers(user)" class="nav-link" to="/admin/users">User Management</router-link>
-        </div>
-        <div class="navbar-nav flex-row gap-2 ms-auto align-items-center">
-          <button class="btn btn-outline-light btn-sm position-relative" @click="showNotifications = true">
-            <i class="bi bi-bell"></i>
-            <span v-if="unreadCount > 0" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-              {{ unreadCount }}
-            </span>
-          </button>
-          <div class="dropdown">
-            <button class="btn btn-outline-light btn-sm dropdown-toggle" data-bs-toggle="dropdown">
-              <i class="bi bi-person me-1"></i>
-              {{ user?.email }}
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><router-link class="dropdown-item" to="/profile">Profile</router-link></li>
-              <li><router-link v-if="canManageUsers(user)" class="dropdown-item" to="/admin/users">User Management</router-link></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="#" @click.prevent="logout">Logout</a></li>
-            </ul>
+        <router-link class="navbar-brand fw-bold d-flex align-items-center gap-2" to="/">
+          <div class="brand-icon rounded d-flex align-items-center justify-content-center">
+            <i class="bi bi-stars text-white"></i>
           </div>
+          <span class="d-none d-sm-inline">MasterDataCleaner</span>
+        </router-link>
+        
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <!-- Public Nav Links -->
+          <ul v-if="!isAuthenticated" class="navbar-nav ms-auto align-items-lg-center gap-2 gap-lg-4">
+            <li class="nav-item"><router-link class="nav-link" to="/">Home</router-link></li>
+            <li class="nav-item"><a href="#pricing" class="nav-link">Pricing</a></li>
+            <li class="nav-item mt-2 mt-lg-0">
+              <router-link class="btn btn-primary btn-sm rounded-pill px-4" to="/login">Sign In</router-link>
+            </li>
+          </ul>
+          
+          <!-- Authenticated Nav Links -->
+          <ul v-else class="navbar-nav ms-auto align-items-lg-center gap-2 gap-lg-3">
+            <li class="nav-item"><router-link class="nav-link" to="/dashboard">Dashboard</router-link></li>
+            <li class="nav-item"><router-link class="nav-link" to="/projects">Projects</router-link></li>
+            <li class="nav-item" v-if="canManageUsers(user)"><router-link class="nav-link" to="/admin/users">Users</router-link></li>
+            
+            <!-- Notifications -->
+            <li class="nav-item">
+              <button class="nav-link position-relative" @click="showNotifications = true" style="background: none; border: none; cursor: pointer;">
+                <i class="bi bi-bell fs-5"></i>
+                <span v-if="unreadCount > 0" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 10px;">
+                  {{ unreadCount > 9 ? '9+' : unreadCount }}
+                </span>
+              </button>
+            </li>
+            
+            <!-- User Dropdown -->
+            <li class="nav-item">
+              <div class="dropdown">
+                <button class="nav-link d-flex align-items-center gap-2 dropdown-toggle" data-bs-toggle="dropdown" style="background: none; border: none; cursor: pointer;">
+                  <div class="user-avatar rounded-circle d-flex align-items-center justify-content-center">
+                    <i class="bi bi-person text-white fs-6"></i>
+                  </div>
+                  <span class="d-none d-lg-inline text-truncate" style="max-width: 150px;">{{ user?.email }}</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><router-link class="dropdown-item" to="/profile"><i class="bi bi-person me-2"></i>Profile</router-link></li>
+                  <li v-if="canManageUsers(user)"><router-link class="dropdown-item" to="/admin/users"><i class="bi bi-people me-2"></i>User Management</router-link></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item text-danger" href="#" @click.prevent="logout"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                </ul>
+              </div>
+            </li>
+          </ul>
         </div>
       </div>
     </nav>
 
     <!-- Main Content -->
-    <div class="container mt-4" :class="{ 'pt-5': isAuthenticated }">
+    <div class="main-content" :class="{ 'with-navbar': true }">
       <router-view />
     </div>
 
@@ -79,8 +98,9 @@
     </div>
     
     <!-- Backdrop for offcanvas -->
-    <div v-if="showNotifications" class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50" style="z-index: 1040;" @click="showNotifications = false"></div>
+    <div v-if="showNotifications" class="position-fixed top-0 start-0 w-100 h-100" style="z-index: 1040; background: rgba(0,0,0,0.5);" @click="showNotifications = false"></div>
   </div>
+  
   <!-- Toast Notifications -->
   <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
     <div v-for="toast in toasts" :key="toast.id" class="toast show" role="alert">
@@ -188,7 +208,61 @@ async function deleteNotification(id) {
 </script>
 
 <style>
+/* Navbar Styles */
+.navbar {
+  padding: 0.75rem 0;
+  transition: all 0.3s ease;
+}
+
+.navbar-public {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.navbar-auth {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.brand-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+}
+
+.navbar .nav-link {
+  font-weight: 500;
+  color: #475569 !important;
+  transition: color 0.2s ease;
+  padding: 0.5rem 1rem !important;
+}
+
+.navbar .nav-link:hover,
+.navbar .nav-link.router-link-active {
+  color: var(--primary-color) !important;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+}
+
+/* Main Content */
+.main-content {
+  padding-top: 80px;
+  min-height: 100vh;
+  background: var(--bg-color);
+}
+
+.main-content.with-navbar {
+  padding-top: 70px;
+}
+
 body {
-  background-color: #f8f9fa;
+  background-color: var(--bg-color);
 }
 </style>

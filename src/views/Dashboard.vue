@@ -1,294 +1,302 @@
 <template>
   <div class="dashboard">
-    <div class="row">
-      <!-- Stats Cards -->
-      <div class="col-md-3 mb-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <p class="text-muted small text-uppercase">Total Projects</p>
-            <p class="h1 mb-0">{{ stats.projects }}</p>
+    <!-- Welcome Section -->
+    <div class="welcome-section mb-5">
+      <h1 class="h3 fw-bold">Welcome back!</h1>
+      <p class="text-secondary">Here's what's happening with your data today.</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-5">
+      <div class="col-6 col-lg-3">
+        <div class="stat-card h-100">
+          <div class="stat-icon" style="background: rgba(79, 70, 229, 0.1);">
+            <i class="bi bi-folder text-primary"></i>
+          </div>
+          <div class="stat-content">
+            <p class="text-secondary small mb-1">Total Projects</p>
+            <p class="h3 fw-bold mb-0">{{ stats.projects }}</p>
           </div>
         </div>
       </div>
-      <div class="col-md-3 mb-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <p class="text-muted small text-uppercase">Total Datasets</p>
-            <p class="h1 mb-0">{{ stats.datasets }}</p>
+      <div class="col-6 col-lg-3">
+        <div class="stat-card h-100">
+          <div class="stat-icon" style="background: rgba(34, 197, 94, 0.1);">
+            <i class="bi bi-database text-success"></i>
+          </div>
+          <div class="stat-content">
+            <p class="text-secondary small mb-1">Total Datasets</p>
+            <p class="h3 fw-bold mb-0">{{ stats.datasets }}</p>
           </div>
         </div>
       </div>
-      <div class="col-md-3 mb-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <p class="text-muted small text-uppercase">Rows Processed</p>
-            <p class="h1 mb-0">{{ formatNumber(stats.rows) }}</p>
+      <div class="col-6 col-lg-3">
+        <div class="stat-card h-100">
+          <div class="stat-icon" style="background: rgba(249, 115, 22, 0.1);">
+            <i class="bi bi-table text-warning"></i>
+          </div>
+          <div class="stat-content">
+            <p class="text-secondary small mb-1">Rows Processed</p>
+            <p class="h3 fw-bold mb-0">{{ formatNumber(stats.rows) }}</p>
           </div>
         </div>
       </div>
-      <div class="col-md-3 mb-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <p class="text-muted small text-uppercase">Storage Used</p>
-            <p class="h1 mb-0">{{ formatBytes(stats.storage) }}</p>
+      <div class="col-6 col-lg-3">
+        <div class="stat-card h-100">
+          <div class="stat-icon" style="background: rgba(236, 72, 153, 0.1);">
+            <i class="bi bi-hdd text-danger"></i>
+          </div>
+          <div class="stat-content">
+            <p class="text-secondary small mb-1">Storage Used</p>
+            <p class="h3 fw-bold mb-0">{{ formatBytes(stats.storage) }}</p>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Quick Actions -->
-    <div class="card mb-5">
-      <div class="card-body">
-        <h2 class="h4 mb-3">Quick Actions</h2>
-        <div class="d-flex gap-2">
-          <BButton variant="primary" @click="$router.push('/projects')">
-            <i class="bi bi-plus-lg me-2"></i>New Project
-          </BButton>
-          <BButton variant="info" @click="showImportModal = true">
-            <i class="bi bi-upload me-2"></i>Import Data
-          </BButton>
-          <BButton variant="success" @click="$router.push('/assistant')">
-            <i class="bi bi-robot me-2"></i>AI Assistant
-          </BButton>
-        </div>
-      </div>
-    </div>
-
-    <!-- API Usage -->
-    <div class="card mb-5">
-      <div class="card-body">
-        <RateLimitStatus />
-      </div>
-    </div>
-
-    <!-- Recent Projects -->
-    <div class="card">
-      <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <h2 class="h4 mb-0">Recent Projects</h2>
-          <router-link to="/projects" class="small">View All</router-link>
-        </div>
-
-        <div v-if="loading" class="text-center py-6">
-          <div class="spinner-border" role="status">
-            <span class="visually-hidden">Loading...</span>
+    <div class="row g-4 mb-5">
+      <div class="col-12">
+        <div class="quick-actions-card">
+          <h2 class="h5 fw-bold mb-4">Quick Actions</h2>
+          <div class="d-flex flex-wrap gap-3">
+            <BButton variant="primary" class="rounded-pill px-4" @click="$router.push('/projects')">
+              <i class="bi bi-plus-lg me-2"></i>New Project
+            </BButton>
+            <BButton variant="outline-primary" class="rounded-pill px-4" @click="showImportModal = true">
+              <i class="bi bi-upload me-2"></i>Import Data
+            </BButton>
+            <BButton variant="outline-primary" class="rounded-pill px-4" @click="$router.push('/assistant')">
+              <i class="bi bi-robot me-2"></i>AI Assistant
+            </BButton>
           </div>
         </div>
+      </div>
+    </div>
 
-        <div v-else-if="projects.length === 0" class="text-center py-6">
-          <p class="text-muted">No projects yet</p>
-          <BButton variant="primary" class="mt-3" @click="$router.push('/projects')">
-            Create Your First Project
-          </BButton>
+    <!-- API Usage & Recent Projects -->
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="api-card h-100">
+          <h2 class="h5 fw-bold mb-4">API Usage</h2>
+          <RateLimitStatus />
         </div>
+      </div>
+      <div class="col-lg-8">
+        <div class="recent-projects-card">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="h5 fw-bold mb-0">Recent Projects</h2>
+            <router-link to="/projects" class="small">View All <i class="bi bi-arrow-right"></i></router-link>
+          </div>
 
-        <div v-else class="row">
-          <div v-for="project in projects" :key="project.id" class="col-md-4 mb-3">
-            <div class="card project-card" @click="$router.push(`/projects/${project.id}`)">
-              <div class="card-body">
-                <h3 class="h5 mb-2">{{ project.name }}</h3>
-                <p class="text-muted small mb-3">
-                  {{ project.description || 'No description' }}
-                </p>
-                <div class="d-flex justify-content-between small text-muted">
-                  <span>
-                    <i class="bi bi-database me-1"></i>
-                    {{ project.row_count || 0 }} rows
-                  </span>
-                  <span>{{ formatDate(project.updated_at) }}</span>
+          <div v-if="loading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+
+          <div v-else-if="projects.length === 0" class="text-center py-5">
+            <i class="bi bi-folder-plus text-secondary" style="font-size: 3rem;"></i>
+            <p class="text-secondary mt-3">No projects yet</p>
+            <BButton variant="primary" class="mt-2 rounded-pill" @click="$router.push('/projects')">
+              Create Your First Project
+            </BButton>
+          </div>
+
+          <div v-else class="projects-list">
+            <div 
+              v-for="project in projects.slice(0, 5)" 
+              :key="project.id"
+              class="project-item"
+              @click="$router.push(`/projects/${project.id}`)"
+            >
+              <div class="d-flex align-items-center gap-3">
+                <div class="project-icon">
+                  <i class="bi bi-folder-fill text-warning"></i>
                 </div>
+                <div class="flex-grow-1">
+                  <h6 class="fw-bold mb-1">{{ project.name }}</h6>
+                  <p class="small text-secondary mb-0">{{ project.datasets_count || 0 }} datasets · {{ formatDate(project.created_at) }}</p>
+                </div>
+                <i class="bi bi-chevron-right text-secondary"></i>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Import Modal -->
-    <BModal
-      v-model="showImportModal"
-      :has-modal-card="true"
-      title="Import Data"
-      ok-title="Import"
-      @ok="handleImport"
-      no-header-close
-    >
-      <div class="p-3">
-        <div class="mb-3">
-          <label class="form-label">Select Project</label>
-          <select class="form-select" v-model="importForm.projectId">
-            <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
-          </select>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Upload File</label>
-          <input type="file" class="form-control" accept=".csv,.tsv,.txt,.xlsx,.xls,.json" @change="importForm.file = $event.target.files[0]">
-          <small class="text-muted">Supported: CSV, Excel, JSON</small>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label">Dataset Name</label>
-          <input type="text" class="form-control" v-model="importForm.name" placeholder="My Dataset">
-        </div>
-
-        <!-- Import Options -->
-        <div class="p-3 border rounded">
-          <div class="fw-bold mb-2">Import Options</div>
-          <div class="mb-2">
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" id="autoMode" :value="true" v-model="importForm.autoDetect">
-              <label class="form-check-label" for="autoMode">Auto (recommended)</label>
-            </div>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" id="manualMode" :value="false" v-model="importForm.autoDetect">
-              <label class="form-check-label" for="manualMode">Manual</label>
-            </div>
-          </div>
-          
-          <div v-if="importForm.autoDetect === false" class="mt-2 ps-2 border-start">
-            <div class="mb-2">
-              <label class="form-label">Has Header:</label>
-              <div class="form-check">
-                <input class="form-check-input" type="radio" id="hasHeaderYes" :value="true" v-model="importForm.hasHeader">
-                <label class="form-check-label" for="hasHeaderYes">Yes</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input" type="radio" id="hasHeaderNo" :value="false" v-model="importForm.hasHeader">
-                <label class="form-check-label" for="hasHeaderNo">No</label>
-              </div>
-            </div>
-            <div class="mt-2">
-              <label class="form-label">Delimiter:</label>
-              <select class="form-select" v-model="importForm.delimiter">
-                <option value=",">Comma (,)</option>
-                <option value=";">Semicolon (;)</option>
-                <option value="	">Tab</option>
-                <option value="|">Pipe (|)</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-    </BModal>
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
 import { getApiUrl } from '@/utils/api'
-import { ref, reactive, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { BButton, BModal, BFormGroup, BFormSelect, BFormFile, BFormInput } from 'bootstrap-vue-next'
 import RateLimitStatus from '@/components/RateLimitStatus.vue'
 
-const router = useRouter()
 const apiUrl = getApiUrl()
-
-const loading = ref(true)
-const projects = ref([])
 const stats = ref({ projects: 0, datasets: 0, rows: 0, storage: 0 })
+const projects = ref([])
+const loading = ref(true)
 const showImportModal = ref(false)
-const importing = ref(false)
-const importForm = reactive({
-  projectId: null,
-  file: null,
-  name: ''
-})
-
-const projectOptions = computed(() => 
-  projects.value.map(p => ({ value: p.id, text: p.name }))
-)
 
 onMounted(async () => {
-  await fetchProjects()
   await fetchStats()
-  loading.value = false
+  await fetchProjects()
 })
 
-async function fetchProjects() {
+async function fetchStats() {
   try {
-    const res = await fetch(`${apiUrl}/api/projects?page=1&page_size=6`, {
+    const res = await fetch(`${apiUrl}/api/projects`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
     if (res.ok) {
       const data = await res.json()
-      projects.value = data.projects
+      stats.value.projects = data.projects?.length || 0
+      let totalDatasets = 0
+      let totalRows = 0
+      let totalStorage = 0
+      for (const p of data.projects || []) {
+        totalDatasets += p.datasets_count || 0
+        totalRows += p.total_rows || 0
+        totalStorage += p.storage_bytes || 0
+      }
+      stats.value.datasets = totalDatasets
+      stats.value.rows = totalRows
+      stats.value.storage = totalStorage
     }
   } catch (e) {
     console.error(e)
   }
 }
 
-async function fetchStats() {
-  stats.value.projects = projects.value.length
-  stats.value.datasets = projects.value.reduce((sum, p) => sum + (p.datasets?.length || 0), 0)
-  stats.value.rows = projects.value.reduce((sum, p) => sum + (p.row_count || 0), 0)
-  stats.value.storage = projects.value.reduce((sum, p) => sum + (p.storage_bytes || 0), 0)
-}
-
-async function handleImport() {
-  if (!importForm.file || !importForm.projectId) return
-
-  importing.value = true
+async function fetchProjects() {
   try {
-    const formData = new FormData()
-    formData.append('file', importForm.file)
-    formData.append('project_id', importForm.projectId)
-    if (importForm.name) {
-      formData.append('name', importForm.name)
-    }
-    formData.append('auto_detect', importForm.autoDetect.toString())
-    if (!importForm.autoDetect) {
-      formData.append('has_header', importForm.hasHeader.toString())
-      formData.append('delimiter', importForm.delimiter)
-    }
-
-    const res = await fetch(`${apiUrl}/api/datasets/import`, {
-      method: 'POST',
-      body: formData,
+    const res = await fetch(`${apiUrl}/api/projects`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
-
     if (res.ok) {
-      showImportModal.value = false
-      router.push(`/projects/${importForm.projectId}`)
-    } else {
-      throw new Error('Import failed')
+      const data = await res.json()
+      projects.value = data.projects || []
     }
   } catch (e) {
     console.error(e)
   } finally {
-    importing.value = false
+    loading.value = false
   }
 }
 
 function formatNumber(num) {
+  if (!num) return '0'
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
   return num.toString()
 }
 
 function formatBytes(bytes) {
-  if (bytes === 0) return '0 B'
+  if (!bytes) return '0 B'
   const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return ''
-  return new Date(dateStr).toLocaleDateString()
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = now - date
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return `${days} days ago`
+  return date.toLocaleDateString()
 }
 </script>
 
 <style scoped>
-.project-card {
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+.welcome-section {
+  padding: 1.5rem 0;
 }
-.project-card:hover {
+
+/* Stat Cards */
+.stat-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+.stat-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+/* Quick Actions */
+.quick-actions-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* API Card */
+.api-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Recent Projects */
+.recent-projects-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.project-item {
+  padding: 1rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.project-item:hover {
+  background: rgba(79, 70, 229, 0.05);
+  border-color: rgba(79, 70, 229, 0.1);
+}
+
+.project-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(249, 192, 11, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
 }
 </style>
