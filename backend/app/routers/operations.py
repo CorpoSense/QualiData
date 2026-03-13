@@ -344,6 +344,63 @@ async def list_operations(
     ]
 
 
+@router.get("/operations/recent")
+async def get_recent_operations(
+    limit: int = 10,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Get recent operations across all datasets for the current user."""
+    # Get all projects for the user
+    projects_result = await session.execute(
+        select(Project).where(Project.user_id == current_user.id)
+    )
+    projects = projects_result.scalars().all()
+    project_ids = [p.id for p in projects]
+    
+    if not project_ids:
+        return []
+    
+    # Get all datasets for these projects
+    datasets_result = await session.execute(
+        select(Dataset).where(Dataset.project_id.in_(project_ids))
+    )
+    datasets = datasets_result.scalars().all()
+    dataset_ids = [d.id for d in datasets]
+    
+    if not dataset_ids:
+        return []
+    
+    # Get recent operations for these datasets
+    result = await session.execute(
+        select(OperationHistory)
+        .where(OperationHistory.dataset_id.in_(dataset_ids))
+        .order_by(OperationHistory.created_at.desc())
+        .limit(limit)
+    )
+    operations = result.scalars().all()
+    
+    # Build a map of dataset_id to dataset name
+    dataset_map = {d.id: d.name for d in datasets}
+    project_map = {p.id: p.name for p in projects}
+    dataset_to_project = {d.id: d.project_id for d in datasets}
+    
+    return [
+        {
+            "id": op.id,
+            "operation_type": op.operation_type,
+            "operation_params": op.operation_params,
+            "created_at": op.created_at.isoformat() if op.created_at else None,
+            "is_undone": op.is_undone,
+            "dataset_id": op.dataset_id,
+            "dataset_name": dataset_map.get(op.dataset_id, "Unknown"),
+            "project_id": dataset_to_project.get(op.dataset_id),
+            "project_name": project_map.get(dataset_to_project.get(op.dataset_id), "Unknown"),
+        }
+        for op in operations
+    ]
+
+
 @router.get("/datasets/{dataset_id}/operations/history")
 async def get_operation_history(
     dataset_id: str,

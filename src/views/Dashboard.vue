@@ -83,7 +83,8 @@
         </div>
       </div>
       <div class="col-lg-8">
-        <div class="recent-projects-card">
+        <!-- Recent Projects -->
+        <div class="recent-projects-card mb-4">
           <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="h5 fw-bold mb-0">Recent Projects</h2>
             <router-link to="/projects" class="small">View All <i class="bi bi-arrow-right"></i></router-link>
@@ -123,6 +124,48 @@
             </div>
           </div>
         </div>
+
+        <!-- Recent Operations -->
+        <div class="recent-operations-card">
+          <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="h5 fw-bold mb-0">Recent Operations</h2>
+            <span v-if="operations.length > 0" class="small text-muted">{{ operations.length }} operations</span>
+          </div>
+
+          <div v-if="operationsLoading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+
+          <div v-else-if="operations.length === 0" class="text-center py-5">
+            <i class="bi bi-clock-history text-secondary" style="font-size: 3rem;"></i>
+            <p class="text-secondary mt-3">No operations yet</p>
+            <p class="small text-muted">Operations will appear here after you clean or transform data</p>
+          </div>
+
+          <div v-else class="operations-list">
+            <div 
+              v-for="op in operations" 
+              :key="op.id"
+              class="operation-item"
+              @click="goToDataset(op)"
+            >
+              <div class="d-flex align-items-center gap-3">
+                <div class="operation-icon" :class="getOperationClass(op.operation_type)">
+                  <i :class="getOperationIcon(op.operation_type)"></i>
+                </div>
+                <div class="flex-grow-1">
+                  <h6 class="fw-bold mb-1">{{ formatOperationType(op.operation_type) }}</h6>
+                  <p class="small text-secondary mb-0">{{ op.dataset_name }} · {{ formatDate(op.created_at) }}</p>
+                </div>
+                <span class="badge" :class="op.is_undone ? 'bg-secondary' : 'bg-success'" style="font-size: 10px;">
+                  {{ op.is_undone ? 'Undone' : 'Done' }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -130,18 +173,23 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { getApiUrl } from '@/utils/api'
 import RateLimitStatus from '@/components/RateLimitStatus.vue'
 
+const router = useRouter()
 const apiUrl = getApiUrl()
 const stats = ref({ projects: 0, datasets: 0, rows: 0, storage: 0 })
 const projects = ref([])
+const operations = ref([])
 const loading = ref(true)
+const operationsLoading = ref(true)
 const showImportModal = ref(false)
 
 onMounted(async () => {
   await fetchStats()
   await fetchProjects()
+  await fetchOperations()
 })
 
 async function fetchStats() {
@@ -166,6 +214,21 @@ async function fetchStats() {
     }
   } catch (e) {
     console.error(e)
+  }
+}
+
+async function fetchOperations() {
+  try {
+    const res = await fetch(`${apiUrl}/api/operations/recent?limit=10`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) {
+      operations.value = await res.json()
+    }
+  } catch (e) {
+    console.error(e)
+  } finally {
+    operationsLoading.value = false
   }
 }
 
@@ -210,6 +273,45 @@ function formatDate(dateStr) {
   if (days === 1) return 'Yesterday'
   if (days < 7) return `${days} days ago`
   return date.toLocaleDateString()
+}
+
+function goToDataset(op) {
+  if (op.project_id && op.dataset_id) {
+    router.push(`/projects/${op.project_id}/dataset/${op.dataset_id}`)
+  }
+}
+
+function getOperationClass(opType) {
+  const classes = {
+    'fillna': 'bg-success',
+    'drop_duplicates': 'bg-warning',
+    'rename': 'bg-info',
+    'remove_columns': 'bg-danger',
+    'add_column': 'bg-primary',
+    'reorder_columns': 'bg-secondary',
+    'deduplicate': 'bg-warning',
+    'ai_clean': 'bg-primary',
+  }
+  return classes[opType] || 'bg-secondary'
+}
+
+function getOperationIcon(opType) {
+  const icons = {
+    'fillna': 'bi bi-droplet',
+    'drop_duplicates': 'bi bi-copy',
+    'rename': 'bi bi-pencil',
+    'remove_columns': 'bi bi-trash',
+    'add_column': 'bi bi-plus-circle',
+    'reorder_columns': 'bi bi-arrow-left-right',
+    'deduplicate': 'bi bi-copy',
+    'ai_clean': 'bi bi-stars',
+  }
+  return icons[opType] || 'bi bi-gear'
+}
+
+function formatOperationType(opType) {
+  if (!opType) return 'Unknown'
+  return opType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 </script>
 
@@ -299,4 +401,48 @@ function formatDate(dateStr) {
   justify-content: center;
   font-size: 1.25rem;
 }
+
+/* Recent Operations */
+.recent-operations-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.operations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.operation-item {
+  padding: 1rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.operation-item:hover {
+  background: rgba(79, 70, 229, 0.05);
+  border-color: rgba(79, 70, 229, 0.1);
+}
+
+.operation-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.operation-icon.bg-primary { background: rgba(79, 70, 229, 0.1); }
+.operation-icon.bg-success { background: rgba(34, 197, 94, 0.1); }
+.operation-icon.bg-warning { background: rgba(249, 115, 22, 0.1); }
+.operation-icon.bg-danger { background: rgba(239, 68, 68, 0.1); }
+.operation-icon.bg-info { background: rgba(6, 182, 212, 0.1); }
+.operation-icon.bg-secondary { background: rgba(107, 114, 128, 0.1); }
 </style>
