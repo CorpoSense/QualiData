@@ -42,6 +42,19 @@ const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
   const debugStore = useDebugStore()
   
+  // Auto-login in debug mode if no token
+  if (debugStore.isDebug && !localStorage.getItem('token') && to.path !== '/debug-login') {
+    try {
+      const res = await fetch(`${getApiUrl()}/api/auth/debug-login`, { method: 'POST' })
+      if (res.ok) {
+        const data = await res.json()
+        localStorage.setItem('token', data.access_token)
+      }
+    } catch (e) {
+      console.error('Debug login failed:', e)
+    }
+  }
+  
   // Auto-redirect to dashboard in debug mode if on login page
   if (debugStore.isDebug && to.path === '/login') {
     next('/dashboard')
