@@ -50,3 +50,29 @@ async def test_analyze_invalid_provider(client):
 
     assert response.status_code == 400
     assert "Invalid provider" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_ai_clean_requires_column(client):
+    """Test that AI clean endpoint requires column parameter."""
+    response = await client.post(
+        "/api/datasets/123/ai-clean",
+        json={"instruction": "test"},
+    )
+    # Should fail auth (401) or validation (422), not 200
+    assert response.status_code in [401, 422]
+    if response.status_code == 422:
+        assert "column" in response.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_ai_clean_requires_instruction(client):
+    """Test that AI clean endpoint requires instruction parameter."""
+    response = await client.post(
+        "/api/datasets/123/ai-clean",
+        json={"column": "test_col"},
+    )
+    # Should fail auth (401) or validation (422), not 200
+    assert response.status_code in [401, 422]
+    if response.status_code == 422:
+        assert "instruction" in response.text.lower()

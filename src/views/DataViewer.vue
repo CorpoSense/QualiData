@@ -116,7 +116,7 @@
             </BDropdownItem>
           </BDropdown>
 
-          <BButton size="sm" variant="primary" @click="showAiModal = true">
+          <BButton size="sm" variant="primary" :disabled="selectedColumns.length === 0" @click="showAiModal = true">
             <i class="bi bi-stars me-1"></i> AI Clean
           </BButton>
 
@@ -229,9 +229,10 @@
 
     <!-- AI Clean Modal -->
     <BModal v-model="showAiModal" title="AI Clean" @ok="applyAiClean">
-      <BFormGroup label="Column">
-        <BFormSelect v-model="selectedColumns[0]" :options="columnOptions"></BFormSelect>
-      </BFormGroup>
+      <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        <strong>Selected column:</strong> {{ selectedColumns[0] }}
+      </div>
       <BFormGroup label="Instruction">
         <BFormTextarea v-model="aiInstruction" placeholder="e.g., Extract the email domain, Convert to title case"></BFormTextarea>
       </BFormGroup>
