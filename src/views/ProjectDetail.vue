@@ -92,22 +92,32 @@
 
       <BTab title="Operations">
         <div class="card">
-          <div class="card-body">
-            <h3 class="h5 mb-4">Operation History</h3>
-            <div v-if="operations.length === 0" class="text-center py-4 text-muted">
-              No operations yet
+          <div class="card-body p-0">
+            <div v-if="operations.length === 0" class="text-center py-5 text-muted">
+              <i class="bi bi-clock-history" style="font-size: 3rem;"></i>
+              <p class="mt-3 mb-0">No operations yet</p>
+              <p class="small">Operations will appear here after you clean or transform data</p>
             </div>
-            <div v-else class="list-group list-group-flush">
+            <div v-else class="operations-list">
               <div 
                 v-for="op in operations" 
                 :key="op.id"
-                class="list-group-item d-flex justify-content-between align-items-center"
+                class="operation-item"
               >
-                <div>
-                  <strong>{{ op.operation_type }}</strong>
-                  <p class="small text-muted mb-0">{{ formatDate(op.created_at) }}</p>
+                <div class="d-flex align-items-center gap-3">
+                  <div class="operation-icon" :class="getOperationClass(op.operation_type)">
+                    <i :class="getOperationIcon(op.operation_type)"></i>
+                  </div>
+                  <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                      <strong>{{ formatOperationType(op.operation_type) }}</strong>
+                      <span v-if="op.dataset_name" class="badge bg-light text-dark">{{ op.dataset_name }}</span>
+                    </div>
+                    <p class="small text-muted mb-0">{{ formatDate(op.created_at) }}</p>
+                  </div>
+                  <BBadge v-if="op.is_undone" variant="secondary">Undone</BBadge>
+                  <BBadge v-else variant="success">Done</BBadge>
                 </div>
-                <BBadge v-if="op.is_undone" variant="light">Undone</BBadge>
               </div>
             </div>
           </div>
@@ -432,6 +442,39 @@ function formatDate(dateStr) {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleDateString()
 }
+
+function getOperationClass(opType) {
+  const classes = {
+    'fillna': 'bg-success',
+    'drop_duplicates': 'bg-warning',
+    'rename': 'bg-info',
+    'remove_columns': 'bg-danger',
+    'add_column': 'bg-primary',
+    'reorder_columns': 'bg-secondary',
+    'deduplicate': 'bg-warning',
+    'ai_clean': 'bg-primary',
+  }
+  return classes[opType] || 'bg-secondary'
+}
+
+function getOperationIcon(opType) {
+  const icons = {
+    'fillna': 'bi bi-droplet',
+    'drop_duplicates': 'bi bi-copy',
+    'rename': 'bi bi-pencil',
+    'remove_columns': 'bi bi-trash',
+    'add_column': 'bi bi-plus-circle',
+    'reorder_columns': 'bi bi-arrow-left-right',
+    'deduplicate': 'bi bi-copy',
+    'ai_clean': 'bi bi-stars',
+  }
+  return icons[opType] || 'bi bi-gear'
+}
+
+function formatOperationType(opType) {
+  if (!opType) return 'Unknown'
+  return opType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+}
 </script>
 
 <style scoped>
@@ -443,4 +486,42 @@ function formatDate(dateStr) {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
+
+/* Operations List */
+.operations-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.operation-item {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  transition: background 0.2s ease;
+}
+
+.operation-item:last-child {
+  border-bottom: none;
+}
+
+.operation-item:hover {
+  background: rgba(79, 70, 229, 0.03);
+}
+
+.operation-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.operation-icon.bg-primary { background: rgba(79, 70, 229, 0.1); }
+.operation-icon.bg-success { background: rgba(34, 197, 94, 0.1); }
+.operation-icon.bg-warning { background: rgba(249, 115, 22, 0.1); }
+.operation-icon.bg-danger { background: rgba(239, 68, 68, 0.1); }
+.operation-icon.bg-info { background: rgba(6, 182, 212, 0.1); }
+.operation-icon.bg-secondary { background: rgba(107, 114, 128, 0.1); }
 </style>
