@@ -160,6 +160,23 @@
 
     <!-- Data Table -->
     <div v-else class="card">
+      <!-- Column Selection Toolbar -->
+      <div class="card-header bg-white py-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="text-muted small">Click columns to select:</span>
+          <BBadge 
+            v-for="col in columns" 
+            :key="col.field" 
+            :variant="selectedColumns.includes(col.field) ? 'primary' : 'light'"
+            pill
+            style="cursor: pointer;"
+            @click="toggleColumnSelection(col.field)"
+          >
+            {{ col.label }}
+          </BBadge>
+        </div>
+      </div>
+      
       <div class="table-responsive">
         <BTable
           :items="filteredData"
@@ -172,20 +189,7 @@
           :select-mode="selectedColumns.length > 0 ? 'multiple' : 'multi'"
           selected-variant="primary"
           @row-selected="onRowSelected"
-        >
-          <!-- Custom header for column selection -->
-          <template #head="{ column }">
-            <div 
-              class="d-flex align-items-center gap-2" 
-              :class="{ 'table-primary': selectedColumns.includes(column.key) }"
-              style="cursor: pointer;"
-              @click.stop="toggleColumnSelection(column.key)"
-            >
-              <span>{{ column.label }}</span>
-              <i v-if="selectedColumns.includes(column.key)" class="bi bi-check-circle-fill"></i>
-            </div>
-          </template>
-        </BTable>
+        />
       </div>
     </div>
 
