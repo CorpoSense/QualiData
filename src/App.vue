@@ -66,7 +66,9 @@
 
     <!-- Main Content -->
     <div class="main-content" :class="{ 'with-navbar': true }">
-      <router-view />
+      <div class="container py-4">
+        <router-view />
+      </div>
     </div>
 
     <!-- Notifications Offcanvas -->
