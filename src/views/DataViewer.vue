@@ -160,41 +160,33 @@
 
     <!-- Data Table -->
     <div v-else class="card">
-      <SmartTable
-        :items="filteredData"
-        :fields="tableFields"
-        :busy="loading"
-        hover
-        responsive
-        striped
-        small
-        :row-selection-mode="selectedRows.length > 0 ? 'multiple' : 'none'"
-        :selected-row-keys="selectedRowKeys"
-        @update:selected-row-keys="handleRowSelectionChange"
-        @column-selection-change="handleColumnSelectionChange"
-        @row-clicked="handleRowClick"
-        :column-selection-mode="selectedColumns.length > 0 ? 'multiple' : 'none'"
-        :selected-columns="selectedColumns"
-        @click.stop
-      >
-        <!-- Custom header for column selection -->
-        <template #head="{ column }">
-          <div 
-            class="d-flex align-items-center gap-2" 
-            :class="{ 'table-primary': selectedColumns.includes(column.key) }"
-            style="cursor: pointer;"
-            @click.stop="toggleColumnSelection(column.key)"
-          >
-            <span>{{ column.label }}</span>
-            <i v-if="selectedColumns.includes(column.key)" class="bi bi-check-circle-fill"></i>
-          </div>
-        </template>
-        
-        <!-- Custom cell rendering -->
-        <template #cell="{ item, key, value }">
-          {{ value }}
-        </template>
-      </SmartTable>
+      <div class="table-responsive">
+        <BTable
+          :items="filteredData"
+          :fields="tableFields"
+          hover
+          responsive
+          striped
+          small
+          selectable
+          :select-mode="selectedColumns.length > 0 ? 'multiple' : 'multi'"
+          selected-variant="primary"
+          @row-selected="onRowSelected"
+        >
+          <!-- Custom header for column selection -->
+          <template #head="{ column }">
+            <div 
+              class="d-flex align-items-center gap-2" 
+              :class="{ 'table-primary': selectedColumns.includes(column.key) }"
+              style="cursor: pointer;"
+              @click.stop="toggleColumnSelection(column.key)"
+            >
+              <span>{{ column.label }}</span>
+              <i v-if="selectedColumns.includes(column.key)" class="bi bi-check-circle-fill"></i>
+            </div>
+          </template>
+        </BTable>
+      </div>
     </div>
 
     <!-- Profile Modal -->
@@ -454,8 +446,7 @@
 import { getApiUrl } from '@/utils/api'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem } from 'bootstrap-vue-next'
-import SmartTable from '@/components/SmartTable.vue'
+import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem, BTable } from 'bootstrap-vue-next'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
@@ -553,6 +544,11 @@ function toggleColumnSelection(field) {
 
 // Handle SmartTable row selection
 function handleRowSelectionChange({ keys, rows }) {
+  selectedRows.value = rows
+}
+
+// Handle BTable row selection
+function onRowSelected(rows) {
   selectedRows.value = rows
 }
 
