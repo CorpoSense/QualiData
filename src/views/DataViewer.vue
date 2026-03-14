@@ -160,24 +160,41 @@
 
     <!-- Data Table -->
     <div v-else class="card">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="table-light">
-            <tr>
-              <th v-for="col in columns" :key="col.field" @click="toggleColumnSelection(col.field)" :class="{'table-primary': selectedColumns.includes(col.field)}" style="cursor: pointer;">
-                {{ col.label }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, idx) in filteredData" :key="idx" @click="handleRowClick(row)">
-              <td v-for="col in columns" :key="col.field" @click.stop="handleCellClick(row, col)">
-                {{ row[col.field] }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <SmartTable
+        :items="filteredData"
+        :fields="tableFields"
+        :busy="loading"
+        hover
+        responsive
+        striped
+        small
+        :row-selection-mode="selectedRows.length > 0 ? 'multiple' : 'none'"
+        :selected-row-keys="selectedRowKeys"
+        @update:selected-row-keys="handleRowSelectionChange"
+        @column-selection-change="handleColumnSelectionChange"
+        @row-clicked="handleRowClick"
+        :column-selection-mode="selectedColumns.length > 0 ? 'multiple' : 'none'"
+        :selected-columns="selectedColumns"
+        @click.stop
+      >
+        <!-- Custom header for column selection -->
+        <template #head="{ column }">
+          <div 
+            class="d-flex align-items-center gap-2" 
+            :class="{ 'table-primary': selectedColumns.includes(column.key) }"
+            style="cursor: pointer;"
+            @click.stop="toggleColumnSelection(column.key)"
+          >
+            <span>{{ column.label }}</span>
+            <i v-if="selectedColumns.includes(column.key)" class="bi bi-check-circle-fill"></i>
+          </div>
+        </template>
+        
+        <!-- Custom cell rendering -->
+        <template #cell="{ item, key, value }">
+          {{ value }}
+        </template>
+      </SmartTable>
     </div>
 
     <!-- Profile Modal -->
@@ -438,6 +455,7 @@ import { getApiUrl } from '@/utils/api'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem } from 'bootstrap-vue-next'
+import SmartTable from '@/components/SmartTable.vue'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
@@ -467,6 +485,22 @@ const compareOpId = ref(null)
 const comparisonResult = ref(null)
 const nullCount = ref(0)
 const selectedColumns = ref([])  // Selected columns (click on table headers)
+const selectedRows = ref([])  // Selected rows
+
+// Computed fields for SmartTable
+const tableFields = computed(() => {
+  return columns.value.map(col => ({
+    key: col.field,
+    label: col.label,
+    sortable: true,
+    selectable: true
+  }))
+})
+
+// Selected row keys for SmartTable
+const selectedRowKeys = computed(() => {
+  return selectedRows.value.map(row => row._index ?? JSON.stringify(row))
+})
 const showColumnSelector = ref(false)
 const fillValue = ref('')
 const canUndo = ref(false)
@@ -515,6 +549,16 @@ function toggleColumnSelection(field) {
   } else {
     selectedColumns.value.splice(idx, 1)
   }
+}
+
+// Handle SmartTable row selection
+function handleRowSelectionChange({ keys, rows }) {
+  selectedRows.value = rows
+}
+
+// Handle SmartTable column selection
+function handleColumnSelectionChange({ columns }) {
+  selectedColumns.value = columns
 }
 
 // Check if single-column only operation (like rename)
