@@ -1,6 +1,6 @@
 <template>
   <div class="project-card" @click="$emit('click')">
-    <div class="card-body">
+    <div class="card-body d-flex flex-column">
       <div class="d-flex justify-content-between align-items-start mb-3">
         <div class="project-icon">
           <i class="bi bi-folder-fill text-warning"></i>
@@ -16,12 +16,12 @@
         {{ project.description || 'No description' }}
       </p>
 
-      <div class="d-flex justify-content-between small text-muted">
-        <span>
+      <div class="mt-auto d-flex justify-content-between align-items-center project-meta">
+        <span class="small text-muted">
           <i class="bi bi-database me-1"></i>
           {{ project.datasets_count || project.row_count || 0 }} {{ project.datasets_count ? 'datasets' : 'rows' }}
         </span>
-        <span>{{ formatMeta(project) }}</span>
+        <span class="small text-muted">{{ formatMeta(project) }}</span>
       </div>
     </div>
   </div>
@@ -103,6 +103,9 @@ function formatMeta(project) {
 .project-title {
   font-weight: 600;
   color: var(--dark-color, #0f172a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .project-description {
@@ -110,5 +113,11 @@ function formatMeta(project) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  min-height: 2.5em;
+}
+
+.project-meta {
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 </style>

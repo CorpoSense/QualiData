@@ -1,20 +1,22 @@
 <template>
   <div class="dataset-card" @click="$emit('click')">
-    <div class="card-body">
-      <div class="d-flex justify-content-between align-items-start mb-2">
+    <div class="card-body d-flex flex-column">
+      <div class="d-flex justify-content-between align-items-start mb-3">
         <h3 class="h6 mb-0 dataset-title">{{ dataset.name }}</h3>
         <BDropdown v-if="showActions" :text="dropdownText" variant="outline-secondary" size="sm" @click.stop>
           <slot name="actions"></slot>
         </BDropdown>
       </div>
       
-      <p class="small text-muted mb-2 dataset-description">
+      <p class="small text-muted mb-3 dataset-description">
         {{ dataset.description || 'No description' }}
       </p>
       
-      <div class="d-flex justify-content-between small text-muted dataset-meta">
-        <span><i class="bi bi-table me-1"></i> {{ formatNumber(dataset.row_count) }} rows</span>
-        <span>{{ dataset.file_type?.toUpperCase() || 'FILE' }}</span>
+      <div class="mt-auto d-flex justify-content-between align-items-center dataset-meta">
+        <span class="small text-muted">
+          <i class="bi bi-table me-1"></i> {{ formatNumber(dataset.row_count) }} rows
+        </span>
+        <span class="badge bg-light text-dark">{{ dataset.file_type?.toUpperCase() || 'FILE' }}</span>
       </div>
     </div>
   </div>
@@ -62,9 +64,17 @@ function formatNumber(num) {
   border-color: rgba(79, 70, 229, 0.2);
 }
 
+.card-body {
+  padding: 1.25rem;
+}
+
 .dataset-title {
   font-weight: 600;
   color: var(--dark-color, #0f172a);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dataset-description {
@@ -72,9 +82,11 @@ function formatNumber(num) {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  min-height: 2.5em;
 }
 
 .dataset-meta {
-  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
 }
 </style>
