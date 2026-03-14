@@ -45,31 +45,15 @@
     <!-- Projects Grid -->
     <div v-else class="row">
       <div v-for="project in projects" :key="project.id" class="col-md-4 mb-4">
-        <div class="card project-card" @click="$router.push(`/projects/${project.id}`)">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start mb-3">
-              <h3 class="h5 mb-0">{{ project.name }}</h3>
-              <BDropdown text="Actions" variant="outline-secondary" size="sm" @click.stop>
-                <BDropdownItem @click="editProject(project)">Edit</BDropdownItem>
-                <BDropdownItem @click="deleteProject(project)" variant="danger">Delete</BDropdownItem>
-              </BDropdown>
-            </div>
-            
-            <p class="text-muted small mb-3">
-              {{ project.description || 'No description' }}
-            </p>
-            
-            <div class="d-flex justify-content-between small text-muted">
-              <span>
-                <i class="bi bi-database me-1"></i>
-                {{ project.row_count || 0 }} rows
-              </span>
-              <span>
-                {{ formatBytes(project.storage_bytes || 0) }}
-              </span>
-            </div>
-          </div>
-        </div>
+        <ProjectCard 
+          :project="project"
+          @click="$router.push(`/projects/${project.id}`)"
+        >
+          <template #actions>
+            <BDropdownItem @click="editProject(project)">Edit</BDropdownItem>
+            <BDropdownItem @click="deleteProject(project)" variant="danger">Delete</BDropdownItem>
+          </template>
+        </ProjectCard>
       </div>
     </div>
 
@@ -109,6 +93,7 @@
 import { getApiUrl } from '@/utils/api'
 import { ref, reactive, onMounted } from 'vue'
 import { BButton, BFormGroup, BFormInput, BFormTextarea, BDropdown, BDropdownItem, BPagination, BModal } from 'bootstrap-vue-next'
+import ProjectCard from '@/components/ProjectCard.vue'
 
 const apiUrl = getApiUrl()
 
