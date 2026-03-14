@@ -478,13 +478,12 @@ const nullCount = ref(0)
 const selectedColumns = ref([])  // Selected columns (click on table headers)
 const selectedRows = ref([])  // Selected rows
 
-// Computed fields for SmartTable
+// Computed fields for BTable - disable sorting to allow column selection
 const tableFields = computed(() => {
   return columns.value.map(col => ({
     key: col.field,
     label: col.label,
-    sortable: true,
-    selectable: true
+    sortable: false
   }))
 })
 
