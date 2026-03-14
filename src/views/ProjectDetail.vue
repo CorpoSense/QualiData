@@ -75,25 +75,17 @@
         </div>
         <div v-else class="row">
           <div v-for="dataset in datasets" :key="dataset.id" class="col-md-4 mb-3">
-              <div class="card dataset-card">
-              <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                  <h3 class="h6 mb-0">{{ dataset.name }}</h3>
-                  <BDropdown text="Actions" variant="outline-secondary" size="sm">
-                    <BDropdownItem @click="viewDataset(dataset)">View Data</BDropdownItem>
-                    <BDropdownItem @click="previewDataset(dataset)">Preview</BDropdownItem>
-                    <BDropdownItem @click="exportDataset(dataset)">Export</BDropdownItem>
-                    <BDropdownItem @click="profileDataset(dataset)" variant="info">Profile</BDropdownItem>
-                    <BDropdownItem @click="deleteDataset(dataset)" variant="danger">Delete</BDropdownItem>
-                  </BDropdown>
-                </div>
-                <p class="small text-muted mb-2">{{ dataset.description || 'No description' }}</p>
-                <div class="d-flex justify-content-between small text-muted">
-                  <span><i class="bi bi-table me-1"></i> {{ dataset.row_count }} rows</span>
-                  <span>{{ dataset.file_type?.toUpperCase() }}</span>
-                </div>
-              </div>
-            </div>
+            <DatasetCard 
+              :dataset="dataset"
+              @click="viewDataset(dataset)"
+            >
+              <template #actions>
+                <BDropdownItem @click="previewDataset(dataset)">Preview</BDropdownItem>
+                <BDropdownItem @click="exportDataset(dataset)">Export</BDropdownItem>
+                <BDropdownItem @click="profileDataset(dataset)" variant="info">Profile</BDropdownItem>
+                <BDropdownItem @click="deleteDataset(dataset)" variant="danger">Delete</BDropdownItem>
+              </template>
+            </DatasetCard>
           </div>
         </div>
       </BTab>
@@ -207,6 +199,7 @@ import { getApiUrl } from '@/utils/api'
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { BButton, BTab, BTabs, BDropdown, BDropdownItem, BBadge, BModal, BFormGroup, BFormInput, BFormFile, BFormSelect, BTable } from 'bootstrap-vue-next'
+import DatasetCard from '@/components/DatasetCard.vue'
 
 const route = useRoute()
 const router = useRouter()
