@@ -166,6 +166,8 @@
       <div class="table-responsive">
         <SmartTable
           v-model:selected-columns="selectedColumns"
+          v-model:current-page="page"
+          v-model:per-page="limit"
           :items="filteredData"
           :fields="tableFields"
           hover
@@ -174,6 +176,9 @@
           small
           row-selection-mode="multiple"
           column-selection-mode="multiple"
+          show-pagination
+          show-page-info
+          :total-rows="totalRows"
           @row-selection-change="handleRowSelectionChange"
         />
       </div>
@@ -562,6 +567,7 @@ const filteredData = computed(() => {
 
 onMounted(async () => { await refreshData() })
 watch(limit, () => { page.value = 1; refreshData() })
+watch(page, () => { refreshData() })
 watch(showCompare, (val) => {
   if (!val) {
     comparisonResult.value = null
