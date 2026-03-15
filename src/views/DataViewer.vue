@@ -185,8 +185,6 @@
           :items="filteredData"
           :fields="tableFields"
           :per-page="limit"
-          :current-page="page"
-          :total-rows="totalRows"
           hover
           responsive
           striped
@@ -194,6 +192,16 @@
           selectable
           select-mode="multi"
           @row-selected="onRowSelected"
+        />
+      </div>
+      
+      <!-- Pagination -->
+      <div v-if="totalRows > limit" class="mt-3 mb-2 d-flex justify-content-center">
+        <BPagination
+          :total="totalRows"
+          v-model="page"
+          :per-page="limit"
+          @update:model-value="refreshData"
         />
       </div>
     </div>
@@ -455,7 +463,7 @@
 import { getApiUrl } from '@/utils/api'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem, BTable } from 'bootstrap-vue-next'
+import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem, BTable, BPagination } from 'bootstrap-vue-next'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
