@@ -168,6 +168,7 @@
           v-model:selected-columns="selectedColumns"
           v-model:current-page="page"
           v-model:per-page="limit"
+          :server-total="totalRows"
           :items="filteredData"
           :fields="tableFields"
           hover
@@ -178,7 +179,6 @@
           column-selection-mode="multiple"
           show-pagination
           show-page-info
-          :total-rows="totalRows"
           @row-selection-change="handleRowSelectionChange"
         />
       </div>

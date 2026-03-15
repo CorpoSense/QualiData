@@ -638,6 +638,10 @@ export default defineComponent({
  type: Number as PropType<number | undefined>,
  default: undefined,
  },
+ serverTotal: {
+ type: Number as PropType<number | undefined>,
+ default: undefined,
+ },
  filter: {
  type: null as unknown as PropType<unknown>,
  default: undefined,
@@ -1062,9 +1066,10 @@ export default defineComponent({
  return sortedStaticItems.value.slice(start, start + perPageState.value)
  })
 
- const totalRows = computed<number>(() =>
- isProviderMode.value ? providerTotal.value : filteredStaticItems.value.length
- )
+ const totalRows = computed<number>(() => {
+ if (props.serverTotal !== undefined) return props.serverTotal
+ return isProviderMode.value ? providerTotal.value : filteredStaticItems.value.length
+ })
 
  const pageCount = computed<number>(() => {
  if (!perPageState.value || perPageState.value < 1) return totalRows.value > 0 ? 1 : 1
