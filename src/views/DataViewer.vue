@@ -456,7 +456,7 @@ const dataset = ref(null)
 const data = ref([])
 const columns = ref([])
 const operations = ref([])
-const limit = ref(25)
+const limit = ref(10)
 const page = ref(1)
 const totalRows = ref(0)
 const searchQuery = ref('')
@@ -497,6 +497,7 @@ const clipboardData = ref('')
 const clipboardDatasetName = ref('')
 
 const limitOptions = [
+  { value: 10, text: '10 rows' },
   { value: 25, text: '25 rows' },
   { value: 50, text: '50 rows' },
   { value: 100, text: '100 rows' },
