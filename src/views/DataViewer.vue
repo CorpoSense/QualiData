@@ -178,17 +178,17 @@
       </div>
       
       <div class="table-responsive">
-        <BTable
+        <SmartTable
           :items="filteredData"
           :fields="tableFields"
           hover
           responsive
           striped
           small
-          selectable
-          :select-mode="selectedColumns.length > 0 ? 'multiple' : 'multi'"
-          selected-variant="primary"
-          @row-selected="onRowSelected"
+          row-selection-mode="multiple"
+          column-selection-mode="multiple"
+          @row-selection-change="handleRowSelectionChange"
+          @column-selection-change="handleColumnSelectionChange"
         />
       </div>
     </div>
@@ -450,7 +450,8 @@
 import { getApiUrl } from '@/utils/api'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem, BTable } from 'bootstrap-vue-next'
+import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem } from 'bootstrap-vue-next'
+import SmartTable from '@/components/SmartTable.vue'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
@@ -482,7 +483,7 @@ const nullCount = ref(0)
 const selectedColumns = ref([])  // Selected columns (click on table headers)
 const selectedRows = ref([])  // Selected rows
 
-// Computed fields for BTable - disable sorting to allow column selection
+// Computed fields for SmartTable - disable sorting to allow column selection
 const tableFields = computed(() => {
   return columns.value.map(col => ({
     key: col.field,
@@ -550,7 +551,7 @@ function handleRowSelectionChange({ keys, rows }) {
   selectedRows.value = rows
 }
 
-// Handle BTable row selection
+// Handle SmartTable row selection
 function onRowSelected(rows) {
   selectedRows.value = rows
 }
