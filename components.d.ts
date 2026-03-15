@@ -31,6 +31,5 @@ declare module 'vue' {
     RateLimitStatus: typeof import('./src/components/RateLimitStatus.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    SmartTable: typeof import('./src/components/SmartTable.vue')['default']
   }
 }

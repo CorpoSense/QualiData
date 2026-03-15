@@ -487,7 +487,7 @@ const nullCount = ref(0)
 const selectedColumns = ref([])  // Selected columns (click on table headers)
 const selectedRows = ref([])  // Selected rows
 
-// Computed fields for SmartTable - disable sorting to allow column selection
+// Computed fields for BTable - disable sorting to allow column selection
 const tableFields = computed(() => {
   return columns.value.map(col => ({
     key: col.field,
@@ -496,7 +496,7 @@ const tableFields = computed(() => {
   }))
 })
 
-// Selected row keys for SmartTable
+// Selected row keys for BTable
 const selectedRowKeys = computed(() => {
   return selectedRows.value.map(row => row._index ?? JSON.stringify(row))
 })
