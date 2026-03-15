@@ -1058,8 +1058,12 @@ export default defineComponent({
  return rows
  })
 
+ const isServerSide = computed(() => props.serverTotal !== undefined)
+
  const renderedItems = computed<SmartTableItem[]>(() => {
  if (isProviderMode.value) return providerItems.value
+ // When serverTotal is provided, assume parent handles pagination - display all items
+ if (isServerSide.value) return sortedStaticItems.value
  if (!perPageState.value || perPageState.value < 1) return sortedStaticItems.value
 
  const start = (currentPageState.value - 1) * perPageState.value
