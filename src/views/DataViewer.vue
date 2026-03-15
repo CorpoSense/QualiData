@@ -163,23 +163,37 @@
 
     <!-- Data Table -->
     <div v-else class="card">
+      <!-- Column Selection Badges -->
+      <div class="card-header bg-white py-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="text-muted small">Select columns:</span>
+          <BBadge 
+            v-for="col in columns" 
+            :key="col.field" 
+            :variant="selectedColumns.includes(col.field) ? 'primary' : 'light'"
+            pill
+            style="cursor: pointer;"
+            @click="toggleColumnSelection(col.field)"
+          >
+            {{ col.label }}
+          </BBadge>
+        </div>
+      </div>
+      
       <div class="table-responsive">
-        <SmartTable
-          v-model:selected-columns="selectedColumns"
-          v-model:current-page="page"
-          v-model:per-page="limit"
-          :server-total="totalRows"
+        <BTable
           :items="filteredData"
           :fields="tableFields"
+          :per-page="limit"
+          :current-page="page"
+          :total-rows="totalRows"
           hover
           responsive
           striped
           small
-          row-selection-mode="multiple"
-          column-selection-mode="multiple"
-          show-pagination
-          show-page-info
-          @row-selection-change="handleRowSelectionChange"
+          selectable
+          select-mode="multi"
+          @row-selected="onRowSelected"
         />
       </div>
     </div>
@@ -441,8 +455,7 @@
 import { getApiUrl } from '@/utils/api'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem } from 'bootstrap-vue-next'
-import SmartTable from '@/components/SmartTable.vue'
+import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem, BTable } from 'bootstrap-vue-next'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
@@ -538,19 +551,9 @@ function toggleColumnSelection(field) {
   }
 }
 
-// Handle SmartTable row selection
-function handleRowSelectionChange({ keys, rows }) {
-  selectedRows.value = rows
-}
-
-// Handle SmartTable row selection
+// Handle BTable row selection
 function onRowSelected(rows) {
   selectedRows.value = rows
-}
-
-// Handle SmartTable column selection
-function handleColumnSelectionChange({ columns }) {
-  selectedColumns.value = columns
 }
 
 // Check if single-column only operation (like rename)
