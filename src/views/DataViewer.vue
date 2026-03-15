@@ -184,7 +184,6 @@
         <BTable
           :items="filteredData"
           :fields="tableFields"
-          :per-page="limit"
           hover
           responsive
           striped
