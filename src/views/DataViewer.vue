@@ -143,7 +143,7 @@
         <i class="bi bi-check2-square me-1"></i>
         {{ selectedColumns.length === 1 ? `1 column: ${selectedColumns[0]}` : `${selectedColumns.length} columns selected` }}
       </BBadge>
-      <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-secondary" @click="selectedColumns = columns.map(c => c.field)">
+      <BButton size="sm" variant="outline-secondary" @click="selectedColumns = columns.map(c => c.field)">
         Select All
       </BButton>
       <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-secondary" @click="selectedColumns = []">
@@ -165,6 +165,7 @@
     <div v-else class="card">
       <div class="table-responsive">
         <SmartTable
+          v-model:selected-columns="selectedColumns"
           :items="filteredData"
           :fields="tableFields"
           hover
@@ -174,7 +175,6 @@
           row-selection-mode="multiple"
           column-selection-mode="multiple"
           @row-selection-change="handleRowSelectionChange"
-          @column-selection-change="handleColumnSelectionChange"
         />
       </div>
     </div>
