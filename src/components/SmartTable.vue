@@ -874,7 +874,7 @@ export default defineComponent({
  const selectedRowKeysState = ref<SmartTableKey[]>(props.selectedRowKeys ? [...props.selectedRowKeys] : [])
  const selectedColumnsState = ref<string[]>(props.selectedColumns ? [...props.selectedColumns] : [])
  const currentPageState = ref<number>(Math.max(1, props.currentPage ?? 1))
- const perPageState = ref<number>(Math.max(0, props.perPage ?? 0))
+ const perPageState = ref<number>(Math.max(1, props.perPage ?? 25))
  const filterState = ref<unknown>(props.filter)
  const sortByState = ref<string | null>(props.sortBy ?? null)
  const sortDescState = ref<boolean>(Boolean(props.sortDesc))
@@ -901,7 +901,7 @@ export default defineComponent({
  })
 
  watch(() => props.perPage, (value) => {
- if (value !== undefined) perPageState.value = Math.max(0, value)
+ if (value !== undefined) perPageState.value = Math.max(1, value)
  })
 
  watch(() => props.filter, (value) => {
