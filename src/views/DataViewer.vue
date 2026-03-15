@@ -184,8 +184,6 @@
         <BTable
           :items="filteredData"
           :fields="tableFields"
-          :per-page="limit"
-          :current-page="page"
           hover
           responsive
           striped
@@ -196,7 +194,7 @@
         />
       </div>
       
-      <!-- Pagination using BTable built-in -->
+      <!-- Pagination -->
       <div class="mt-3 mb-2 d-flex justify-content-between align-items-center">
         <small class="text-muted">Showing {{ (page - 1) * limit + 1 }} - {{ Math.min(page * limit, totalRows) }} of {{ totalRows }}</small>
         <BPagination
@@ -574,14 +572,19 @@ function isSingleColumnOnly(operation) {
 const operationOptions = computed(() => operations.value.map(op => ({ value: op.id, text: `${op.operation_type} - ${formatDate(op.created_at)}` })))
 
 const filteredData = computed(() => {
-  if (!searchQuery.value) return data.value
+  if (!searchQuery.value) return paginatedData.value
   const q = searchQuery.value.toLowerCase()
-  return data.value.filter(row => Object.values(row).some(val => String(val).toLowerCase().includes(q)))
+  return paginatedData.value.filter(row => Object.values(row).some(val => String(val).toLowerCase().includes(q)))
+})
+
+const paginatedData = computed(() => {
+  const start = (page.value - 1) * limit.value
+  return data.value.slice(start, start + limit.value)
 })
 
 onMounted(async () => { await refreshData() })
-watch(limit, () => { page.value = 1 })
-watch(page, () => { })
+watch(limit, () => { page.value = 1; refreshData() })
+watch(page, () => { refreshData() })
 watch(showCompare, (val) => {
   if (!val) {
     comparisonResult.value = null
