@@ -1672,6 +1672,11 @@ export default defineComponent({
  const pageInfoText = computed(() => {
  if (totalRows.value === 0) return '0 rows'
 
+ // When server-side pagination is active, use actual rendered items count
+ if (isServerSide.value) {
+ return `Showing 1-${renderedItems.value.length} of ${totalRows.value}`
+ }
+
  if (!perPageState.value || perPageState.value < 1) {
  return `Showing 1-${renderedItems.value.length} of ${totalRows.value}`
  }
