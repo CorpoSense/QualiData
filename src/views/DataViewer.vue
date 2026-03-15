@@ -160,23 +160,6 @@
 
     <!-- Data Table -->
     <div v-else class="card">
-      <!-- Column Selection Toolbar -->
-      <div class="card-header bg-white py-2">
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-          <span class="text-muted small">Click columns to select:</span>
-          <BBadge 
-            v-for="col in columns" 
-            :key="col.field" 
-            :variant="selectedColumns.includes(col.field) ? 'primary' : 'light'"
-            pill
-            style="cursor: pointer;"
-            @click="toggleColumnSelection(col.field)"
-          >
-            {{ col.label }}
-          </BBadge>
-        </div>
-      </div>
-      
       <div class="table-responsive">
         <SmartTable
           :items="filteredData"
