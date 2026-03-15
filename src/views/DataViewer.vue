@@ -571,15 +571,17 @@ function isSingleColumnOnly(operation) {
 
 const operationOptions = computed(() => operations.value.map(op => ({ value: op.id, text: `${op.operation_type} - ${formatDate(op.created_at)}` })))
 
+// Data from API (already paginated by server)
+const paginatedData = computed(() => {
+  // Data from API is already limited, no need to slice again
+  return data.value
+})
+
+// Filtered data (search) applied on top of paginated data
 const filteredData = computed(() => {
   if (!searchQuery.value) return paginatedData.value
   const q = searchQuery.value.toLowerCase()
   return paginatedData.value.filter(row => Object.values(row).some(val => String(val).toLowerCase().includes(q)))
-})
-
-const paginatedData = computed(() => {
-  const start = (page.value - 1) * limit.value
-  return data.value.slice(start, start + limit.value)
 })
 
 onMounted(async () => { await refreshData() })
