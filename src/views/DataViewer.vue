@@ -184,6 +184,8 @@
         <BTable
           :items="filteredData"
           :fields="tableFields"
+          :per-page="limit"
+          :current-page="page"
           hover
           responsive
           striped
@@ -194,13 +196,14 @@
         />
       </div>
       
-      <!-- Pagination -->
-      <div v-if="totalRows > limit" class="mt-3 mb-2 d-flex justify-content-center">
+      <!-- Pagination using BTable built-in -->
+      <div class="mt-3 mb-2 d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ (page - 1) * limit + 1 }} - {{ Math.min(page * limit, totalRows) }} of {{ totalRows }}</small>
         <BPagination
           :total="totalRows"
           v-model="page"
           :per-page="limit"
-          @update:model-value="refreshData"
+          size="sm"
         />
       </div>
     </div>
@@ -577,8 +580,8 @@ const filteredData = computed(() => {
 })
 
 onMounted(async () => { await refreshData() })
-watch(limit, () => { page.value = 1; refreshData() })
-watch(page, () => { refreshData() })
+watch(limit, () => { page.value = 1 })
+watch(page, () => { })
 watch(showCompare, (val) => {
   if (!val) {
     comparisonResult.value = null
