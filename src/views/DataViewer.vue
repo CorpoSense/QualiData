@@ -197,14 +197,14 @@
         />
       </div>
       
-      <!-- Pagination using BPagination with total rows from API -->
-      <div class="mt-3 mb-2 d-flex justify-content-center">
-        <BPagination
-          :total-rows="totalRows"
-          v-model="page"
-          :per-page="limit"
-          size="sm"
-        />
+      <!-- Simple manual pagination -->
+      <div class="mt-3 mb-2 d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ (page - 1) * limit + 1 }} - {{ Math.min(page * limit, totalRows) }} of {{ totalRows }}</small>
+        <div>
+          <button class="btn btn-sm btn-outline-secondary" :disabled="page <= 1" @click="page--">← Prev</button>
+          <span class="mx-2">Page {{ page }} of {{ Math.ceil(totalRows / limit) }}</span>
+          <button class="btn btn-sm btn-outline-secondary" :disabled="page >= Math.ceil(totalRows / limit)" @click="page++">Next →</button>
+        </div>
       </div>
     </div>
 
@@ -465,7 +465,7 @@
 import { getApiUrl } from '@/utils/api'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem, BTable, BPagination } from 'bootstrap-vue-next'
+import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem, BTable } from 'bootstrap-vue-next'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
@@ -587,10 +587,17 @@ onMounted(async () => { await refreshData() })
 
 const tableKey = ref(0)
 
-// Watch limit - BTable handles pagination locally, no need to refresh
+// Watch limit - BTable handles pagination locally
 watch(limit, async (newVal, oldVal) => {
   if (newVal !== oldVal) {
     page.value = 1  // Reset to first page when limit changes
+  }
+})
+
+// Watch page changes and refresh data from API
+watch(page, async (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    await refreshData()
   }
 })
 
@@ -605,9 +612,9 @@ watch(showCompare, (val) => {
 async function refreshData() {
   loading.value = true
   try {
-    // Fetch all cached preview data (up to 500 rows) for local pagination
+    // Fetch paginated data from API
     const [previewRes, opsRes] = await Promise.all([
-      fetch(`${apiUrl}/api/datasets/${datasetId.value}/preview?limit=500&page=1`, {
+      fetch(`${apiUrl}/api/datasets/${datasetId.value}/preview?limit=${limit.value}&page=${page.value}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       }),
       fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations`, {
