@@ -180,11 +180,13 @@
         </div>
       </div>
       
-      <!-- Table without BTable pagination (we use server-side pagination) -->
+      <!-- Table with BTable provider-based pagination -->
       <div class="table-responsive">
         <BTable
-          :items="data"
+          :provider="fetchData"
           :fields="tableFields"
+          :per-page="limit"
+          :current-page="page"
           hover
           responsive
           striped
@@ -195,7 +197,7 @@
         />
       </div>
       
-      <!-- Simple manual pagination -->
+      <!-- Simple manual pagination - page controls trigger BTable refresh -->
       <div class="mt-3 mb-2 d-flex justify-content-between align-items-center">
         <small class="text-muted">Showing {{ (page - 1) * limit + 1 }} - {{ Math.min(page * limit, totalRows) }} of {{ totalRows }}</small>
         <div>
@@ -585,20 +587,6 @@ onMounted(async () => { await refreshData() })
 
 const tableKey = ref(0)
 
-// Watch limit - BTable handles pagination locally
-watch(limit, async (newVal, oldVal) => {
-  if (newVal !== oldVal) {
-    page.value = 1  // Reset to first page when limit changes
-  }
-})
-
-// Watch page changes and refresh data from API
-watch(page, async (newVal, oldVal) => {
-  if (newVal !== oldVal) {
-    await refreshData()
-  }
-})
-
 // Watch for compare modal
 watch(showCompare, (val) => {
   if (!val) {
@@ -606,6 +594,29 @@ watch(showCompare, (val) => {
     compareOpId.value = null
   }
 })
+
+// BTable provider function - called by BTable for pagination
+async function fetchData({ currentPage, perPage }) {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(
+      `${apiUrl}/api/datasets/${datasetId.value}/preview?limit=${perPage}&page=${currentPage}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    
+    if (response.ok) {
+      const result = await response.json()
+      // Update total rows from API response
+      if (result.row_count !== undefined) {
+        totalRows.value = result.row_count
+      }
+      return result.preview_data || []
+    }
+  } catch (error) {
+    console.error('Error fetching data:', error)
+  }
+  return []
+}
 
 async function refreshData() {
   loading.value = true
