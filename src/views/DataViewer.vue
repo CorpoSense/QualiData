@@ -188,8 +188,9 @@
         </div>
       </div>
       
-      <div class="table-responsive" :key="tableKey">
-        <table class="table table-hover table-striped table-sm">
+      <!-- Table -->
+      <div class="table-responsive">
+        <table class="table table-hover table-striped table-sm" :key="tableKey">
           <thead>
             <tr>
               <th v-for="field in tableFields" :key="field.key">{{ field.label }}</th>
