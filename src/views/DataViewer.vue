@@ -590,7 +590,7 @@ const tableKey = ref(0)
 function goToPrev() {
   if (page.value > 1) {
     page.value--
-    tableKey.value++  // Force BTable re-render
+    // Watcher will trigger refreshData()
   }
 }
 
@@ -598,7 +598,7 @@ function goToNext() {
   const maxPage = Math.ceil(totalRows.value / limit.value)
   if (page.value < maxPage) {
     page.value++
-    tableKey.value++  // Force BTable re-render
+    // Watcher will trigger refreshData()
   }
 }
 
@@ -606,7 +606,13 @@ function goToNext() {
 watch(limit, (newVal, oldVal) => {
   if (newVal !== oldVal) {
     page.value = 1  // Reset to first page when limit changes
-    // BTable will automatically call provider due to per-page prop change
+  }
+})
+
+// Watch page changes - refresh data
+watch(page, async (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    await refreshData()
   }
 })
 
