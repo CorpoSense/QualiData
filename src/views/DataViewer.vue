@@ -599,6 +599,7 @@ function onLimitChange(event) {
   const newLimit = parseInt(target.value)
   limit.value = newLimit
   page.value = 1
+  tableKey.value++
   refreshData()
 }
   
