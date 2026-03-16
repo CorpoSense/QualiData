@@ -205,9 +205,9 @@
       <div class="mt-3 mb-2 d-flex justify-content-between align-items-center">
         <small class="text-muted">Showing {{ (page - 1) * limit + 1 }} - {{ Math.min(page * limit, totalRows) }} of {{ totalRows }}</small>
         <div>
-          <BButton size="sm" variant="outline-secondary" :disabled="page <= 1" @click="page--; refreshData()" class="me-1">← Prev</BButton>
+          <BButton size="sm" variant="outline-secondary" :disabled="page <= 1" @click="page--; applyLimit()" class="me-1">← Prev</BButton>
           <span class="mx-2">Page {{ page }} of {{ Math.ceil(totalRows / limit) }}</span>
-          <BButton size="sm" variant="outline-secondary" :disabled="page >= Math.ceil(totalRows / limit)" @click="page++; refreshData()">Next →</BButton>
+          <BButton size="sm" variant="outline-secondary" :disabled="page >= Math.ceil(totalRows / limit)" @click="page++; applyLimit()">Next →</BButton>
         </div>
       </div>
     </div>
