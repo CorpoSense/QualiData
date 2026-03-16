@@ -188,9 +188,8 @@
         </div>
       </div>
       
-      <div class="table-responsive">
+      <div class="table-responsive" :key="tableKey">
         <BTable
-          :key="tableKey"
           :items="filteredData"
           :fields="tableFields"
           hover
