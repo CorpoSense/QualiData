@@ -6,14 +6,9 @@
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
             <!-- Per-page selector -->
-<select 
-  id="limitSelect" 
-  class="form-select form-select-sm" 
-  style="width: auto;"
->
+<select v-model="limit" class="form-select form-select-sm" style="width: auto;">
   <option v-for="opt in limitOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
 </select>
-<BButton size="sm" variant="primary" @click="applyLimit">Apply</BButton>
             <span class="text-muted ms-3">{{ totalRows }} total rows</span>
             <BButton size="sm" variant="outline-secondary" @click="refreshData">
               <i class="bi bi-arrow-clockwise me-1"></i> Refresh
@@ -185,30 +180,31 @@
         </div>
       </div>
       
-      <!-- Table -->
+      <!-- Table with BTable built-in pagination -->
       <div class="table-responsive">
-        <table class="table table-hover table-striped table-sm">
-          <thead>
-            <tr>
-              <th v-for="field in tableFields" :key="field.key">{{ field.label }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, index) in filteredData" :key="index">
-              <td v-for="field in tableFields" :key="field.key">{{ row[field.key] }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <BTable
+          :items="data"
+          :fields="tableFields"
+          :per-page="limit"
+          :current-page="page"
+          hover
+          responsive
+          striped
+          small
+          selectable
+          select-mode="multi"
+          @row-selected="onRowSelected"
+        />
       </div>
       
-      <!-- Pagination -->
-      <div class="mt-3 mb-2 d-flex justify-content-between align-items-center">
-        <small class="text-muted">Showing {{ (page - 1) * limit + 1 }} - {{ Math.min(page * limit, totalRows) }} of {{ totalRows }}</small>
-        <div>
-          <button class="btn btn-sm btn-outline-secondary me-1" :disabled="page <= 1" @click="page.value--; refreshData()">← Prev</button>
-          <span class="mx-2">Page {{ page }} of {{ Math.ceil(totalRows / limit) }}</span>
-          <button class="btn btn-sm btn-outline-secondary ms-1" :disabled="page >= Math.ceil(totalRows / limit)" @click="page.value++; refreshData()">Next →</button>
-        </div>
+      <!-- Pagination using BPagination -->
+      <div class="mt-3 mb-2 d-flex justify-content-center">
+        <BPagination
+          :total-rows="data.length"
+          v-model="page"
+          :per-page="limit"
+          size="sm"
+        />
       </div>
     </div>
 
@@ -541,13 +537,6 @@ function nextPage() {
   }
 }
 
-function prevPage() {
-  if (page.value > 1) {
-    page.value--
-    refreshData()
-  }
-}
-
 function goToPage(p) {
   if (p < 1) return
   const maxPage = Math.ceil(totalRows / limit.value)
@@ -596,36 +585,9 @@ const filteredData = computed(() => {
 
 onMounted(async () => { await refreshData() })
 
-function applyLimit() {
-  const selectEl = document.getElementById('limitSelect')
-  const newLimit = parseInt(selectEl.value)
-  limit.value = newLimit
-  page.value = 1
-  tableKey.value++
-  refreshData()
-}
-  
-function onLimitChange(event) {
-  const target = event.target
-  const newLimit = parseInt(target.value)
-  limit.value = newLimit
-  page.value = 1
-  tableKey.value++
-  refreshData()
-}
-  
 const tableKey = ref(0)
 
-// Watch limit and trigger refresh (fallback if @input doesn't work)
-watch(limit, (newVal, oldVal) => {
-  if (newVal !== oldVal) {
-    page.value = 1
-    tableKey.value++
-    refreshData()
-  }
-})
-  
-watch(page, () => { refreshData() })
+// Watch for compare modal
 watch(showCompare, (val) => {
   if (!val) {
     comparisonResult.value = null
