@@ -187,6 +187,7 @@
           :fields="tableFields"
           :per-page="limit"
           :current-page="page"
+          :total-rows="totalRows"
           hover
           responsive
           striped
@@ -586,6 +587,14 @@ const filteredData = computed(() => {
 onMounted(async () => { await refreshData() })
 
 const tableKey = ref(0)
+
+// Watch limit and refresh data when it changes
+watch(limit, async (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    page.value = 1  // Reset to first page when limit changes
+    await refreshData()
+  }
+})
 
 // Watch for compare modal
 watch(showCompare, (val) => {
