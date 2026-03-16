@@ -185,6 +185,7 @@
       
       <div class="table-responsive">
         <BTable
+          :key="tableKey"
           :items="filteredData"
           :fields="tableFields"
           hover
@@ -588,8 +589,11 @@ const filteredData = computed(() => {
 
 onMounted(async () => { await refreshData() })
 
+const tableKey = ref(0)
+
 function onLimitChange() {
   page.value = 1
+  tableKey.value++
   refreshData()
 }
   
