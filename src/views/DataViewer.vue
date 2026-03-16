@@ -180,21 +180,18 @@
         </div>
       </div>
       
-      <!-- Table with BTable provider-based pagination -->
+      <!-- Table - using manual data with key-based re-render -->
       <div class="table-responsive">
         <BTable
-          ref="tableRef"
-          :provider="fetchData"
+          :key="tableKey"
+          :items="data"
           :fields="tableFields"
-          :per-page="limit"
-          :current-page="page"
           hover
           responsive
           striped
           small
           selectable
           select-mode="multi"
-          no-provider-paging
           @row-selected="onRowSelected"
         />
       </div>
@@ -588,37 +585,12 @@ const filteredData = computed(() => {
 onMounted(async () => { await refreshData() })
 
 const tableKey = ref(0)
-const tableRef = ref(null)
-
-// BTable provider function - called by BTable for pagination
-async function fetchData({ currentPage, perPage }) {
-  try {
-    const token = localStorage.getItem('token')
-    const response = await fetch(
-      `${apiUrl}/api/datasets/${datasetId.value}/preview?limit=${perPage}&page=${currentPage}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    
-    if (response.ok) {
-      const result = await response.json()
-      // Update total rows from API response
-      if (result.row_count !== undefined) {
-        totalRows.value = result.row_count
-      }
-      return result.preview_data || []
-    }
-  } catch (error) {
-    console.error('Error fetching data:', error)
-  }
-  return []
-}
 
 // Navigation functions for pagination
 function goToPrev() {
   if (page.value > 1) {
     page.value--
-    // Trigger BTable refresh via ref
-    tableRef.value?.refresh()
+    tableKey.value++  // Force BTable re-render
   }
 }
 
@@ -626,8 +598,7 @@ function goToNext() {
   const maxPage = Math.ceil(totalRows.value / limit.value)
   if (page.value < maxPage) {
     page.value++
-    // Trigger BTable refresh via ref
-    tableRef.value?.refresh()
+    tableKey.value++  // Force BTable re-render
   }
 }
 
