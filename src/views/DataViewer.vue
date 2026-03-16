@@ -549,7 +549,11 @@ function prevPage() {
 }
 
 function goToPage(p) {
+  if (p < 1) return
+  const maxPage = Math.ceil(totalRows / limit.value)
+  if (p > maxPage) return
   page.value = p
+  tableKey.value++
   refreshData()
 }
 
@@ -595,7 +599,6 @@ onMounted(async () => { await refreshData() })
 function applyLimit() {
   const selectEl = document.getElementById('limitSelect')
   const newLimit = parseInt(selectEl.value)
-  console.log('Applying limit:', newLimit)
   limit.value = newLimit
   page.value = 1
   tableKey.value++
