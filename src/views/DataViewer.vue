@@ -6,7 +6,7 @@
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
             <!-- Per-page selector -->
-<select v-model="limit" @change="onLimitChange" class="form-select form-select-sm" style="width: auto;">
+<select v-model="limit" @input="onLimitChange" class="form-select form-select-sm" style="width: auto;">
   <option v-for="opt in limitOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
 </select>
             <BButton size="sm" variant="outline-secondary" :disabled="page <= 1" @click="prevPage" class="me-1">← Prev</BButton>
