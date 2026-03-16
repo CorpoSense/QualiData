@@ -180,14 +180,13 @@
         </div>
       </div>
       
-      <!-- Table with BTable built-in pagination -->
+      <!-- Table with BTable local pagination -->
       <div class="table-responsive">
         <BTable
           :items="data"
           :fields="tableFields"
           :per-page="limit"
           :current-page="page"
-          :total-rows="totalRows"
           hover
           responsive
           striped
@@ -198,10 +197,10 @@
         />
       </div>
       
-      <!-- Pagination using BPagination -->
+      <!-- Pagination using BPagination with total rows from API -->
       <div class="mt-3 mb-2 d-flex justify-content-center">
         <BPagination
-          :total-rows="data.length"
+          :total-rows="totalRows"
           v-model="page"
           :per-page="limit"
           size="sm"
@@ -588,11 +587,10 @@ onMounted(async () => { await refreshData() })
 
 const tableKey = ref(0)
 
-// Watch limit and refresh data when it changes
+// Watch limit - BTable handles pagination locally, no need to refresh
 watch(limit, async (newVal, oldVal) => {
   if (newVal !== oldVal) {
     page.value = 1  // Reset to first page when limit changes
-    await refreshData()
   }
 })
 
@@ -607,8 +605,9 @@ watch(showCompare, (val) => {
 async function refreshData() {
   loading.value = true
   try {
+    // Fetch all cached preview data (up to 500 rows) for local pagination
     const [previewRes, opsRes] = await Promise.all([
-      fetch(`${apiUrl}/api/datasets/${datasetId.value}/preview?limit=${limit.value}&page=${page.value}`, {
+      fetch(`${apiUrl}/api/datasets/${datasetId.value}/preview?limit=500&page=1`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       }),
       fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations`, {
