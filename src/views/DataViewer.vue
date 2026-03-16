@@ -6,12 +6,10 @@
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
             <!-- Per-page selector -->
-<div class="input-group input-group-sm" style="width: auto;">
-  <select v-model="limit" class="form-select">
-    <option v-for="opt in limitOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
-  </select>
-  <button class="btn btn-outline-secondary" type="button" @click="onLimitChange">Go</button>
-</div>
+<select id="limitSelect" class="form-select form-select-sm" style="width: auto;">
+  <option v-for="opt in limitOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
+</select>
+<BButton size="sm" variant="outline-secondary" @click="onLimitChange">Go</BButton>
             <BButton size="sm" variant="outline-secondary" :disabled="page <= 1" @click="prevPage" class="me-1">← Prev</BButton>
             <span class="align-middle mx-2">Page {{ page }} of {{ totalPages }}</span>
             <BButton size="sm" variant="outline-secondary" :disabled="page >= totalPages" @click="nextPage" class="ms-1">Next →</BButton>
@@ -593,8 +591,10 @@ const filteredData = computed(() => {
 onMounted(async () => { await refreshData() })
 
 function onLimitChange() {
+  const selectEl = document.getElementById('limitSelect')
+  const newLimit = parseInt(selectEl.value)
+  limit.value = newLimit
   page.value = 1
-  tableKey.value++
   refreshData()
 }
   
