@@ -14,9 +14,6 @@
   <option v-for="opt in limitOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
 </select>
 <BButton size="sm" variant="primary" @click="applyLimit">Apply</BButton>
-            <BButton size="sm" variant="outline-secondary" :disabled="page <= 1" @click="prevPage" class="me-1">← Prev</BButton>
-            <span class="align-middle mx-2">Page {{ page }} of {{ totalPages }}</span>
-            <BButton size="sm" variant="outline-secondary" :disabled="page >= totalPages" @click="nextPage" class="ms-1">Next →</BButton>
             <span class="text-muted ms-3">{{ totalRows }} total rows</span>
             <BButton size="sm" variant="outline-secondary" @click="refreshData">
               <i class="bi bi-arrow-clockwise me-1"></i> Refresh
