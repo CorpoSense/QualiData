@@ -90,7 +90,7 @@ def detect_columns(df: pd.DataFrame) -> list[dict]:
     return columns
 
 
-def get_preview_data(df: pd.DataFrame, max_rows: int = 10, offset: int = 0) -> list[dict]:
+def get_preview_data(df: pd.DataFrame, max_rows: int = 500, offset: int = 0) -> list[dict]:
     """Get preview data from DataFrame."""
     # Replace NaN/inf with None for JSON compatibility
     df = df.replace([np.inf, -np.inf], np.nan).replace({np.nan: None})
@@ -256,12 +256,13 @@ async def preview_dataset(
             status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
         )
 
-    # Apply limit and page to full data_json (not cached preview_data)
-    full_data = dataset.data_json or {}
-    all_rows = full_data.get("data", [])
+    # Apply limit and page to preview_data
+    # Note: preview_data is cached, so we can only return up to the cached amount
+    # For full pagination, the data would need to be stored in data_json
+    preview_list = dataset.preview_data or []
     start_idx = (page - 1) * limit
     end_idx = start_idx + limit
-    preview_data = all_rows[start_idx:end_idx]
+    preview_data = preview_list[start_idx:end_idx]
 
     return {
         "columns": dataset.columns or [],
