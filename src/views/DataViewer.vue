@@ -180,20 +180,17 @@
         </div>
       </div>
       
-      <!-- Table with BTable provider-based pagination -->
+      <!-- Table - using manual data fetch (provider has rendering issues) -->
       <div class="table-responsive">
         <BTable
-          :provider="fetchData"
+          :items="data"
           :fields="tableFields"
-          :per-page="limit"
-          :current-page="page"
           hover
           responsive
           striped
           small
           selectable
           select-mode="multi"
-          no-provider-paging
           @row-selected="onRowSelected"
         />
       </div>
@@ -588,14 +585,6 @@ onMounted(async () => { await refreshData() })
 
 const tableKey = ref(0)
 
-// Watch for compare modal
-watch(showCompare, (val) => {
-  if (!val) {
-    comparisonResult.value = null
-    compareOpId.value = null
-  }
-})
-
 // Navigation functions for pagination
 function goToPrev() {
   if (page.value > 1) {
@@ -610,28 +599,28 @@ function goToNext() {
   }
 }
 
-// BTable provider function - called by BTable for pagination
-async function fetchData({ currentPage, perPage }) {
-  try {
-    const token = localStorage.getItem('token')
-    const response = await fetch(
-      `${apiUrl}/api/datasets/${datasetId.value}/preview?limit=${perPage}&page=${currentPage}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    
-    if (response.ok) {
-      const result = await response.json()
-      // Update total rows from API response
-      if (result.row_count !== undefined) {
-        totalRows.value = result.row_count
-      }
-      return result.preview_data || []
-    }
-  } catch (error) {
-    console.error('Error fetching data:', error)
+// Watch limit and page changes to refresh data from API
+watch(limit, async (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    page.value = 1  // Reset to first page when limit changes
+    await refreshData()
   }
-  return []
-}
+})
+
+watch(page, async (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    await refreshData()
+  }
+})
+
+// Watch for compare modal
+watch(showCompare, (val) => {
+  if (!val) {
+    comparisonResult.value = null
+    compareOpId.value = null
+  }
+})
+
 
 async function refreshData() {
   loading.value = true
