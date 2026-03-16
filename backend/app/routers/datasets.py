@@ -256,10 +256,12 @@ async def preview_dataset(
             status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
         )
 
-    # Apply limit and page to preview data
+    # Apply limit and page to full data_json (not cached preview_data)
+    full_data = dataset.data_json or {}
+    all_rows = full_data.get("data", [])
     start_idx = (page - 1) * limit
     end_idx = start_idx + limit
-    preview_data = (dataset.preview_data or [])[start_idx:end_idx]
+    preview_data = all_rows[start_idx:end_idx]
 
     return {
         "columns": dataset.columns or [],
