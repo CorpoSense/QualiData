@@ -180,17 +180,21 @@
         </div>
       </div>
       
-      <!-- Table - using manual data fetch (provider has rendering issues) -->
+      <!-- Table with BTable provider-based pagination -->
       <div class="table-responsive">
         <BTable
-          :items="data"
+          ref="tableRef"
+          :provider="fetchData"
           :fields="tableFields"
+          :per-page="limit"
+          :current-page="page"
           hover
           responsive
           striped
           small
           selectable
           select-mode="multi"
+          no-provider-paging
           @row-selected="onRowSelected"
         />
       </div>
@@ -584,11 +588,37 @@ const filteredData = computed(() => {
 onMounted(async () => { await refreshData() })
 
 const tableKey = ref(0)
+const tableRef = ref(null)
+
+// BTable provider function - called by BTable for pagination
+async function fetchData({ currentPage, perPage }) {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(
+      `${apiUrl}/api/datasets/${datasetId.value}/preview?limit=${perPage}&page=${currentPage}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    )
+    
+    if (response.ok) {
+      const result = await response.json()
+      // Update total rows from API response
+      if (result.row_count !== undefined) {
+        totalRows.value = result.row_count
+      }
+      return result.preview_data || []
+    }
+  } catch (error) {
+    console.error('Error fetching data:', error)
+  }
+  return []
+}
 
 // Navigation functions for pagination
 function goToPrev() {
   if (page.value > 1) {
     page.value--
+    // Trigger BTable refresh via ref
+    tableRef.value?.refresh()
   }
 }
 
@@ -596,20 +626,16 @@ function goToNext() {
   const maxPage = Math.ceil(totalRows.value / limit.value)
   if (page.value < maxPage) {
     page.value++
+    // Trigger BTable refresh via ref
+    tableRef.value?.refresh()
   }
 }
 
-// Watch limit and page changes to refresh data from API
-watch(limit, async (newVal, oldVal) => {
+// Watch limit changes - reset to first page
+watch(limit, (newVal, oldVal) => {
   if (newVal !== oldVal) {
     page.value = 1  // Reset to first page when limit changes
-    await refreshData()
-  }
-})
-
-watch(page, async (newVal, oldVal) => {
-  if (newVal !== oldVal) {
-    await refreshData()
+    // BTable will automatically call provider due to per-page prop change
   }
 })
 
