@@ -189,17 +189,18 @@
       </div>
       
       <div class="table-responsive" :key="tableKey">
-        <BTable
-          :items="filteredData"
-          :fields="tableFields"
-          hover
-          responsive
-          striped
-          small
-          selectable
-          select-mode="multi"
-          @row-selected="onRowSelected"
-        />
+        <table class="table table-hover table-striped table-sm">
+          <thead>
+            <tr>
+              <th v-for="field in tableFields" :key="field.key">{{ field.label }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, index) in filteredData" :key="index">
+              <td v-for="field in tableFields" :key="field.key">{{ row[field.key] }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
       
       <!-- Pagination -->
