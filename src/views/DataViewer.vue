@@ -180,13 +180,11 @@
         </div>
       </div>
       
-      <!-- Table with BTable local pagination -->
+      <!-- Table without BTable pagination (we use server-side pagination) -->
       <div class="table-responsive">
         <BTable
           :items="data"
           :fields="tableFields"
-          :per-page="limit"
-          :current-page="page"
           hover
           responsive
           striped
