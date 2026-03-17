@@ -163,27 +163,11 @@
 
     <!-- Data Table -->
     <div v-else class="card">
-      <!-- Column Selection Badges -->
-      <div class="card-header bg-white py-2">
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-          <span class="text-muted small">Select columns:</span>
-          <BBadge 
-            v-for="col in columns" 
-            :key="col.field" 
-            :variant="selectedColumns.includes(col.field) ? 'primary' : 'light'"
-            pill
-            style="cursor: pointer;"
-            @click="toggleColumnSelection(col.field)"
-          >
-            {{ col.label }}
-          </BBadge>
-        </div>
-      </div>
-      
       <!-- Custom DataTable (no pagination - handled below) -->
       <DataTable
         :items="data"
         :fields="tableFields"
+        :selected-columns="selectedColumns"
         @row-clicked="onRowClicked"
         @head-clicked="onHeadClicked"
       />
@@ -608,7 +592,8 @@ function onPageChange(newPage) {
 
 // Handle DataTable header click (for future sorting)
 function onHeadClicked(field) {
-  console.log('Header clicked:', field)
+  // Toggle column selection when clicking column header
+  toggleColumnSelection(field.key || field.field)
 }
 
 // Check if single-column only operation (like rename)

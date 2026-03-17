@@ -8,6 +8,7 @@
             <th 
               v-for="field in fields" 
               :key="field.key"
+              :class="{ 'table-primary': isSelected(field) }"
               @click="$emit('head-clicked', field)"
               style="cursor: pointer"
             >
@@ -37,12 +38,18 @@
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   items: { type: Array, default: () => [] },
-  fields: { type: Array, default: () => [] }
+  fields: { type: Array, default: () => [] },
+  selectedColumns: { type: Array, default: () => [] }
 })
 
 defineEmits(['row-clicked', 'head-clicked'])
+
+function isSelected(field) {
+  const fieldKey = field.key || field.field
+  return props.selectedColumns.includes(fieldKey)
+}
 </script>
 
 <style scoped>
