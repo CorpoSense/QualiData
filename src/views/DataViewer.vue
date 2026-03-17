@@ -976,14 +976,14 @@ async function undoOperation(opId) {
 }
 .history-sidebar {
   position: fixed;
-  top: 56px;
+  top: 60px;
   right: 0;
   width: 350px;
-  height: calc(100vh - 56px);
+  height: calc(100vh - 60px);
   background: white;
   box-shadow: -2px 0 10px rgba(0,0,0,0.1);
   padding: 1rem;
-  z-index: 1050;
+  z-index: 2000;
   overflow-y: auto;
 }
 </style>
