@@ -189,7 +189,7 @@
       />
 
       <!-- Pagination Footer -->
-      <div class="d-flex justify-content-between align-items-center mt-3">
+      <div class="d-flex justify-content-between align-items-center mt-3" :key="page">
         <small class="text-muted">
           Showing {{ startRow }} - {{ endRow }} of {{ totalRows }}
         </small>
