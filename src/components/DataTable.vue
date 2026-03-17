@@ -61,7 +61,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, reactive } from 'vue'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -75,15 +75,32 @@ const props = defineProps({
 
 defineEmits(['prev-page', 'next-page', 'row-clicked', 'head-clicked'])
 
-const showingText = computed(() => {
-  if (props.totalRows === 0) return 'No data'
-  return `Showing ${props.startRow} - ${props.endRow} of ${props.totalRows}`
+// Force reactivity by using a reactive object
+const state = reactive({
+  currentPage: props.currentPage,
+  totalPages: props.totalPages,
+  startRow: props.startRow,
+  endRow: props.endRow,
+  totalRows: props.totalRows
 })
 
-const pageText = computed(() => `Page ${props.currentPage} of ${props.totalPages}`)
+// Update state when props change
+import { watch } from 'vue'
+watch(() => props.currentPage, (v) => { state.currentPage = v })
+watch(() => props.totalPages, (v) => { state.totalPages = v })
+watch(() => props.startRow, (v) => { state.startRow = v })
+watch(() => props.endRow, (v) => { state.endRow = v })
+watch(() => props.totalRows, (v) => { state.totalRows = v })
 
-const canGoPrev = computed(() => props.currentPage > 1)
-const canGoNext = computed(() => props.currentPage < props.totalPages)
+const showingText = computed(() => {
+  if (state.totalRows === 0) return 'No data'
+  return `Showing ${state.startRow} - ${state.endRow} of ${state.totalRows}`
+})
+
+const pageText = computed(() => `Page ${state.currentPage} of ${state.totalPages}`)
+
+const canGoPrev = computed(() => state.currentPage > 1)
+const canGoNext = computed(() => state.currentPage < state.totalPages)
 </script>
 
 <style scoped>
