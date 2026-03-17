@@ -43,16 +43,16 @@
       <div class="d-flex align-items-center gap-2">
         <button 
           class="btn btn-sm btn-outline-secondary" 
-          :disabled="page <= 1"
-          @click="goToPage(page - 1)"
+          :disabled="currentPage <= 1"
+          @click="goToPage(currentPage - 1)"
         >
           ← Prev
         </button>
-        <span class="text-muted">Page {{ page }} of {{ totalPages }}</span>
+        <span class="text-muted">Page {{ currentPage }} of {{ totalPages }}</span>
         <button 
           class="btn btn-sm btn-outline-secondary" 
-          :disabled="page >= totalPages"
-          @click="goToPage(page + 1)"
+          :disabled="currentPage >= totalPages"
+          @click="goToPage(currentPage + 1)"
         >
           Next →
         </button>
@@ -62,7 +62,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, toRefs } from 'vue'
 
 const props = defineProps({
   items: {
@@ -93,22 +93,21 @@ const props = defineProps({
 
 const emit = defineEmits(['page-change', 'row-clicked', 'head-clicked'])
 
-const page = computed({
-  get: () => props.currentPage,
-  set: (val) => emit('page-change', val)
-})
+// Use toRefs to maintain reactivity
+const { currentPage, perPage, totalRows, items, fields, selectedItems } = toRefs(props)
 
+// Computed values that depend on props
 const totalPages = computed(() => {
-  return Math.ceil(props.totalRows / props.perPage) || 1
+  return Math.ceil(totalRows.value / perPage.value) || 1
 })
 
 const startRow = computed(() => {
-  if (props.totalRows === 0) return 0
-  return (props.currentPage - 1) * props.perPage + 1
+  if (totalRows.value === 0) return 0
+  return (currentPage.value - 1) * perPage.value + 1
 })
 
 const endRow = computed(() => {
-  return Math.min(props.currentPage * props.perPage, props.totalRows)
+  return Math.min(currentPage.value * perPage.value, totalRows.value)
 })
 
 function goToPage(newPage) {
@@ -118,7 +117,7 @@ function goToPage(newPage) {
 }
 
 function isSelected(row) {
-  return props.selectedItems.some(item => JSON.stringify(item) === JSON.stringify(row))
+  return selectedItems.value.some(item => JSON.stringify(item) === JSON.stringify(row))
 }
 
 function handleRowClick(row, index) {
