@@ -201,7 +201,7 @@
           >
             ← Prev
           </button>
-          <span class="text-muted" id="page-indicator">Page {{ page }} of {{ totalPages }} [DEBUG: {{ pageChangeCounter }}]</span>
+          <span class="text-muted" id="page-indicator">Page <input :value="page" size="2" readonly> of {{ totalPages }} [DEBUG: {{ pageChangeCounter }}]</span>
           <button 
             class="btn btn-sm btn-outline-secondary" 
             :disabled="page >= totalPages"
