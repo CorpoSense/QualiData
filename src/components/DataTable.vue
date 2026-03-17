@@ -43,16 +43,16 @@
       <div class="d-flex align-items-center gap-2">
         <button 
           class="btn btn-sm btn-outline-secondary" 
-          :disabled="currentPage <= 1"
-          @click="goToPage(currentPage - 1)"
+          :disabled="props.currentPage <= 1"
+          @click="goToPage(props.currentPage - 1)"
         >
           ← Prev
         </button>
-        <span class="text-muted">Page {{ currentPage }} of {{ totalPages }}</span>
+        <span class="text-muted">Page {{ props.currentPage }} of {{ totalPages }}</span>
         <button 
           class="btn btn-sm btn-outline-secondary" 
-          :disabled="currentPage >= totalPages"
-          @click="goToPage(currentPage + 1)"
+          :disabled="props.currentPage >= totalPages"
+          @click="goToPage(props.currentPage + 1)"
         >
           Next →
         </button>
@@ -62,7 +62,7 @@
 </template>
 
 <script setup>
-import { computed, toRefs } from 'vue'
+import { computed, watch } from 'vue'
 
 const props = defineProps({
   items: {
@@ -93,21 +93,23 @@ const props = defineProps({
 
 const emit = defineEmits(['page-change', 'row-clicked', 'head-clicked'])
 
-// Use toRefs to maintain reactivity
-const { currentPage, perPage, totalRows, items, fields, selectedItems } = toRefs(props)
+// Watch for prop changes to debug
+watch(() => props.currentPage, (newVal) => {
+  console.log('currentPage changed to:', newVal)
+})
 
-// Computed values that depend on props
+// Computed values
 const totalPages = computed(() => {
-  return Math.ceil(totalRows.value / perPage.value) || 1
+  return Math.ceil(props.totalRows / props.perPage) || 1
 })
 
 const startRow = computed(() => {
-  if (totalRows.value === 0) return 0
-  return (currentPage.value - 1) * perPage.value + 1
+  if (props.totalRows === 0) return 0
+  return (props.currentPage - 1) * props.perPage + 1
 })
 
 const endRow = computed(() => {
-  return Math.min(currentPage.value * perPage.value, totalRows.value)
+  return Math.min(props.currentPage * props.perPage, props.totalRows)
 })
 
 function goToPage(newPage) {
@@ -117,7 +119,7 @@ function goToPage(newPage) {
 }
 
 function isSelected(row) {
-  return selectedItems.value.some(item => JSON.stringify(item) === JSON.stringify(row))
+  return props.selectedItems.some(item => JSON.stringify(item) === JSON.stringify(row))
 }
 
 function handleRowClick(row, index) {

@@ -182,7 +182,6 @@
       
       <!-- Custom DataTable with built-in pagination -->
       <DataTable
-        :key="page"
         :items="data"
         :fields="tableFields"
         :total-rows="totalRows"
