@@ -180,21 +180,37 @@
         </div>
       </div>
       
-      <!-- Custom DataTable with built-in pagination -->
+      <!-- Custom DataTable (no pagination - handled below) -->
       <DataTable
-        :key="page"
         :items="data"
         :fields="tableFields"
-        :current-page="page"
-        :total-pages="Math.ceil(totalRows / limit)"
-        :start-row="(page - 1) * limit + 1"
-        :end-row="Math.min(page * limit, totalRows)"
-        :total-rows="totalRows"
-        @prev-page="goToPrev"
-        @next-page="goToNext"
         @row-clicked="onRowClicked"
         @head-clicked="onHeadClicked"
       />
+
+      <!-- Pagination Footer -->
+      <div class="d-flex justify-content-between align-items-center mt-3">
+        <small class="text-muted">
+          Showing {{ startRow }} - {{ endRow }} of {{ totalRows }}
+        </small>
+        <div class="d-flex align-items-center gap-2">
+          <button 
+            class="btn btn-sm btn-outline-secondary" 
+            :disabled="page <= 1"
+            @click="goToPrev"
+          >
+            ← Prev
+          </button>
+          <span class="text-muted">Page {{ page }} of {{ totalPages }}</span>
+          <button 
+            class="btn btn-sm btn-outline-secondary" 
+            :disabled="page >= totalPages"
+            @click="goToNext"
+          >
+            Next →
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Profile Modal -->
@@ -472,6 +488,11 @@ const operations = ref([])
 const limit = ref(10)
 const page = ref(1)
 const totalRows = ref(0)
+
+// Pagination computed properties
+const startRow = computed(() => Math.min((page.value - 1) * limit.value + 1, totalRows.value))
+const endRow = computed(() => Math.min(page.value * limit.value, totalRows.value))
+
 const searchQuery = ref('')
 const showProfile = ref(false)
 const showCompare = ref(false)

@@ -33,74 +33,16 @@
         </tbody>
       </table>
     </div>
-
-    <!-- Pagination -->
-    <div class="d-flex justify-content-between align-items-center mt-3">
-      <small class="text-muted">
-        {{ showingText }}
-      </small>
-      <div class="d-flex align-items-center gap-2">
-        <button 
-          class="btn btn-sm btn-outline-secondary" 
-          :disabled="!canGoPrev"
-          @click="$emit('prev-page')"
-        >
-          ← Prev
-        </button>
-        <span class="text-muted">{{ pageText }}</span>
-        <button 
-          class="btn btn-sm btn-outline-secondary" 
-          :disabled="!canGoNext"
-          @click="$emit('next-page')"
-        >
-          Next →
-        </button>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, reactive } from 'vue'
-
-const props = defineProps({
+defineProps({
   items: { type: Array, default: () => [] },
-  fields: { type: Array, default: () => [] },
-  currentPage: { type: Number, default: 1 },
-  totalPages: { type: Number, default: 1 },
-  startRow: { type: Number, default: 1 },
-  endRow: { type: Number, default: 0 },
-  totalRows: { type: Number, default: 0 }
+  fields: { type: Array, default: () => [] }
 })
 
-defineEmits(['prev-page', 'next-page', 'row-clicked', 'head-clicked'])
-
-// Force reactivity by using a reactive object
-const state = reactive({
-  currentPage: props.currentPage,
-  totalPages: props.totalPages,
-  startRow: props.startRow,
-  endRow: props.endRow,
-  totalRows: props.totalRows
-})
-
-// Update state when props change
-import { watch } from 'vue'
-watch(() => props.currentPage, (v) => { state.currentPage = v })
-watch(() => props.totalPages, (v) => { state.totalPages = v })
-watch(() => props.startRow, (v) => { state.startRow = v })
-watch(() => props.endRow, (v) => { state.endRow = v })
-watch(() => props.totalRows, (v) => { state.totalRows = v })
-
-const showingText = computed(() => {
-  if (state.totalRows === 0) return 'No data'
-  return `Showing ${state.startRow} - ${state.endRow} of ${state.totalRows}`
-})
-
-const pageText = computed(() => `Page ${state.currentPage} of ${state.totalPages}`)
-
-const canGoPrev = computed(() => state.currentPage > 1)
-const canGoNext = computed(() => state.currentPage < state.totalPages)
+defineEmits(['row-clicked', 'head-clicked'])
 </script>
 
 <style scoped>
