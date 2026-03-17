@@ -180,31 +180,18 @@
         </div>
       </div>
       
-      <!-- Table - using manual data with key-based re-render -->
-      <div class="table-responsive">
-        <BTable
-          :key="tableKey"
-          :items="data"
-          :fields="tableFields"
-          hover
-          responsive
-          striped
-          small
-          selectable
-          select-mode="multi"
-          @row-selected="onRowSelected"
-        />
-      </div>
-      
-      <!-- Simple manual pagination - page controls trigger BTable refresh -->
-      <div class="mt-3 mb-2 d-flex justify-content-between align-items-center">
-        <small class="text-muted">Showing {{ (page - 1) * limit + 1 }} - {{ Math.min(page * limit, totalRows) }} of {{ totalRows }}</small>
-        <div>
-          <button class="btn btn-sm btn-outline-secondary" :disabled="page <= 1" @click="goToPrev">← Prev</button>
-          <span class="mx-2">Page {{ page }} of {{ Math.ceil(totalRows / limit) }}</span>
-          <button class="btn btn-sm btn-outline-secondary" :disabled="page >= Math.ceil(totalRows / limit)" @click="goToNext">Next →</button>
-        </div>
-      </div>
+      <!-- Custom DataTable with built-in pagination -->
+      <DataTable
+        :items="data"
+        :fields="tableFields"
+        :total-rows="totalRows"
+        :per-page="limit"
+        :current-page="page"
+        :selected-items="selectedRows"
+        @page-change="onPageChange"
+        @row-clicked="onRowClicked"
+        @head-clicked="onHeadClicked"
+      />
     </div>
 
     <!-- Profile Modal -->
@@ -464,7 +451,8 @@
 import { getApiUrl } from '@/utils/api'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem, BTable } from 'bootstrap-vue-next'
+import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem } from 'bootstrap-vue-next'
+import DataTable from '../components/DataTable.vue'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
@@ -562,6 +550,28 @@ function onRowSelected(rows) {
   selectedRows.value = rows
 }
 
+// Handle DataTable row click
+function onRowClicked({ item, index }) {
+  // Toggle selection or handle as needed
+  const idx = selectedRows.value.findIndex(r => JSON.stringify(r) === JSON.stringify(item))
+  if (idx >= 0) {
+    selectedRows.value.splice(idx, 1)
+  } else {
+    selectedRows.value.push(item)
+  }
+}
+
+// Handle DataTable page change
+function onPageChange(newPage) {
+  page.value = newPage
+  refreshData()
+}
+
+// Handle DataTable header click (for future sorting)
+function onHeadClicked(field) {
+  console.log('Header clicked:', field)
+}
+
 // Check if single-column only operation (like rename)
 function isSingleColumnOnly(operation) {
   return ['rename'].includes(operation)
@@ -584,35 +594,11 @@ const filteredData = computed(() => {
 
 onMounted(async () => { await refreshData() })
 
-const tableKey = ref(0)
-
-// Navigation functions for pagination
-function goToPrev() {
-  if (page.value > 1) {
-    page.value--
-    // Watcher will trigger refreshData()
-  }
-}
-
-function goToNext() {
-  const maxPage = Math.ceil(totalRows.value / limit.value)
-  if (page.value < maxPage) {
-    page.value++
-    // Watcher will trigger refreshData()
-  }
-}
-
-// Watch limit changes - reset to first page
+// Watch limit changes - reset to first page and refresh
 watch(limit, (newVal, oldVal) => {
   if (newVal !== oldVal) {
-    page.value = 1  // Reset to first page when limit changes
-  }
-})
-
-// Watch page changes - refresh data
-watch(page, async (newVal, oldVal) => {
-  if (newVal !== oldVal) {
-    await refreshData()
+    page.value = 1
+    refreshData()
   }
 })
 

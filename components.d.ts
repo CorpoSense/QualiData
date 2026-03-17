@@ -26,6 +26,7 @@ declare module 'vue' {
     BSpinner: typeof import('bootstrap-vue-next/components/BSpinner')['BSpinner']
     ClipboardImport: typeof import('./src/components/ClipboardImport.vue')['default']
     DatasetCard: typeof import('./src/components/DatasetCard.vue')['default']
+    DataTable: typeof import('./src/components/DataTable.vue')['default']
     PricingSection: typeof import('./src/components/PricingSection.vue')['default']
     ProjectCard: typeof import('./src/components/ProjectCard.vue')['default']
     RateLimitStatus: typeof import('./src/components/RateLimitStatus.vue')['default']
