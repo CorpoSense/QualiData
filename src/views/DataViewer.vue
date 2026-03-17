@@ -201,7 +201,7 @@
           >
             ← Prev
           </button>
-          <span class="text-muted">Page {{ page }} of {{ totalPages }}</span>
+          <span class="text-muted">Page {{ page }} of {{ totalPages }} (test: {{ pageChangeCounter }})</span>
           <button 
             class="btn btn-sm btn-outline-secondary" 
             :disabled="page >= totalPages"
@@ -488,6 +488,7 @@ const operations = ref([])
 const limit = ref(10)
 const page = ref(1)
 const totalRows = ref(0)
+const pageChangeCounter = ref(0) // Test counter to verify reactivity
 
 // Pagination computed properties
 const startRow = computed(() => Math.min((page.value - 1) * limit.value + 1, totalRows.value))
@@ -589,6 +590,7 @@ function onRowClicked({ item, index }) {
 function goToPrev() {
   if (page.value > 1) {
     page.value--
+    pageChangeCounter.value--
     refreshData()
   }
 }
@@ -597,6 +599,7 @@ function goToNext() {
   const maxPage = Math.ceil(totalRows.value / limit.value)
   if (page.value < maxPage) {
     page.value++
+    pageChangeCounter.value++
     refreshData()
   }
 }
