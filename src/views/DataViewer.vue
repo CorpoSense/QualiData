@@ -187,6 +187,7 @@
         v-model:totalRows="totalRows"
         :items="data"
         :fields="tableFields"
+        :current-page="page"
         @page-change="refreshData"
         @row-clicked="onRowClicked"
         @head-clicked="onHeadClicked"
