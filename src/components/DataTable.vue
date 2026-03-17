@@ -37,21 +37,21 @@
     <!-- Pagination -->
     <div class="d-flex justify-content-between align-items-center mt-3">
       <small class="text-muted">
-        Showing {{ startRow }} - {{ endRow }} of {{ totalRows }}
+        {{ showingText }}
       </small>
       <div class="d-flex align-items-center gap-2">
         <button 
           class="btn btn-sm btn-outline-secondary" 
-          :disabled="currentPage <= 1"
-          @click="prevPage"
+          :disabled="!canGoPrev"
+          @click="$emit('prev-page')"
         >
           ← Prev
         </button>
-        <span class="text-muted">Page {{ currentPage }} of {{ totalPages }}</span>
+        <span class="text-muted">{{ pageText }}</span>
         <button 
           class="btn btn-sm btn-outline-secondary" 
-          :disabled="currentPage >= totalPages"
-          @click="nextPage"
+          :disabled="!canGoNext"
+          @click="$emit('next-page')"
         >
           Next →
         </button>
@@ -66,30 +66,24 @@ import { computed } from 'vue'
 const props = defineProps({
   items: { type: Array, default: () => [] },
   fields: { type: Array, default: () => [] },
-  totalRows: { type: Number, default: 0 },
-  perPage: { type: Number, default: 10 },
-  currentPage: { type: Number, default: 1 }
+  currentPage: { type: Number, default: 1 },
+  totalPages: { type: Number, default: 1 },
+  startRow: { type: Number, default: 1 },
+  endRow: { type: Number, default: 0 },
+  totalRows: { type: Number, default: 0 }
 })
 
-const emit = defineEmits(['update:currentPage', 'update:perPage', 'update:totalRows', 'page-change', 'row-clicked', 'head-clicked'])
+defineEmits(['prev-page', 'next-page', 'row-clicked', 'head-clicked'])
 
-const totalPages = computed(() => Math.ceil(props.totalRows / props.perPage) || 1)
-const startRow = computed(() => props.totalRows === 0 ? 0 : (props.currentPage - 1) * props.perPage + 1)
-const endRow = computed(() => Math.min(props.currentPage * props.perPage, props.totalRows))
+const showingText = computed(() => {
+  if (props.totalRows === 0) return 'No data'
+  return `Showing ${props.startRow} - ${props.endRow} of ${props.totalRows}`
+})
 
-function prevPage() {
-  if (props.currentPage > 1) {
-    emit('update:currentPage', props.currentPage - 1)
-    emit('page-change', props.currentPage - 1)
-  }
-}
+const pageText = computed(() => `Page ${props.currentPage} of ${props.totalPages}`)
 
-function nextPage() {
-  if (props.currentPage < totalPages.value) {
-    emit('update:currentPage', props.currentPage + 1)
-    emit('page-change', props.currentPage + 1)
-  }
-}
+const canGoPrev = computed(() => props.currentPage > 1)
+const canGoNext = computed(() => props.currentPage < props.totalPages)
 </script>
 
 <style scoped>

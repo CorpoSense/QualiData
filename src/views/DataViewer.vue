@@ -182,13 +182,15 @@
       
       <!-- Custom DataTable with built-in pagination -->
       <DataTable
-        v-model:currentPage="page"
-        v-model:perPage="limit"
-        v-model:totalRows="totalRows"
         :items="data"
         :fields="tableFields"
         :current-page="page"
-        @page-change="refreshData"
+        :total-pages="Math.ceil(totalRows / limit)"
+        :start-row="(page - 1) * limit + 1"
+        :end-row="Math.min(page * limit, totalRows)"
+        :total-rows="totalRows"
+        @prev-page="goToPrev"
+        @next-page="goToNext"
         @row-clicked="onRowClicked"
         @head-clicked="onHeadClicked"
       />
@@ -558,6 +560,22 @@ function onRowClicked({ item, index }) {
     selectedRows.value.splice(idx, 1)
   } else {
     selectedRows.value.push(item)
+  }
+}
+
+// Handle DataTable pagination
+function goToPrev() {
+  if (page.value > 1) {
+    page.value--
+    refreshData()
+  }
+}
+
+function goToNext() {
+  const maxPage = Math.ceil(totalRows.value / limit.value)
+  if (page.value < maxPage) {
+    page.value++
+    refreshData()
   }
 }
 
