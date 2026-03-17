@@ -116,9 +116,14 @@
             </BDropdownItem>
           </BDropdown>
 
-          <BButton size="sm" variant="primary" :disabled="selectedColumns.length === 0" @click="showAiModal = true">
-            <i class="bi bi-stars me-1"></i> AI Clean
-          </BButton>
+          <BDropdown text="AI Clean" size="sm">
+            <BDropdownItem @click="showStructuralAiModal = true">
+              <i class="bi bi-list-task me-2"></i> Structural (Columns)
+            </BDropdownItem>
+            <BDropdownItem @click="showDataAiModal = true">
+              <i class="bi bi-table me-2"></i> Data (Columns + Rows)
+            </BDropdownItem>
+          </BDropdown>
 
           <div class="ms-auto d-flex gap-1">
             <BButton size="sm" variant="outline-secondary" :disabled="!canUndo" @click="undo">
@@ -244,21 +249,7 @@
       </template>
     </BModal>
 
-    <!-- AI Clean Modal -->
-    <BModal v-model="showAiModal" title="AI Clean" @ok="applyAiClean">
-      <div class="alert alert-info">
-        <i class="bi bi-info-circle me-2"></i>
-        <strong>Selected {{ selectedColumns.length === 1 ? 'column' : 'columns' }}:</strong> 
-        {{ selectedColumns.length === 1 ? selectedColumns[0] : selectedColumns.join(', ') }}
-      </div>
-      <BFormGroup label="Instruction">
-        <BFormTextarea v-model="aiInstruction" placeholder="e.g., Extract the email domain, Convert to title case"></BFormTextarea>
-      </BFormGroup>
-      <template #footer>
-        <BButton @click="showAiModal = false">Cancel</BButton>
-        <BButton variant="primary" :loading="operating" @click="applyAiClean">Apply</BButton>
-      </template>
-    </BModal>
+
 
     <!-- Clipboard Import Modal -->
     <BModal v-model="showClipboardImport" title="Import from Clipboard">
@@ -290,6 +281,38 @@
       <template #footer>
         <BButton @click="showFillnaModal = false">Cancel</BButton>
         <BButton variant="primary" :loading="operating" @click="applyOperation('fillna', { method: 'constant', fill_value: fillValue })">Apply</BButton>
+      </template>
+    </BModal>
+
+    <!-- Structural AI Clean Modal -->
+    <BModal v-model="showStructuralAiModal" title="AI Structural Clean">
+      <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        <strong>Selected {{ selectedColumns.length === 1 ? 'column' : 'columns' }}:</strong> 
+        {{ selectedColumns.length === 1 ? selectedColumns[0] : selectedColumns.join(', ') }}
+      </div>
+      <BFormGroup label="Instruction">
+        <BFormTextarea v-model="structuralAiInstruction" placeholder="e.g., Rename columns to snake_case, Convert column types appropriately"></BFormTextarea>
+      </BFormGroup>
+      <template #footer>
+        <BButton @click="showStructuralAiModal = false">Cancel</BButton>
+        <BButton variant="primary" :loading="operating" @click="applyStructuralAiClean">Apply</BButton>
+      </template>
+    </BModal>
+
+    <!-- Data AI Clean Modal -->
+    <BModal v-model="showDataAiModal" title="AI Data Clean">
+      <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        <strong>Selected {{ selectedColumns.length === 1 ? 'column' : 'columns' }}:</strong> 
+        {{ selectedColumns.length === 1 ? selectedColumns[0] : selectedColumns.join(', ') }}
+      </div>
+      <BFormGroup label="Instruction">
+        <BFormTextarea v-model="dataAiInstruction" placeholder="e.g., Extract email domains, Standardize phone numbers, Categorize product types"></BFormTextarea>
+      </BFormGroup>
+      <template #footer>
+        <BButton @click="showDataAiModal = false">Cancel</BButton>
+        <BButton variant="primary" :loading="operating" @click="applyDataAiClean">Apply</BButton>
       </template>
     </BModal>
 
@@ -483,7 +506,8 @@ const showCompare = ref(false)
 const showHistory = ref(false)
 const showClipboardImport = ref(false)
 const showFillnaModal = ref(false)
-const showAiModal = ref(false)
+const showStructuralAiModal = ref(false)
+const showDataAiModal = ref(false)
 const profileData = ref(null)
 const comparing = ref(false)
 const compareOpId = ref(null)
@@ -491,6 +515,8 @@ const comparisonResult = ref(null)
 const nullCount = ref(0)
 const selectedColumns = ref([])  // Selected columns (click on table headers)
 const selectedRows = ref([])  // Selected rows
+const structuralAiInstruction = ref('')
+const dataAiInstruction = ref('')
 
 // Computed fields for BTable - disable sorting to allow column selection
 const tableFields = computed(() => {
@@ -856,6 +882,79 @@ async function redo() {
   finally { operating.value = false }
 }
 
+async function applyStructuralAiClean() {
+  if (!selectedColumns.value || selectedColumns.value.length === 0) {
+    toast.warning('No column selected'); return
+  }
+  if (!structuralAiInstruction.value) return
+  // For structural AI clean, we might want to operate on columns only (no rows)
+  // We'll send the selected columns and instruction
+  const payload = { 
+    columns: selectedColumns.value, 
+    instruction: structuralAiInstruction.value,
+    type: 'structural'  // Indicate this is a structural operation
+  };
+  operating.value = true;
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/ai-clean`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) { 
+      toast.success('AI structural cleaning applied'); 
+      showStructuralAiModal.value = false; 
+      await refreshData() 
+    }
+    else { 
+      const err = await res.json(); 
+      toast.error(err.detail || 'AI structural cleaning failed') 
+    }
+  } catch (e) { 
+    toast.error(e.message) 
+  }
+  finally { 
+    operating.value = false; 
+  }
+}
+
+async function applyDataAiClean() {
+  if (!selectedColumns.value || selectedColumns.value.length === 0) {
+    toast.warning('No column selected'); return
+  }
+  if (!dataAiInstruction.value) return
+  // For data AI clean, we operate on selected columns and their rows
+  const payload = { 
+    columns: selectedColumns.value, 
+    instruction: dataAiInstruction.value,
+    type: 'data'  // Indicate this is a data operation
+  };
+  operating.value = true;
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/ai-clean`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) { 
+      toast.success('AI data cleaning applied'); 
+      showDataAiModal.value = false; 
+      await refreshData() 
+    }
+    else { 
+      const err = await res.json(); 
+      toast.error(err.detail || 'AI data cleaning failed') 
+    }
+  } catch (e) { 
+    toast.error(e.message) 
+  }
+  finally { 
+    operating.value = false; 
+  }
+}
+
+// Keep the old applyAiClean for backward compatibility or remove if not needed
+// We'll comment it out and replace with the new dropdown, but let's keep it for now.
 async function applyAiClean() {
   if (!selectedColumns.value || selectedColumns.value.length === 0) {
     toast.warning('No column selected'); return
