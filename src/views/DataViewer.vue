@@ -189,7 +189,7 @@
       />
 
       <!-- Pagination Footer -->
-      <div class="d-flex justify-content-between align-items-center mt-3" :key="page">
+      <div class="d-flex justify-content-between align-items-center mt-3">
         <small class="text-muted">
           Showing {{ startRow }} - {{ endRow }} of {{ totalRows }}
         </small>
@@ -201,7 +201,7 @@
           >
             ← Prev
           </button>
-          <span class="text-muted" id="page-indicator">Page <input :value="page" size="2" readonly> of {{ totalPages }} [DEBUG: {{ pageChangeCounter }}]</span>
+                    <span class="text-muted">Page {{ page }} of {{ totalPages }}</span>
           <button 
             class="btn btn-sm btn-outline-secondary" 
             :disabled="page >= totalPages"
@@ -488,7 +488,6 @@ const operations = ref([])
 const limit = ref(10)
 const page = ref(1)
 const totalRows = ref(0)
-const pageChangeCounter = ref(0) // Test counter to verify reactivity
 
 // Pagination computed properties
 const startRow = computed(() => Math.min((page.value - 1) * limit.value + 1, totalRows.value))
@@ -590,7 +589,6 @@ function onRowClicked({ item, index }) {
 function goToPrev() {
   if (page.value > 1) {
     page.value--
-    pageChangeCounter.value--
     refreshData()
   }
 }
@@ -599,7 +597,6 @@ function goToNext() {
   const maxPage = Math.ceil(totalRows.value / limit.value)
   if (page.value < maxPage) {
     page.value++
-    pageChangeCounter.value++
     refreshData()
   }
 }
@@ -672,7 +669,7 @@ async function refreshData() {
       columns.value = (preview.columns || []).map(col => ({ field: col.name, label: col.name }))
       dataset.value = preview
       totalRows.value = preview.row_count || 0
-      page.value = preview.page || 1
+      // Don't overwrite page value - it's managed by goToNext/goToPrev
     }
     
     if (opsRes.ok) operations.value = await opsRes.json()
