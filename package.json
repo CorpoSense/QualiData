@@ -11,6 +11,7 @@
     "test:backend": "cd backend && . .venv/bin/activate && pytest -v",
     "test:backend:coverage": "cd backend && . .venv/bin/activate && pytest --cov=app --cov-report=term-missing --cov-report=html",
     "test:e2e": "cypress run",
+    "test:frontend": "vitest run",
     "test": "pnpm test:backend",
     "clean": "rm -rf ./dist",
     "clean:all": "rm -rf ./dist && rm -rf ./node_modules && rm -rf ./backend/.venv"
@@ -28,11 +29,15 @@
     "@types/node": "^25.1.0",
     "@vitejs/plugin-vue": "^5.2.4",
     "@vue/compiler-sfc": "^3.5.29",
+    "@vue/test-utils": "^2.4.6",
     "cypress": "^13.0.0",
+    "happy-dom": "^20.8.4",
+    "jsdom": "^29.0.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "unplugin-vue-components": "^31.0.0",
     "vite": "^5.4.21",
+    "vitest": "^0.34.6",
     "vue-tsc": "^3.2.5"
   },
   "packageManager": "pnpm@9"
