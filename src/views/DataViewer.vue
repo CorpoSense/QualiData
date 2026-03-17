@@ -182,13 +182,12 @@
       
       <!-- Custom DataTable with built-in pagination -->
       <DataTable
-        v-model:current-page="page"
-        v-model:per-page="limit"
-        v-model:total-rows="totalRows"
+        v-model:currentPage="page"
+        v-model:perPage="limit"
+        v-model:totalRows="totalRows"
         :items="data"
         :fields="tableFields"
-        :selected-items="selectedRows"
-        @page-change="onPageChange"
+        @page-change="refreshData"
         @row-clicked="onRowClicked"
         @head-clicked="onHeadClicked"
       />
@@ -561,9 +560,8 @@ function onRowClicked({ item, index }) {
   }
 }
 
-// Handle DataTable page change
+// Handle DataTable page change - just refresh data (v-model updates page)
 function onPageChange(newPage) {
-  page.value = newPage
   refreshData()
 }
 

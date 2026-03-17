@@ -19,8 +19,7 @@
           <tr 
             v-for="(row, index) in items" 
             :key="index"
-            :class="{ 'table-active': isSelected(row) }"
-            @click="handleRowClick(row, index)"
+            @click="$emit('row-clicked', { item: row, index })"
           >
             <td v-for="field in fields" :key="field.key">
               {{ row[field.key] }}
@@ -44,7 +43,7 @@
         <button 
           class="btn btn-sm btn-outline-secondary" 
           :disabled="currentPage <= 1"
-          @click="goToPage(currentPage - 1)"
+          @click="prevPage"
         >
           ← Prev
         </button>
@@ -52,7 +51,7 @@
         <button 
           class="btn btn-sm btn-outline-secondary" 
           :disabled="currentPage >= totalPages"
-          @click="goToPage(currentPage + 1)"
+          @click="nextPage"
         >
           Next →
         </button>
@@ -64,81 +63,40 @@
 <script setup>
 import { computed } from 'vue'
 
-// Use defineModel for two-way binding
-const currentPage = defineModel('currentPage', { default: 1 })
-const perPage = defineModel('perPage', { default: 10 })
-const totalRows = defineModel('totalRows', { default: 0 })
-
 const props = defineProps({
-  items: {
-    type: Array,
-    default: () => []
-  },
-  fields: {
-    type: Array,
-    default: () => []
-  },
-  selectedItems: {
-    type: Array,
-    default: () => []
-  }
+  items: { type: Array, default: () => [] },
+  fields: { type: Array, default: () => [] },
+  totalRows: { type: Number, default: 0 },
+  perPage: { type: Number, default: 10 },
+  currentPage: { type: Number, default: 1 }
 })
 
-const emit = defineEmits(['page-change', 'row-clicked', 'head-clicked'])
+const emit = defineEmits(['update:currentPage', 'update:perPage', 'update:totalRows', 'page-change', 'row-clicked', 'head-clicked'])
 
-// Computed values using the model
-const totalPages = computed(() => {
-  return Math.ceil(totalRows.value / perPage.value) || 1
-})
+const totalPages = computed(() => Math.ceil(props.totalRows / props.perPage) || 1)
+const startRow = computed(() => props.totalRows === 0 ? 0 : (props.currentPage - 1) * props.perPage + 1)
+const endRow = computed(() => Math.min(props.currentPage * props.perPage, props.totalRows))
 
-const startRow = computed(() => {
-  if (totalRows.value === 0) return 0
-  return (currentPage.value - 1) * perPage.value + 1
-})
-
-const endRow = computed(() => {
-  return Math.min(currentPage.value * perPage.value, totalRows.value)
-})
-
-function goToPage(newPage) {
-  if (newPage >= 1 && newPage <= totalPages.value) {
-    currentPage.value = newPage
-    emit('page-change', newPage)
+function prevPage() {
+  if (props.currentPage > 1) {
+    emit('update:currentPage', props.currentPage - 1)
+    emit('page-change', props.currentPage - 1)
   }
 }
 
-function isSelected(row) {
-  return props.selectedItems.some(item => JSON.stringify(item) === JSON.stringify(row))
-}
-
-function handleRowClick(row, index) {
-  emit('row-clicked', { item: row, index })
+function nextPage() {
+  if (props.currentPage < totalPages.value) {
+    emit('update:currentPage', props.currentPage + 1)
+    emit('page-change', props.currentPage + 1)
+  }
 }
 </script>
 
 <style scoped>
-.data-table-wrapper {
-  width: 100%;
-}
-
-.table-responsive {
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-table {
-  margin-bottom: 0;
-}
-
-th {
-  user-select: none;
-}
-
-th:hover {
-  background-color: var(--bs-table-hover-bg);
-}
-
-td {
-  vertical-align: middle;
-}
+.data-table-wrapper { width: 100%; }
+.table-responsive { max-height: 70vh; overflow-y: auto; }
+table { margin-bottom: 0; }
+th { user-select: none; }
+th:hover { background-color: var(--bs-table-hover-bg); }
+td { vertical-align: middle; }
 </style>
