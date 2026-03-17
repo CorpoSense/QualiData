@@ -43,16 +43,16 @@
       <div class="d-flex align-items-center gap-2">
         <button 
           class="btn btn-sm btn-outline-secondary" 
-          :disabled="props.currentPage <= 1"
-          @click="goToPage(props.currentPage - 1)"
+          :disabled="currentPage <= 1"
+          @click="goToPage(currentPage - 1)"
         >
           ← Prev
         </button>
-        <span class="text-muted">Page {{ props.currentPage }} of {{ totalPages }}</span>
+        <span class="text-muted">Page {{ currentPage }} of {{ totalPages }}</span>
         <button 
           class="btn btn-sm btn-outline-secondary" 
-          :disabled="props.currentPage >= totalPages"
-          @click="goToPage(props.currentPage + 1)"
+          :disabled="currentPage >= totalPages"
+          @click="goToPage(currentPage + 1)"
         >
           Next →
         </button>
@@ -62,7 +62,12 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
+
+// Use defineModel for two-way binding
+const currentPage = defineModel('currentPage', { default: 1 })
+const perPage = defineModel('perPage', { default: 10 })
+const totalRows = defineModel('totalRows', { default: 0 })
 
 const props = defineProps({
   items: {
@@ -73,18 +78,6 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
-  totalRows: {
-    type: Number,
-    default: 0
-  },
-  perPage: {
-    type: Number,
-    default: 10
-  },
-  currentPage: {
-    type: Number,
-    default: 1
-  },
   selectedItems: {
     type: Array,
     default: () => []
@@ -93,27 +86,23 @@ const props = defineProps({
 
 const emit = defineEmits(['page-change', 'row-clicked', 'head-clicked'])
 
-// Watch for prop changes to debug
-watch(() => props.currentPage, (newVal) => {
-  console.log('currentPage changed to:', newVal)
-})
-
-// Computed values
+// Computed values using the model
 const totalPages = computed(() => {
-  return Math.ceil(props.totalRows / props.perPage) || 1
+  return Math.ceil(totalRows.value / perPage.value) || 1
 })
 
 const startRow = computed(() => {
-  if (props.totalRows === 0) return 0
-  return (props.currentPage - 1) * props.perPage + 1
+  if (totalRows.value === 0) return 0
+  return (currentPage.value - 1) * perPage.value + 1
 })
 
 const endRow = computed(() => {
-  return Math.min(props.currentPage * props.perPage, props.totalRows)
+  return Math.min(currentPage.value * perPage.value, totalRows.value)
 })
 
 function goToPage(newPage) {
   if (newPage >= 1 && newPage <= totalPages.value) {
+    currentPage.value = newPage
     emit('page-change', newPage)
   }
 }

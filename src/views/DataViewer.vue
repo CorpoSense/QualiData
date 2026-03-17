@@ -182,12 +182,11 @@
       
       <!-- Custom DataTable with built-in pagination -->
       <DataTable
-        :key="`table-${page}-${limit}`"
+        v-model:current-page="page"
+        v-model:per-page="limit"
+        v-model:total-rows="totalRows"
         :items="data"
         :fields="tableFields"
-        :total-rows="totalRows"
-        :per-page="limit"
-        :current-page="page"
         :selected-items="selectedRows"
         @page-change="onPageChange"
         @row-clicked="onRowClicked"
