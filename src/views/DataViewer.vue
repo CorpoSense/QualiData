@@ -982,8 +982,7 @@ async function undoOperation(opId) {
   height: calc(100vh - 60px);
   background: white;
   box-shadow: -2px 0 10px rgba(0,0,0,0.1);
-  padding: 1rem;
-  z-index: 2000;
+  z-index: 9999 !important;
   overflow-y: auto;
 }
 </style>
