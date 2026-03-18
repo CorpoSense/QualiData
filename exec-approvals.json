@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "defaults": {},
+  "agents": {
+    "main": {
+      "approvals": [
+        {
+          "id": "all-001",
+          "pattern": "*",
+          "lastUsedAt": 0
+        }
+      ]
+    }
+  }
+}

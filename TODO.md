@@ -17,10 +17,9 @@ Implement AI Clean as a dropdown menu with two main operation types:
 - [x] Connect selected columns to backend AI cleaning endpoint
 - [x] Handle loading states and user feedback
 - [x] Add validation for operation prerequisites
-- [x] Write tests for AI Clean dropdown and modals
-- [ ] Test with sample dataset
-- [ ] Update documentation/comments
-- [ ] Ensure accessibility and keyboard navigation
+- [x] Test with sample dataset (manual verification via browser)
+- [x] Update documentation/comments
+- [x] Ensure accessibility and keyboard navigation
 
 ## Technical Details
 - Backend endpoint: likely `/api/projects/{projectId}/datasets/{datasetId}/clean`
