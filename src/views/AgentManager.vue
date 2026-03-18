@@ -150,7 +150,7 @@
             id="create-template"
             v-model="createAgent.prompt_template"
             rows="2"
-            placeholder="E.g., \"Extract {field} from the following text:\""
+            placeholder='E.g., "Extract {field} from the following text:"'
           ></BFormTextarea>
         </BFormGroup>
 
