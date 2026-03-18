@@ -20,14 +20,18 @@ Implement AI Clean as a dropdown menu with two main operation types:
 - [x] Test with sample dataset (manual verification via browser)
 - [x] Update documentation/comments
 - [x] Ensure accessibility and keyboard navigation
+- [x] Implement backend AI agent using OpenAI-compatible API for structural cleaning
+- [x] Implement Agent CRUD endpoints for managing reusable AI configurations
+- [x] Test AI Structural Clean with real LLM (via manual verification)
 
 ## Technical Details
-- Backend endpoint: likely `/api/projects/{projectId}/datasets/{datasetId}/clean`
+- Backend endpoint: `/api/projects/{projectId}/datasets/{datasetId}/clean` (handled by `/datasets/{dataset_id}/ai-clean`)
 - Frontend state: selected columns, operation type, parameters
-- Use existing AI service integration patterns
+- Use existing AI service integration patterns (see app/services/ai_provider.py)
 - Follow existing code style in Vue 3 + TypeScript
 
 ## Dependencies
 - BootstrapVueNext components (Dropdown, Button, Modal)
 - Existing API service functions
 - Type definitions for cleaning operations
+- LangChain OpenAI integration (langchain-openai)
