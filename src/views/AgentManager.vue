@@ -29,7 +29,6 @@
       :fields="agentFields"
       :current-page="currentPage"
       :per-page="perPage"
-      :filter-included-fields="['name', 'provider', 'model', 'description']"
       :sort-by="sortBy"
       :sort-desc="sortDesc"
       @update:sort="onSortChange"
@@ -92,7 +91,7 @@
       @ok="createAgentFn"
       :ok-disabled="creating || !createFormValid"
     >
-      <BForm>
+      <BForm ref="createForm">
         <BFormGroup label="Agent Name *:" label-for="create-name">
           <BFormInput
             id="create-name"
@@ -102,7 +101,7 @@
             placeholder="e.g., My OpenAI Agent"
           ></BFormInput>
           <BFormInvalidFeedback
-            v-if="!createAgent.name"
+            v-if="!$refs.createForm.checkValidity() && !createAgent.name"
           >
             Name is required.
           </BFormInvalidFeedback>
@@ -192,7 +191,7 @@
       @ok="updateAgentFn"
       :ok-disabled="updating || !editFormValid"
     >
-      <BForm>
+      <BForm ref="editForm">
         <BFormGroup label="Agent Name *:" label-for="edit-name">
           <BFormInput
             id="edit-name"
@@ -201,7 +200,7 @@
             required
           ></BFormInput>
           <BFormInvalidFeedback
-            v-if="!editAgent.name"
+            v-if="!$refs.editForm.checkValidity() && !editAgent.name"
           >
             Name is required.
           </BFormInvalidFeedback>
@@ -375,11 +374,15 @@ const providerOptions = [
 ];
 
 const createFormValid = computed(() => {
-  return !!createAgent.value.name && createAgent.value.temperature >= 0 && createAgent.value.temperature <= 2;
+  const form = $refs.createForm
+  if (!form) return false
+  return !!createAgent.value.name && createAgent.value.temperature >= 0 && createAgent.value.temperature <= 2
 });
 
 const editFormValid = computed(() => {
-  return !!editAgent.value.name && editAgent.value.temperature >= 0 && editAgent.value.temperature <= 2;
+  const form = $refs.editForm
+  if (!form) return false
+  return !!editAgent.value.name && editAgent.value.temperature >= 0 && editAgent.value.temperature <= 2
 });
 
 const fetchAgents = async () => {
