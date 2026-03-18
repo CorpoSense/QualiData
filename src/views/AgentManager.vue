@@ -92,7 +92,7 @@
       @ok="createAgentFn"
       :ok-disabled="creating || !createFormValid"
     >
-      <BForm ref="createForm">
+      <BForm>
         <BFormGroup label="Agent Name *:" label-for="create-name">
           <BFormInput
             id="create-name"
@@ -102,7 +102,7 @@
             placeholder="e.g., My OpenAI Agent"
           ></BFormInput>
           <BFormInvalidFeedback
-            v-if="!$refs.createForm.checkValidity() && !createAgent.name"
+            v-if="!createAgent.name"
           >
             Name is required.
           </BFormInvalidFeedback>
@@ -192,7 +192,7 @@
       @ok="updateAgentFn"
       :ok-disabled="updating || !editFormValid"
     >
-      <BForm ref="editForm">
+      <BForm>
         <BFormGroup label="Agent Name *:" label-for="edit-name">
           <BFormInput
             id="edit-name"
@@ -201,7 +201,7 @@
             required
           ></BFormInput>
           <BFormInvalidFeedback
-            v-if="!$refs.editForm.checkValidity() && !editAgent.name"
+            v-if="!editAgent.name"
           >
             Name is required.
           </BFormInvalidFeedback>
@@ -375,15 +375,11 @@ const providerOptions = [
 ];
 
 const createFormValid = computed(() => {
-  const form = $refs.createForm
-  if (!form) return false
-  return !!createAgent.value.name && createAgent.value.temperature >= 0 && createAgent.value.temperature <= 2
+  return !!createAgent.value.name && createAgent.value.temperature >= 0 && createAgent.value.temperature <= 2;
 });
 
 const editFormValid = computed(() => {
-  const form = $refs.editForm
-  if (!form) return false
-  return !!editAgent.value.name && editAgent.value.temperature >= 0 && editAgent.value.temperature <= 2
+  return !!editAgent.value.name && editAgent.value.temperature >= 0 && editAgent.value.temperature <= 2;
 });
 
 const fetchAgents = async () => {
@@ -394,18 +390,18 @@ const fetchAgents = async () => {
     });
     if (!res.ok) {
       // If the endpoint is not found or any other error, treat as empty list
-      console.warn(`Failed to fetch agents: ${res.status}`)
-      agents.value = []
+      console.warn(`Failed to fetch agents: ${res.status}`);
+      agents.value = [];
     } else {
-      const data = await res.json()
-      agents.value = data
+      const data = await res.json();
+      agents.value = data;
     }
   } catch (e) {
-    console.error(e)
-    toast.error('Failed to load agents')
-    agents.value = []
+    console.error(e);
+    toast.error('Failed to load agents');
+    agents.value = [];
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 };
 
@@ -421,11 +417,11 @@ const createAgentFn = async () => {
       body: JSON.stringify(createAgent.value),
     });
     if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.detail || 'Creation failed')
+      const err = await res.json();
+      throw new Error(err.detail || 'Creation failed');
     }
-    toast.success('Agent created')
-    showCreateModal.value = false
+    toast.success('Agent created');
+    showCreateModal.value = false;
     // reset form
     Object.assign(createAgent.value, {
       name: '',
@@ -435,21 +431,21 @@ const createAgentFn = async () => {
       system_prompt: '',
       prompt_template: '',
       temperature: 0.3,
-    })
-    await fetchAgents()
+    });
+    await fetchAgents();
   } catch (e) {
-    console.error(e)
-    toast.error(e.message || 'Could not create agent')
+    console.error(e);
+    toast.error(e.message || 'Could not create agent');
   } finally {
-    creating.value = false
+    creating.value = false;
   }
 };
 
 const editAgentFn = (agent) => {
   // clone to avoid mutating the source until save
-  editAgent.value = { ...agent }
-  selectedAgentId = agent.id
-  showEditModal.value = true
+  editAgent.value = { ...agent };
+  selectedAgentId = agent.id;
+  showEditModal.value = true;
 };
 
 const updateAgentFn = async () => {
@@ -464,23 +460,23 @@ const updateAgentFn = async () => {
       body: JSON.stringify(editAgent.value),
     });
     if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.detail || 'Update failed')
+      const err = await res.json();
+      throw new Error(err.detail || 'Update failed');
     }
-    toast.success('Agent updated')
-    showEditModal.value = false
-    await fetchAgents()
+    toast.success('Agent updated');
+    showEditModal.value = false;
+    await fetchAgents();
   } catch (e) {
-    console.error(e)
-    toast.error(e.message || 'Could not update agent')
+    console.error(e);
+    toast.error(e.message || 'Could not update agent');
   } finally {
-    updating.value = false
+    updating.value = false;
   }
 };
 
 const confirmDelete = (agent) => {
-  selectedAgentId = agent.id
-  showDeleteConfirm.value = true
+  selectedAgentId = agent.id;
+  showDeleteConfirm.value = true;
 };
 
 const deleteAgentFn = async () => {
@@ -491,17 +487,17 @@ const deleteAgentFn = async () => {
       headers: getAuthHeader(),
     });
     if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.detail || 'Delete failed')
+      const err = await res.json();
+      throw new Error(err.detail || 'Delete failed');
     }
-    toast.success('Agent deleted')
-    showDeleteConfirm.value = false
-    await fetchAgents()
+    toast.success('Agent deleted');
+    showDeleteConfirm.value = false;
+    await fetchAgents();
   } catch (e) {
-    console.error(e)
-    toast.error(e.message || 'Could not delete agent')
+    console.error(e);
+    toast.error(e.message || 'Could not delete agent');
   } finally {
-    deleting.value = false
+    deleting.value = false;
   }
 };
 
@@ -512,17 +508,17 @@ onMounted(() => {
 watch(
   () => agents.value,
   () => {
-    const totalPages = Math.max(1, Math.ceil(agents.value.length / perPage.value))
+    const totalPages = Math.max(1, Math.ceil(agents.value.length / perPage.value));
     if (currentPage.value > totalPages) {
-      currentPage.value = totalPages
+      currentPage.value = totalPages;
     }
   }
 );
 
 const onSortChange = (context) => {
   if (context.sortBy) {
-    sortBy.value = context.sortBy
-    sortDesc.value = context.sortDesc === true
+    sortBy.value = context.sortBy;
+    sortDesc.value = context.sortDesc === true;
   }
 };
 </script>
