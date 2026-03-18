@@ -30,6 +30,8 @@
           <ul v-else class="navbar-nav ms-auto align-items-lg-center gap-2 gap-lg-3">
             <li class="nav-item"><router-link class="nav-link" to="/dashboard">Dashboard</router-link></li>
             <li class="nav-item"><router-link class="nav-link" to="/projects">Projects</router-link></li>
+            <li class="nav-item"><router-link class="nav-link" to="/agents">AI Agents</router-link></li>
+            <li class="nav-item"><router-link class="nav-link" to="/agents">AI Agents</router-link></li>
             <li class="nav-item" v-if="canManageUsers(user)"><router-link class="nav-link" to="/admin/users">Users</router-link></li>
             
             <!-- Notifications -->
