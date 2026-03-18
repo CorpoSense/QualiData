@@ -42,8 +42,6 @@ class AICleaningResponse(BaseModel):
 
 
 @router.post("/datasets/{dataset_id}/ai-clean", response_model=AICleaningResponse)
-    type: str = Field(default='structural')
-    type: str = Field(default="structural")
 async def ai_clean_column(
     dataset_id: str,
     request: AICleaningRequest,
