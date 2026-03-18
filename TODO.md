@@ -23,6 +23,8 @@ Implement AI Clean as a dropdown menu with two main operation types:
 - [x] Implement backend AI agent using OpenAI-compatible API for structural cleaning
 - [x] Implement Agent CRUD endpoints for managing reusable AI configurations
 - [x] Test AI Structural Clean with real LLM (via manual verification)
+- [x] Implement AI Agent CRUD UI
+- [x] Fix all build and runtime errors
 
 ## Technical Details
 - Backend endpoint: `/api/projects/{projectId}/datasets/{datasetId}/clean` (handled by `/datasets/{dataset_id}/ai-clean`)
@@ -35,3 +37,4 @@ Implement AI Clean as a dropdown menu with two main operation types:
 - Existing API service functions
 - Type definitions for cleaning operations
 - LangChain OpenAI integration (langchain-openai)
+
