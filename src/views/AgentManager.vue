@@ -372,7 +372,8 @@ const providerOptions = [
   { value: 'groq', text: 'Groq' },
   { value: 'deepseek', text: 'DeepSeek' },
   { value: 'openrouter', text: 'OpenRouter' },
-]);
+];
+];
 
 const createFormValid = computed(() => {
   const form = $refs.createForm
