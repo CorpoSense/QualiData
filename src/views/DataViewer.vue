@@ -289,6 +289,11 @@
 
     <!-- Structural AI Clean Modal -->
     <BModal v-model="showStructuralAiModal" title="AI Structural Clean">
+      <div class="alert alert-secondary mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        <strong>For column-level changes:</strong> rename columns, drop columns, add new columns, or change column types.
+        For filling/deriving values, use <em>AI Data Clean</em> instead.
+      </div>
       <div class="alert alert-info">
         <i class="bi bi-info-circle me-2"></i>
         <strong>Selected {{ selectedColumns.length === 1 ? 'column' : 'columns' }}:</strong> 
@@ -308,6 +313,11 @@
 
     <!-- Data AI Clean Modal -->
     <BModal v-model="showDataAiModal" title="AI Data Clean">
+      <div class="alert alert-secondary mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        <strong>For row-level changes:</strong> fill/derive values, fix typos, standardize formats, categorize data.
+        For renaming/dropping columns, use <em>AI Structural Clean</em> instead.
+      </div>
       <div class="alert alert-info">
         <i class="bi bi-info-circle me-2"></i>
         <strong>Selected {{ selectedColumns.length === 1 ? 'column' : 'columns' }}:</strong>
