@@ -45,26 +45,35 @@ class AICleaningResponse(BaseModel):
     json_output: dict | None = None
 
 
-STRUCTURAL_SYSTEM_PROMPT = """You are a data cleaning assistant. The user will provide column names from a dataset and an instruction for structural changes (rename columns, change types, etc.).
+STRUCTURAL_SYSTEM_PROMPT = """You are a data cleaning assistant. The user will provide column names from a dataset and an instruction for structural changes.
 
 Respond ONLY with a valid JSON object. No markdown, no explanation outside the JSON.
 
-For column renaming:
-{"operation": "rename", "renames": {"old_name": "new_name", "old_name2": "new_name2"}}
+Supported operations (use "operation" as the key):
 
-For dropping columns:
+Rename columns:
+{"operation": "rename", "renames": {"old_name": "new_name"}}
+
+Drop columns:
 {"operation": "drop", "columns": ["col1", "col2"]}
 
-For changing column types:
+Change column types:
 {"operation": "astype", "columns": ["col1"], "dtype": "int"}
 
-For multiple operations:
-{"operations": [{"operation": "rename", "renames": {"old": "new"}}, {"operation": "astype", "columns": ["col"], "dtype": "float"}]}
+Add a new column copied from an existing one:
+{"operation": "add_column", "column": "new_name", "source": "existing_col"}
+
+Add a new column with a default value:
+{"operation": "add_column", "column": "new_name", "default": "value"}
+
+Multiple operations:
+{"operations": [{"operation": "add_column", "column": "country", "source": "city"}, {"operation": "rename", "renames": {"old": "new"}}]}
 
 Rules:
-- Use snake_case for column names unless the instruction says otherwise
-- Only reference columns that exist in the provided list
-- Be precise and conservative with changes"""
+- "add_column" creates a NEW column — do NOT use "rename" when the user says "add"
+- "rename" changes an existing column's name — do NOT use it to create new columns
+- Only reference existing columns in "source" or "drop"
+- Use snake_case for column names unless instructed otherwise"""
 
 DATA_SYSTEM_PROMPT = """You are a data cleaning assistant. The user will provide sample data from columns and an instruction for data transformation.
 
@@ -297,6 +306,24 @@ Respond with JSON only. Use one of these formats:
                     applied_any = True
                 except Exception as e:
                     results.append({"operation": "astype", "column": col, "status": "error", "reason": str(e)})
+
+        elif op_type in ("add_column", "add", "new_column", "copy_column", "duplicate_column", "create_column"):
+            new_col = op.get("column") or op.get("name") or op.get("target")
+            source_col = op.get("source") or op.get("from")
+            default_val = op.get("default") or op.get("value")
+            if not new_col:
+                results.append({"operation": "add_column", "status": "skipped", "reason": "No column name provided"})
+            elif source_col and source_col in df.columns:
+                df[new_col] = df[source_col].copy()
+                results.append({"operation": "add_column", "column": new_col, "source": source_col, "status": "success"})
+                applied_any = True
+            elif default_val is not None:
+                df[new_col] = default_val
+                results.append({"operation": "add_column", "column": new_col, "default": default_val, "status": "success"})
+                applied_any = True
+            else:
+                results.append({"operation": "add_column", "column": new_col, "status": "skipped", "reason": f"Source column '{source_col}' not found"})
+
         else:
             logger.warning(f"AI returned unknown operation type: {op_type!r}, full op: {op}")
             results.append({"operation": op_type or "unknown", "status": "skipped", "reason": f"Unknown operation: {op_type!r}"})

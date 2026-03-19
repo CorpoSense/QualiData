@@ -148,6 +148,50 @@ class TestAiStructuralClean:
         assert result.status == "success"
         assert len(result.results) == 2
 
+    @pytest.mark.asyncio
+    async def test_add_column_from_source(self, mock_dataset, mock_session, mock_agent_config):
+        """Add a new column copied from an existing one."""
+        import pandas as pd
+
+        df = pd.DataFrame(mock_dataset.preview_data)
+        original_cols = list(df.columns)
+
+        content = '{"operation": "add_column", "column": "full_name", "source": "first_name"}'
+        with _LLM_PATCH(content), _SAVE_PATCH:
+            result = await _ai_structural_clean(
+                df=df, dataset=mock_dataset, columns=["first_name"],
+                instruction="Add a full_name column from first_name",
+                provider=AIProvider.OPENAI, agent_config=mock_agent_config,
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert "full_name" in df.columns
+        assert df["full_name"].iloc[0] == "John"
+        # Original columns unchanged
+        for c in original_cols:
+            assert c in df.columns
+
+    @pytest.mark.asyncio
+    async def test_add_column_with_default(self, mock_dataset, mock_session, mock_agent_config):
+        """Add a new column with a default value."""
+        import pandas as pd
+
+        df = pd.DataFrame(mock_dataset.preview_data)
+
+        content = '{"operation": "add_column", "column": "country", "default": "Unknown"}'
+        with _LLM_PATCH(content), _SAVE_PATCH:
+            result = await _ai_structural_clean(
+                df=df, dataset=mock_dataset, columns=["first_name"],
+                instruction="Add country column",
+                provider=AIProvider.OPENAI, agent_config=mock_agent_config,
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert "country" in df.columns
+        assert all(df["country"] == "Unknown")
+
 
 class TestAiDataClean:
     """Test _ai_data_clean for NameError and other bugs."""
