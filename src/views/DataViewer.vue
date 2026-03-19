@@ -291,12 +291,15 @@
         <strong>Selected {{ selectedColumns.length === 1 ? 'column' : 'columns' }}:</strong> 
         {{ selectedColumns.length === 1 ? selectedColumns[0] : selectedColumns.join(', ') }}
       </div>
+      <BFormGroup label="AI Agent *">
+        <BFormSelect v-model="selectedAgentId" :options="agentOptions" required></BFormSelect>
+      </BFormGroup>
       <BFormGroup label="Instruction">
         <BFormTextarea v-model="structuralAiInstruction" placeholder="e.g., Rename columns to snake_case, Convert column types appropriately"></BFormTextarea>
       </BFormGroup>
       <template #footer>
         <BButton @click="showStructuralAiModal = false">Cancel</BButton>
-        <BButton variant="primary" :loading="operating" @click="applyStructuralAiClean">Apply</BButton>
+        <BButton variant="primary" :loading="operating" :disabled="!selectedAgentId" @click="applyStructuralAiClean">Apply</BButton>
       </template>
     </BModal>
 
@@ -307,12 +310,15 @@
         <strong>Selected {{ selectedColumns.length === 1 ? 'column' : 'columns' }}:</strong> 
         {{ selectedColumns.length === 1 ? selectedColumns[0] : selectedColumns.join(', ') }}
       </div>
+      <BFormGroup label="AI Agent *">
+        <BFormSelect v-model="selectedAgentId" :options="agentOptions" required></BFormSelect>
+      </BFormGroup>
       <BFormGroup label="Instruction">
         <BFormTextarea v-model="dataAiInstruction" placeholder="e.g., Extract email domains, Standardize phone numbers, Categorize product types"></BFormTextarea>
       </BFormGroup>
       <template #footer>
         <BButton @click="showDataAiModal = false">Cancel</BButton>
-        <BButton variant="primary" :loading="operating" @click="applyDataAiClean">Apply</BButton>
+        <BButton variant="primary" :loading="operating" :disabled="!selectedAgentId" @click="applyDataAiClean">Apply</BButton>
       </template>
     </BModal>
 
@@ -508,6 +514,12 @@ const showClipboardImport = ref(false)
 const showFillnaModal = ref(false)
 const showStructuralAiModal = ref(false)
 const showDataAiModal = ref(false)
+const agents = ref([])
+const selectedAgentId = ref(null)
+const agentOptions = computed(() => [
+  { value: null, text: 'Select an AI Agent…' },
+  ...agents.value.map(a => ({ value: a.id, text: `${a.name} (${a.provider}/${a.model})` }))
+])
 const profileData = ref(null)
 const comparing = ref(false)
 const compareOpId = ref(null)
@@ -642,7 +654,19 @@ const filteredData = computed(() => {
   return paginatedData.value.filter(row => Object.values(row).some(val => String(val).toLowerCase().includes(q)))
 })
 
-onMounted(async () => { await refreshData() })
+async function fetchAgents() {
+  try {
+    const res = await fetch(`${apiUrl}/api/agents/`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      agents.value = Array.isArray(data) ? data : []
+    }
+  } catch (e) { /* silent */ }
+}
+
+onMounted(async () => { await refreshData(); await fetchAgents() })
 
 // Watch limit changes - reset to first page and refresh
 watch(limit, (newVal, oldVal) => {
@@ -889,10 +913,14 @@ async function applyStructuralAiClean() {
   if (!structuralAiInstruction.value) return
   // For structural AI clean, we might want to operate on columns only (no rows)
   // We'll send the selected columns and instruction
+  if (!selectedAgentId.value) {
+    toast.warning('Please select an AI Agent'); return
+  }
   const payload = { 
     columns: selectedColumns.value, 
     instruction: structuralAiInstruction.value,
-    type: 'structural'  // Indicate this is a structural operation
+    type: 'structural',
+    agent_id: selectedAgentId.value
   };
   operating.value = true;
   try {
@@ -924,10 +952,14 @@ async function applyDataAiClean() {
   }
   if (!dataAiInstruction.value) return
   // For data AI clean, we operate on selected columns and their rows
+  if (!selectedAgentId.value) {
+    toast.warning('Please select an AI Agent'); return
+  }
   const payload = { 
     columns: selectedColumns.value, 
     instruction: dataAiInstruction.value,
-    type: 'data'  // Indicate this is a data operation
+    type: 'data',
+    agent_id: selectedAgentId.value
   };
   operating.value = true;
   try {

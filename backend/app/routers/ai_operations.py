@@ -80,19 +80,25 @@ Rules:
 - Be conservative - don't change values unless clearly needed"""
 
 
-async def _get_agent_config(agent_id: str | None, session: AsyncSession) -> dict:
-    """Load agent configuration or use defaults."""
+async def _get_agent_config(agent_id: str | None, user_id: str, session: AsyncSession) -> dict:
+    """Load agent configuration. Validates ownership when agent_id is provided."""
     if agent_id:
-        result = await session.execute(select(Agent).where(Agent.id == agent_id))
+        result = await session.execute(
+            select(Agent).where(Agent.id == agent_id, Agent.user_id == user_id)
+        )
         agent = result.scalar_one_or_none()
-        if agent:
-            return {
-                "provider": agent.provider,
-                "model": agent.model,
-                "temperature": agent.temperature,
-                "system_prompt": agent.system_prompt,
-            }
-    # Defaults
+        if not agent:
+            raise HTTPException(
+                status_code=404,
+                detail="Agent not found or does not belong to you",
+            )
+        return {
+            "provider": agent.provider,
+            "model": agent.model,
+            "temperature": agent.temperature,
+            "system_prompt": agent.system_prompt,
+        }
+    # No agent selected — use defaults
     return {
         "provider": "openai",
         "model": None,
@@ -150,7 +156,7 @@ async def ai_clean_column(
             )
 
     # Load agent config
-    agent_config = await _get_agent_config(request.agent_id, session)
+    agent_config = await _get_agent_config(request.agent_id, current_user.id, session)
     provider = AIProvider(agent_config["provider"])
 
     if request.type == "structural":
