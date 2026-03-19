@@ -38,6 +38,9 @@ class Agent(Base):
     system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     prompt_template: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # API credentials (stored encrypted at rest via DB encryption)
+    api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Generation settings
     temperature: Mapped[float] = mapped_column(Float, default=0.3)
 

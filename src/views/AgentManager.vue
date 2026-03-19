@@ -134,6 +134,15 @@
           ></BFormInput>
         </BFormGroup>
 
+        <BFormGroup label="API Key:" label-for="create-api-key">
+          <BFormInput
+            id="create-api-key"
+            v-model="createAgent.api_key"
+            type="password"
+            placeholder="Your provider API key"
+          ></BFormInput>
+        </BFormGroup>
+
         <BFormGroup label="System Prompt (optional):" label-for="create-system">
           <BFormTextarea
             id="create-system"
@@ -229,6 +238,18 @@
             type="text"
             required
           ></BFormInput>
+        </BFormGroup>
+
+        <BFormGroup label="API Key:" label-for="edit-api-key">
+          <BFormInput
+            id="edit-api-key"
+            v-model="editAgent.api_key"
+            type="password"
+            :placeholder="editAgent.has_api_key ? '•••••••• (leave blank to keep current)' : 'Your provider API key'"
+          ></BFormInput>
+          <small v-if="editAgent.has_api_key && !editAgent.api_key" class="text-muted">
+            API key is set. Enter a new value to replace it.
+          </small>
         </BFormGroup>
 
         <BFormGroup label="System Prompt (optional):" label-for="edit-system">
@@ -350,6 +371,7 @@ const createAgent = ref({
   description: '',
   provider: 'openai',
   model: '',
+  api_key: '',
   system_prompt: '',
   prompt_template: '',
   temperature: 0.3,
@@ -458,6 +480,7 @@ const createAgentFn = async () => {
       description: '',
       provider: 'openai',
       model: '',
+      api_key: '',
       system_prompt: '',
       prompt_template: '',
       temperature: 0.3,

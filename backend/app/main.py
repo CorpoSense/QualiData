@@ -78,6 +78,14 @@ async def run_migrations():
                 except Exception as e:
                     # Column might already exist, continue
                     logger.debug(f"Migration: {col_name} - {e}")
+
+            # Add api_key to agents table
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS api_key TEXT"
+                ))
+            except Exception as e:
+                logger.debug(f"Migration: agents.api_key - {e}")
                     
         logger.info("Database migrations completed")
     except Exception as e:

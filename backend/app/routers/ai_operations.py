@@ -97,6 +97,7 @@ async def _get_agent_config(agent_id: str | None, user_id: str, session: AsyncSe
             "model": agent.model,
             "temperature": agent.temperature,
             "system_prompt": agent.system_prompt,
+            "api_key": agent.api_key,
         }
     # No agent selected — use defaults
     return {
@@ -104,6 +105,7 @@ async def _get_agent_config(agent_id: str | None, user_id: str, session: AsyncSe
         "model": None,
         "temperature": 0.3,
         "system_prompt": None,
+        "api_key": None,
     }
 
 
@@ -202,10 +204,14 @@ async def _ai_structural_clean(
 
     # Call AI
     try:
+        llm_kwargs = {}
+        if agent_config.get("api_key"):
+            llm_kwargs["api_key"] = agent_config["api_key"]
         llm = get_chat_model(
             provider,
             model=agent_config.get("model"),
             temperature=agent_config.get("temperature", 0.3),
+            **llm_kwargs,
         )
         response = await llm.ainvoke([
             SystemMessage(content=system_prompt),
@@ -335,10 +341,14 @@ async def _ai_data_clean(
     system_prompt = agent_config.get("system_prompt") or DATA_SYSTEM_PROMPT
 
     try:
+        llm_kwargs = {}
+        if agent_config.get("api_key"):
+            llm_kwargs["api_key"] = agent_config["api_key"]
         llm = get_chat_model(
             provider,
             model=agent_config.get("model"),
             temperature=agent_config.get("temperature", 0.3),
+            **llm_kwargs,
         )
         response = await llm.ainvoke([
             SystemMessage(content=system_prompt),
