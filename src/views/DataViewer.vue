@@ -930,8 +930,9 @@ async function applyStructuralAiClean() {
       body: JSON.stringify(payload)
     });
     if (res.ok) { 
-      toast.success('AI structural cleaning applied'); 
-      showStructuralAiModal.value = false; 
+      toast.success('AI structural cleaning applied');
+      showStructuralAiModal.value = false;
+      selectedColumns.value = [];
       await refreshData() 
     }
     else { 
@@ -969,8 +970,9 @@ async function applyDataAiClean() {
       body: JSON.stringify(payload)
     });
     if (res.ok) { 
-      toast.success('AI data cleaning applied'); 
-      showDataAiModal.value = false; 
+      toast.success('AI data cleaning applied');
+      showDataAiModal.value = false;
+      selectedColumns.value = [];
       await refreshData() 
     }
     else { 
