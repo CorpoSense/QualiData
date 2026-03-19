@@ -5,7 +5,7 @@
       <BButton
         variant="primary"
         size="sm"
-        @click="showCreateModal = true"
+        @click="openCreateModal"
         :disabled="creating"
       >
         <template #left>
@@ -333,6 +333,13 @@ const loading = ref(false);
 const creating = ref(false);
 const updating = ref(false);
 const deleting = ref(false);
+const showCreateModal = ref(false);
+const showEditModal = ref(false);
+const showDeleteConfirm = ref(false);
+
+const openCreateModal = () => {
+  showCreateModal.value = true;
+};
 
 const currentPage = ref(1);
 const perPage = ref(10);
