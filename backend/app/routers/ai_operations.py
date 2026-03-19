@@ -75,18 +75,25 @@ Rules:
 - Only reference existing columns in "source" or "drop"
 - Use snake_case for column names unless instructed otherwise"""
 
-DATA_SYSTEM_PROMPT = """You are a data cleaning assistant. The user will provide sample data from columns and an instruction for data transformation.
+DATA_SYSTEM_PROMPT = """You are a data cleaning assistant. The user will provide rows of data and an instruction for data transformation.
 
 Respond ONLY with a valid JSON object. No markdown, no explanation outside the JSON.
 
 Format:
-{"operations": [{"column": "col_name", "transformations": [{"original": "old_value", "cleaned": "new_value"}, ...]}]}
+{"rows": [{"col1": "value", "col2": "value"}, ...]}
+
+Return the SAME rows in the SAME order with corrected values. You may change any column's value based on the instruction and context from other columns.
+
+Examples:
+- Fix dates: {"rows": [{"date": "2024-01-15"}, {"date": "1970-01-01"}]}
+- Derive country from city: {"rows": [{"city": "London", "country": "UK"}, {"city": "Paris", "country": "France"}]}
+- Categorize: {"rows": [{"amount": 500, "category": "medium"}, {"amount": 50, "category": "low"}]}
 
 Rules:
-- Provide cleaned values for every original value shown
-- Keep values that don't need cleaning as-is
-- Use null for missing/empty values
-- Be conservative - don't change values unless clearly needed"""
+- Return ALL rows, even unchanged ones
+- You may change any column, not just the "selected" ones
+- Use null for values that should remain empty
+- Be precise — only change what the instruction asks for"""
 
 
 async def _get_agent_config(agent_id: str | None, user_id: str, session: AsyncSession) -> dict:
@@ -375,35 +382,24 @@ async def _ai_data_clean(
     provider: AIProvider, agent_config: dict, batch_size: int,
     session: AsyncSession,
 ) -> AICleaningResponse:
-    """Use AI to clean data values in columns."""
+    """Use AI to clean data values. Shows full rows for context-aware derivation."""
     from app.routers.datasets import detect_columns, get_preview_data
     from app.routers.operations import save_operation
 
-    # Build prompt: target columns to transform, all columns as context
+    # Build prompt: show full rows so AI can derive values from context
     sample_rows = df.head(batch_size)
-    target_samples = {col: sample_rows[col].tolist() for col in columns if col in df.columns}
-    context_samples = {col: sample_rows[col].tolist() for col in df.columns if col not in columns}
-
-    samples_text = json.dumps(target_samples, indent=2, default=str)
-    context_text = (
-        f"\nOther columns (for context only, do NOT transform these):\n"
-        f"{json.dumps(context_samples, indent=2, default=str)}"
-        if context_samples else ""
-    )
+    rows_data = sample_rows.to_dict("records")
 
     FORMAT_INSTRUCTIONS = """
 Respond with JSON only. Use this format:
-{"operations": [{"column": "col_name", "transformations": [{"original": "old_value", "cleaned": "new_value"}, ...]}]}
+{"rows": [{"col1": "value", "col2": "value"}, ...]}
 
-Rules:
-- Only transform the columns listed below
-- Provide cleaned values for every original value shown
-- Keep values that don't need cleaning as-is
-- Use null for missing/empty values"""
+Return the SAME number of rows in the SAME order with corrected values.
+You may change any column based on the instruction and other columns' context."""
 
     user_prompt = (
-        f"Columns to transform (first {batch_size} rows):\n{samples_text}"
-        f"{context_text}\n\n"
+        f"Data (first {batch_size} rows):\n"
+        f"{json.dumps(rows_data, indent=2, default=str)}\n\n"
         f"Instruction: {instruction}\n"
         f"{FORMAT_INSTRUCTIONS}"
     )
@@ -443,45 +439,48 @@ Rules:
         logger.error(f"AI call failed: {e}")
         raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
 
-    # Apply transformations
-    operations = ai_response.get("operations", [])
-    results = []
-    applied_any = False
+    # Parse response — expect {"rows": [...]} format
+    ai_rows = ai_response.get("rows", [])
 
-    for op in operations:
-        col = op.get("column")
-        if not col or col not in df.columns:
-            continue
-
-        transformations = {t["original"]: t["cleaned"] for t in op.get("transformations", [])}
-        if transformations:
-            # Normalize: None/nan/NaN/"None"/"nan"/"" all map to the same key
-            def _norm(val):
-                if val is None:
-                    return "__null__"
-                s = str(val)
-                if s.lower() in ("nan", "none", "nat", ""):
-                    return "__null__"
-                return s
-
-            norm_transformations = {_norm(k): v for k, v in transformations.items()}
-
-            def _apply(val):
-                return norm_transformations.get(_norm(val), val)
-
-            df[col] = df[col].apply(_apply)
-            applied_any = True
-            results.append({
-                "column": col,
-                "changes": len(transformations),
-                "status": "success",
-            })
-
-    if not applied_any:
+    if not ai_rows:
+        # Fallback: maybe AI used old {"operations": [...]} format
         return AICleaningResponse(
             status="no_changes",
-            message="AI did not produce any applicable changes.",
-            results=results,
+            message="AI returned no rows. Try rephrasing your instruction.",
+            results=[],
+        )
+
+    # Apply changes: compare each AI row with original, update changed cells
+    results = []
+    changed_cells = 0
+
+    # Normalize null-like values for comparison
+    def _is_null(val):
+        if val is None:
+            return True
+        s = str(val).lower()
+        return s in ("nan", "none", "nat", "")
+
+    for i, ai_row in enumerate(ai_rows):
+        if i >= len(df):
+            break
+        for col, new_val in ai_row.items():
+            if col not in df.columns:
+                continue
+            old_val = df.at[df.index[i], col]
+            # Compare: both null = same, otherwise compare strings
+            if _is_null(old_val) and _is_null(new_val):
+                continue
+            if str(old_val) == str(new_val):
+                continue
+            df.at[df.index[i], col] = new_val
+            changed_cells += 1
+
+    if changed_cells == 0:
+        return AICleaningResponse(
+            status="no_changes",
+            message="AI returned rows but no values were different from the original data.",
+            results=[{"rows_processed": len(ai_rows), "cells_changed": 0}],
         )
 
     before_snapshot = {
@@ -502,7 +501,7 @@ Rules:
     await save_operation(
         dataset.id,
         "ai_data_clean",
-        {"instruction": instruction, "columns": columns, "operations": operations},
+        {"instruction": instruction, "columns": columns},
         before_snapshot,
         after_snapshot,
         session,
@@ -511,8 +510,8 @@ Rules:
 
     return AICleaningResponse(
         status="success",
-        message=f"AI cleaned data in {len(results)} column(s)",
-        results=results,
+        message=f"AI updated {changed_cells} cell(s) across {len(ai_rows)} row(s)",
+        results=[{"rows_processed": len(ai_rows), "cells_changed": changed_cells}],
         columns=dataset.columns,
     )
 

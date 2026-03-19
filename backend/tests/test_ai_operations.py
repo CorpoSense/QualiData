@@ -4,6 +4,7 @@ Catches runtime errors like undefined variables (NameError) that
 would only surface when the endpoint is actually called.
 """
 
+import json
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from app.routers.ai_operations import _ai_structural_clean, _ai_data_clean
@@ -194,7 +195,7 @@ class TestAiStructuralClean:
 
 
 class TestAiDataClean:
-    """Test _ai_data_clean for NameError and other bugs."""
+    """Test _ai_data_clean with row-based format."""
 
     @pytest.mark.asyncio
     async def test_data_clean_no_nameerror(self, mock_dataset, mock_session, mock_agent_config):
@@ -202,7 +203,7 @@ class TestAiDataClean:
         import pandas as pd
 
         df = pd.DataFrame(mock_dataset.preview_data)
-        content = '{"operations": [{"column": "first_name", "transformations": [{"original": "John", "cleaned": "JOHN"}]}]}'
+        content = '{"rows": [{"first_name": "JOHN", "last_name": "DOE", "age": 30}]}'
         with _LLM_PATCH(content), _SAVE_PATCH:
             result = await _ai_data_clean(
                 df=df, dataset=mock_dataset, columns=["first_name"],
@@ -211,14 +212,14 @@ class TestAiDataClean:
                 batch_size=10, session=mock_session,
             )
         assert result.status == "success"
+        assert df["first_name"].iloc[0] == "JOHN"
 
     @pytest.mark.asyncio
     async def test_data_clean_null_matching(self, mock_dataset, mock_session, mock_agent_config):
-        """AI returning null original must match pandas NaN/None values."""
+        """AI returning null values must match pandas NaN/None."""
         import pandas as pd
         import numpy as np
 
-        # Create a dataframe with a null value
         data = [
             {"joined_date": "2024-01-15", "name": "Alice"},
             {"joined_date": None, "name": "Bob"},
@@ -226,16 +227,59 @@ class TestAiDataClean:
         ]
         df = pd.DataFrame(data)
 
-        content = '{"operations": [{"column": "joined_date", "transformations": [{"original": "2024-01-15", "cleaned": "2024-01-15"}, {"original": null, "cleaned": "1970-01-01"}]}]}'
+        content = '{"rows": [{"joined_date": "2024-01-15", "name": "Alice"}, {"joined_date": "1970-01-01", "name": "Bob"}, {"joined_date": "1970-01-01", "name": "Carol"}]}'
         with _LLM_PATCH(content), _SAVE_PATCH:
             result = await _ai_data_clean(
                 df=df, dataset=mock_dataset, columns=["joined_date"],
-                instruction="normalize dates",
+                instruction="normalize dates, fill nulls with 1970",
                 provider=AIProvider.OPENAI, agent_config=mock_agent_config,
                 batch_size=10, session=mock_session,
             )
 
         assert result.status == "success"
-        # Both None and NaN should have been replaced with "1970-01-01"
         assert df["joined_date"].iloc[1] == "1970-01-01"
         assert df["joined_date"].iloc[2] == "1970-01-01"
+
+    @pytest.mark.asyncio
+    async def test_derive_from_context(self, mock_dataset, mock_session, mock_agent_config):
+        """AI can derive values for one column based on another column."""
+        import pandas as pd
+
+        data = [
+            {"city": "London", "country": "N/A"},
+            {"city": "Paris", "country": "N/A"},
+            {"city": "Tokyo", "country": "N/A"},
+        ]
+        df = pd.DataFrame(data)
+
+        content = '{"rows": [{"city": "London", "country": "UK"}, {"city": "Paris", "country": "France"}, {"city": "Tokyo", "country": "Japan"}]}'
+        with _LLM_PATCH(content), _SAVE_PATCH:
+            result = await _ai_data_clean(
+                df=df, dataset=mock_dataset, columns=["country"],
+                instruction="fill country based on city",
+                provider=AIProvider.OPENAI, agent_config=mock_agent_config,
+                batch_size=10, session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert df["country"].tolist() == ["UK", "France", "Japan"]
+        # City column unchanged
+        assert df["city"].tolist() == ["London", "Paris", "Tokyo"]
+
+    @pytest.mark.asyncio
+    async def test_no_changes_returns_no_changes(self, mock_dataset, mock_session, mock_agent_config):
+        """If AI returns same values, status is no_changes."""
+        import pandas as pd
+
+        df = pd.DataFrame(mock_dataset.preview_data)
+        # AI returns exact same data
+        content = json.dumps({"rows": df.head(10).to_dict("records")}, default=str)
+        with _LLM_PATCH(content), _SAVE_PATCH:
+            result = await _ai_data_clean(
+                df=df, dataset=mock_dataset, columns=["first_name"],
+                instruction="do nothing",
+                provider=AIProvider.OPENAI, agent_config=mock_agent_config,
+                batch_size=10, session=mock_session,
+            )
+
+        assert result.status == "no_changes"
