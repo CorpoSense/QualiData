@@ -424,7 +424,8 @@ const fetchAgents = async () => {
       agents.value = [];
     } else {
       const data = await res.json();
-      agents.value = data;
+      // Ensure agents.value is always an array
+      agents.value = Array.isArray(data) ? data : [];
     }
   } catch (e) {
     console.error(e);
