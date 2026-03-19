@@ -49,3 +49,28 @@ htmlcov/
 # IDE
 .vscode/
 .idea/
+
+# OpenClaw workspace files
+AGENTS.md
+BOOTSTRAP.md
+HEARTBEAT.md
+IDENTITY.md
+MEMORY.md
+SOUL.md
+TOOLS.md
+USER.md
+exec-approvals.json
+memory/
+.openclaw/
+.kilocode/
+.pi/
+
+# Test fixtures and artifacts
+test-results/
+test.db
+
+# Machine-specific scripts
+install-koyeb.js
+run-koyeb.sh
+run-tests.js
+run-e2e.sh
