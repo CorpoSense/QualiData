@@ -193,10 +193,17 @@ async def _ai_structural_clean(
     all_cols_info = f"All columns: {list(df.columns)}\n"
     selected_info = "Selected columns:\n" + "\n".join(column_info)
 
+    FORMAT_INSTRUCTIONS = """
+Respond with JSON only. Use one of these formats:
+- Rename: {"operation": "rename", "renames": {"old_col": "new_col"}}
+- Drop: {"operation": "drop", "columns": ["col1", "col2"]}
+- Change type: {"operation": "astype", "columns": ["col1"], "dtype": "int"}
+- Multiple: {"operations": [{"operation": "rename", "renames": {...}}, ...]}"""
+
     user_prompt = (
         f"{all_cols_info}\n{selected_info}\n\n"
-        f"Instruction: {instruction}\n\n"
-        f"Respond with JSON only."
+        f"Instruction: {instruction}\n"
+        f"{FORMAT_INSTRUCTIONS}"
     )
 
     # Get system prompt
@@ -238,14 +245,26 @@ async def _ai_structural_clean(
         raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
 
     # Parse and apply operations
-    operations = ai_response.get("operations", [ai_response]) if "operations" in ai_response else [ai_response]
+    # Normalize: AI might wrap in {"operations": [...]} or return a single op object
+    if isinstance(ai_response, list):
+        operations = ai_response
+    elif "operations" in ai_response:
+        operations = ai_response["operations"]
+    else:
+        operations = [ai_response]
+
     results = []
     applied_any = False
 
     for op in operations:
-        op_type = op.get("operation")
-        if op_type == "rename":
-            renames = op.get("renames", {})
+        if not isinstance(op, dict):
+            continue
+        # AI might use "operation", "action", or "type" as the key
+        op_type = op.get("operation") or op.get("action") or op.get("type") or ""
+        op_type = op_type.lower().strip()
+
+        if op_type in ("rename", "renaming", "rename_column", "rename_columns"):
+            renames = op.get("renames") or op.get("rename") or op.get("mapping") or {}
             valid_renames = {k: v for k, v in renames.items() if k in df.columns}
             if valid_renames:
                 df = df.rename(columns=valid_renames)
@@ -255,16 +274,22 @@ async def _ai_structural_clean(
             else:
                 results.append({"operation": "rename", "status": "skipped", "reason": "No matching columns"})
 
-        elif op_type == "drop":
-            cols_to_drop = [c for c in op.get("columns", []) if c in df.columns]
+        elif op_type in ("drop", "remove", "delete", "drop_columns", "remove_columns"):
+            cols_to_drop = op.get("columns") or op.get("drop") or op.get("remove") or []
+            if isinstance(cols_to_drop, str):
+                cols_to_drop = [cols_to_drop]
+            cols_to_drop = [c for c in cols_to_drop if c in df.columns]
             if cols_to_drop:
                 df = df.drop(columns=cols_to_drop)
                 results.append({"operation": "drop", "columns": cols_to_drop, "status": "success"})
                 applied_any = True
 
-        elif op_type == "astype":
-            dtype = op.get("dtype", "str")
-            cols_to_cast = [c for c in op.get("columns", []) if c in df.columns]
+        elif op_type in ("astype", "change_type", "convert_type", "cast", "type"):
+            dtype = op.get("dtype") or op.get("type_to") or op.get("target_type") or "str"
+            cols_to_cast = op.get("columns") or op.get("column") or []
+            if isinstance(cols_to_cast, str):
+                cols_to_cast = [cols_to_cast]
+            cols_to_cast = [c for c in cols_to_cast if c in df.columns]
             for col in cols_to_cast:
                 try:
                     df[col] = df[col].astype(dtype)
@@ -273,7 +298,8 @@ async def _ai_structural_clean(
                 except Exception as e:
                     results.append({"operation": "astype", "column": col, "status": "error", "reason": str(e)})
         else:
-            results.append({"operation": op_type or "unknown", "status": "skipped", "reason": "Unknown operation"})
+            logger.warning(f"AI returned unknown operation type: {op_type!r}, full op: {op}")
+            results.append({"operation": op_type or "unknown", "status": "skipped", "reason": f"Unknown operation: {op_type!r}"})
 
     if not applied_any:
         return AICleaningResponse(
