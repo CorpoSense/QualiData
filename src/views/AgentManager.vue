@@ -381,15 +381,31 @@ const providerOptions = [
 ];
 
 const createFormValid = computed(() => {
-  const form = $refs.createForm
-  if (!form) return false
-  return !!createAgent.value.name && createAgent.value.temperature >= 0 && createAgent.value.temperature <= 2
+  // Check basic validity from our model first
+  const hasName = !!createAgent.value.name;
+  const tempValid = createAgent.value.temperature >= 0 && createAgent.value.temperature <= 2;
+  
+  // If form ref is not available yet, rely on basic model validation
+  if (!$refs.createForm) {
+    return hasName && tempValid;
+  }
+  
+  // Form is available, check its validity along with our model constraints
+  return $refs.createForm.checkValidity() && hasName && tempValid;
 });
 
 const editFormValid = computed(() => {
-  const form = $refs.editForm
-  if (!form) return false
-  return !!editAgent.value.name && editAgent.value.temperature >= 0 && editAgent.value.temperature <= 2
+  // Check basic validity from our model first
+  const hasName = !!editAgent.value.name;
+  const tempValid = editAgent.value.temperature >= 0 && editAgent.value.temperature <= 2;
+  
+  // If form ref is not available yet, rely on basic model validation
+  if (!$refs.editForm) {
+    return hasName && tempValid;
+  }
+  
+  // Form is available, check its validity along with our model constraints
+  return $refs.editForm.checkValidity() && hasName && tempValid;
 });
 
 const fetchAgents = async () => {
