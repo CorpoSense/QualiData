@@ -326,7 +326,7 @@ Respond with JSON only. Use one of these formats:
     }
 
     await save_operation(
-        dataset_id,
+        dataset.id,
         "ai_structural",
         {"instruction": instruction, "operations": operations},
         before_snapshot,
@@ -444,7 +444,7 @@ async def _ai_data_clean(
     }
 
     await save_operation(
-        dataset_id,
+        dataset.id,
         "ai_data_clean",
         {"instruction": instruction, "columns": columns, "operations": operations},
         before_snapshot,
