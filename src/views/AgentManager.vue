@@ -101,7 +101,7 @@
             placeholder="e.g., My OpenAI Agent"
           ></BFormInput>
           <BFormInvalidFeedback
-            v-if="!$refs.createForm.checkValidity() && !createAgent.name"
+            v-if="!$refs.createForm.$el.checkValidity() && !createAgent.name"
           >
             Name is required.
           </BFormInvalidFeedback>
@@ -391,7 +391,7 @@ const createFormValid = computed(() => {
   }
   
   // Form is available, check its validity along with our model constraints
-  return $refs.createForm.checkValidity() && hasName && tempValid;
+  return $refs.createForm.$el.checkValidity() && hasName && tempValid;
 });
 
 const editFormValid = computed(() => {
@@ -405,7 +405,7 @@ const editFormValid = computed(() => {
   }
   
   // Form is available, check its validity along with our model constraints
-  return $refs.editForm.checkValidity() && hasName && tempValid;
+  return $refs.editForm.$el.checkValidity() && hasName && tempValid;
 });
 
 const fetchAgents = async () => {
