@@ -507,7 +507,7 @@ const editAgentFn = (agent) => {
 const updateAgentFn = async () => {
   updating.value = true;
   try {
-    const res = await fetch(`${API_URL}/agents/${selectedAgentId}/`, {
+    const res = await fetch(`${API_URL}/agents/${selectedAgentId}`, {
       method: 'PATCH',
       headers: {
         ...getAuthHeader(),
@@ -538,7 +538,7 @@ const confirmDelete = (agent) => {
 const deleteAgentFn = async () => {
   deleting.value = true;
   try {
-    const res = await fetch(`${API_URL}/agents/${selectedAgentId}/`, {
+    const res = await fetch(`${API_URL}/agents/${selectedAgentId}`, {
       method: 'DELETE',
       headers: getAuthHeader(),
     });
