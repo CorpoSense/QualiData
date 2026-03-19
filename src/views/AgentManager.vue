@@ -415,7 +415,7 @@ const editFormValid = computed(() => {
 const fetchAgents = async () => {
   loading.value = true;
   try {
-    const res = await fetch(`${API_URL}/agents`, {
+    const res = await fetch(`${API_URL}/agents/`, {
       headers: getAuthHeader(),
     });
     if (!res.ok) {
@@ -439,7 +439,7 @@ const fetchAgents = async () => {
 const createAgentFn = async () => {
   creating.value = true;
   try {
-    const res = await fetch(`${API_URL}/agents`, {
+    const res = await fetch(`${API_URL}/agents/`, {
       method: 'POST',
       headers: {
         ...getAuthHeader(),
@@ -482,7 +482,7 @@ const editAgentFn = (agent) => {
 const updateAgentFn = async () => {
   updating.value = true;
   try {
-    const res = await fetch(`${API_URL}/agents/${selectedAgentId}`, {
+    const res = await fetch(`${API_URL}/agents/${selectedAgentId}/`, {
       method: 'PATCH',
       headers: {
         ...getAuthHeader(),
@@ -513,7 +513,7 @@ const confirmDelete = (agent) => {
 const deleteAgentFn = async () => {
   deleting.value = true;
   try {
-    const res = await fetch(`${API_URL}/agents/${selectedAgentId}`, {
+    const res = await fetch(`${API_URL}/agents/${selectedAgentId}/`, {
       method: 'DELETE',
       headers: getAuthHeader(),
     });
