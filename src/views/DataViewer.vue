@@ -95,6 +95,9 @@
           </BDropdown>
 
           <BDropdown text="Structure" size="sm">
+            <BDropdownItem @click="applyStructuralOp('add_column')">
+              <i class="bi bi-plus-circle me-2"></i>Add column
+            </BDropdownItem>
             <BDropdownItem @click="applyStructuralOp('rename')" :disabled="selectedColumns.length !== 1">
               <i class="bi bi-pencil-square me-2"></i>Rename column
               <span v-if="selectedColumns.length !== 1" class="text-muted small ms-2">(select 1)</span>
@@ -811,7 +814,26 @@ async function applyDatetimeOp(operation) {
   finally { operating.value = false }
 }
 async function applyStructuralOp(operation) {
-  if (operation === 'rename') {
+  if (operation === 'add_column') {
+    const newName = prompt('Enter new column name:')
+    if (!newName) return
+    const defaultValue = prompt(`Default value for "${newName}" (leave empty for blank):`) ?? ''
+    operating.value = true
+    try {
+      const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/structural`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ operation: 'add_column', new_name: newName, default_value: defaultValue })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        toast.success(data.message || `Column "${newName}" added`)
+        await refreshData()
+      }
+      else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
+    } catch (e) { toast.error(e.message) }
+    finally { operating.value = false }
+  } else if (operation === 'rename') {
     // Rename is single-column only
     if (selectedColumns.value.length !== 1) {
       toast.warning('Select exactly 1 column to rename'); return

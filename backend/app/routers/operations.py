@@ -820,6 +820,22 @@ async def structural_operations(
                 results.append({"column": col, "status": "success", "dtype": dtype})
             except Exception as e:
                 results.append({"column": col, "status": "error", "reason": str(e)})
+
+    elif operation == 'add_column':
+        new_name = request.get('new_name') or request.get('column')
+        default_value = request.get('default_value', '')
+        source = request.get('source')
+        if not new_name:
+            raise HTTPException(status_code=400, detail="new_name is required")
+        if new_name in df.columns:
+            raise HTTPException(status_code=400, detail=f"Column '{new_name}' already exists")
+        if source and source in df.columns:
+            df[new_name] = df[source].copy()
+            results.append({"column": new_name, "source": source, "status": "success"})
+        else:
+            df[new_name] = default_value
+            results.append({"column": new_name, "default": default_value, "status": "success"})
+
     else:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
 
