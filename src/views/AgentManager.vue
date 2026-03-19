@@ -34,6 +34,9 @@
       sticky-header
       outline
     >
+      <template #cell(provider_model)="data">
+        {{ data.item.provider }} / {{ data.item.model }}
+      </template>
       <template #cell(actions)="data">
         <BButton
           variant="outline-secondary"
