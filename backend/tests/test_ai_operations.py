@@ -167,3 +167,31 @@ class TestAiDataClean:
                 batch_size=10, session=mock_session,
             )
         assert result.status == "success"
+
+    @pytest.mark.asyncio
+    async def test_data_clean_null_matching(self, mock_dataset, mock_session, mock_agent_config):
+        """AI returning null original must match pandas NaN/None values."""
+        import pandas as pd
+        import numpy as np
+
+        # Create a dataframe with a null value
+        data = [
+            {"joined_date": "2024-01-15", "name": "Alice"},
+            {"joined_date": None, "name": "Bob"},
+            {"joined_date": np.nan, "name": "Carol"},
+        ]
+        df = pd.DataFrame(data)
+
+        content = '{"operations": [{"column": "joined_date", "transformations": [{"original": "2024-01-15", "cleaned": "2024-01-15"}, {"original": null, "cleaned": "1970-01-01"}]}]}'
+        with _LLM_PATCH(content), _SAVE_PATCH:
+            result = await _ai_data_clean(
+                df=df, dataset=mock_dataset, columns=["joined_date"],
+                instruction="normalize dates",
+                provider=AIProvider.OPENAI, agent_config=mock_agent_config,
+                batch_size=10, session=mock_session,
+            )
+
+        assert result.status == "success"
+        # Both None and NaN should have been replaced with "1970-01-01"
+        assert df["joined_date"].iloc[1] == "1970-01-01"
+        assert df["joined_date"].iloc[2] == "1970-01-01"

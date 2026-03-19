@@ -428,9 +428,21 @@ Rules:
 
         transformations = {t["original"]: t["cleaned"] for t in op.get("transformations", [])}
         if transformations:
-            # Convert keys to strings for matching (data may have been stringified)
-            str_transformations = {str(k): v for k, v in transformations.items()}
-            df[col] = df[col].apply(lambda x: str_transformations.get(str(x), x))
+            # Normalize: None/nan/NaN/"None"/"nan"/"" all map to the same key
+            def _norm(val):
+                if val is None:
+                    return "__null__"
+                s = str(val)
+                if s.lower() in ("nan", "none", "nat", ""):
+                    return "__null__"
+                return s
+
+            norm_transformations = {_norm(k): v for k, v in transformations.items()}
+
+            def _apply(val):
+                return norm_transformations.get(_norm(val), val)
+
+            df[col] = df[col].apply(_apply)
             applied_any = True
             results.append({
                 "column": col,
