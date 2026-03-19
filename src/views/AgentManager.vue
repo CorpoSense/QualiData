@@ -101,7 +101,7 @@
             placeholder="e.g., My OpenAI Agent"
           ></BFormInput>
           <BFormInvalidFeedback
-            v-if="!createForm.value || !createForm.value.$el.checkValidity() && !createAgent.name"
+            v-if="( !createForm || !createForm.$el.checkValidity() ) && !createAgent.name"
           >
             Name is required.
           </BFormInvalidFeedback>
@@ -200,7 +200,7 @@
             required
           ></BFormInput>
           <BFormInvalidFeedback
-            v-if="!editForm.value || !editForm.value.$el.checkValidity() && !editAgent.name"
+            v-if="( !editForm || !editForm.$el.checkValidity() ) && !editAgent.name"
           >
             Name is required.
           </BFormInvalidFeedback>
