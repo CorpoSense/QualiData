@@ -30,8 +30,7 @@
       :current-page="currentPage"
       :per-page="perPage"
       :sort-by="sortBy"
-      :sort-desc="sortDesc"
-      @update:sort="onSortChange"
+      @update:sortBy="onSortChange"
       sticky-header
       outline
     >
@@ -343,7 +342,7 @@ const openCreateModal = () => {
 
 const currentPage = ref(1);
 const perPage = ref(10);
-const sortBy = ref('created_at');
+const sortBy = ref([{ key: 'created_at', order: 'desc' }]);
 const sortDesc = ref(true);
 
 const createAgent = ref({
@@ -546,10 +545,10 @@ watch(
   }
 );
 
-const onSortChange = (context) => {
-  if (context.sortBy) {
-    sortBy.value = context.sortBy;
-    sortDesc.value = context.sortDesc === true;
+const onSortChange = (val) => {
+  if (Array.isArray(val)) {
+    sortBy.value = val;
+    sortDesc.value = val.length > 0 && val[0].order === 'desc';
   }
 };
 </script>
