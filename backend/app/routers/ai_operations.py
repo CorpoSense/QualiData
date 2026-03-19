@@ -1,7 +1,9 @@
 """AI-powered data cleaning operations."""
 
+import asyncio
 import json
 import logging
+import time
 
 from fastapi import APIRouter, Depends, HTTPException
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -658,3 +660,249 @@ async def ai_clean_json(
             "output_column": out_col,
         },
     )
+
+
+# --- Batch AI Data Clean with SSE progress ---
+
+from fastapi.responses import StreamingResponse
+from app.utils.progress import job_manager, sse_event, JobStatus
+
+
+class BatchCleanRequest(AICleaningRequest):
+    batch_size: int = Field(default=10, ge=1, le=100)
+    delay: float = Field(default=3.0, ge=0, le=60)
+    start_row: int = Field(default=0, ge=0)
+    process_all: bool = False
+
+
+@router.post("/datasets/{dataset_id}/ai-batch")
+async def start_ai_batch(
+    dataset_id: str,
+    request: BatchCleanRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Start a batch AI clean job. Returns job_id for SSE streaming."""
+    columns_to_clean = request.column_list
+    if not columns_to_clean:
+        raise HTTPException(status_code=422, detail="Either 'column' or 'columns' must be provided")
+
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    project_result = await session.execute(
+        select(Project).where(Project.id == dataset.project_id, Project.user_id == current_user.id)
+    )
+    if not project_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+
+    import pandas as pd
+    df = pd.DataFrame(dataset.preview_data)
+
+    for col in columns_to_clean:
+        if col not in df.columns:
+            raise HTTPException(status_code=400, detail=f"Column '{col}' not found")
+
+    if not request.process_all:
+        # Single batch mode — delegate to existing endpoint
+        raise HTTPException(
+            status_code=400,
+            detail="Set process_all=true to use batch mode. Otherwise use /ai-clean endpoint.",
+        )
+
+    total_rows = len(df)
+    remaining = total_rows - request.start_row
+    total_batches = max(1, (remaining + request.batch_size - 1) // request.batch_size)
+
+    job = job_manager.create(total=total_batches)
+
+    return {
+        "job_id": job.job_id,
+        "total_batches": total_batches,
+        "total_rows": remaining,
+        "batch_size": request.batch_size,
+        "delay_seconds": request.delay,
+        "stream_url": f"/api/datasets/{dataset_id}/ai-batch/{job.job_id}/stream",
+        "warning": (
+            f"This will make {total_batches} AI calls. "
+            f"Estimated time: ~{total_batches * (request.delay + 2):.0f}s."
+            if total_batches > 20 else None
+        ),
+    }
+
+
+@router.get("/datasets/{dataset_id}/ai-batch/{job_id}/stream")
+async def stream_ai_batch(
+    dataset_id: str,
+    job_id: str,
+    columns: str = "",
+    instruction: str = "",
+    agent_id: str | None = None,
+    batch_size: int = 10,
+    delay: float = 3.0,
+    start_row: int = 0,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """SSE endpoint that streams batch AI clean progress."""
+    job = job_manager.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    column_list = [c.strip() for c in columns.split(",") if c.strip()]
+    if not column_list:
+        raise HTTPException(status_code=400, detail="columns query param required")
+
+    async def event_generator():
+        nonlocal session
+
+        # Re-fetch dataset inside generator (session is per-request)
+        result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+        dataset = result.scalar_one_or_none()
+        if not dataset:
+            yield sse_event("error", {"message": "Dataset not found"})
+            return
+
+        import pandas as pd
+        df = pd.DataFrame(dataset.preview_data)
+
+        agent_config = await _get_agent_config(agent_id, current_user.id, session)
+        provider = AIProvider(agent_config["provider"])
+
+        from app.routers.datasets import detect_columns, get_preview_data
+        from app.routers.operations import save_operation
+
+        total_rows = len(df)
+        job_manager.update(job_id, status=JobStatus.RUNNING, total=max(1, (total_rows - start_row + batch_size - 1) // batch_size))
+
+        yield sse_event("progress", job.to_dict())
+
+        for batch_idx, offset in enumerate(range(start_row, total_rows, batch_size)):
+            end = min(offset + batch_size, total_rows)
+            batch_df = df.iloc[offset:end].copy()
+
+            try:
+                # Build prompt for this batch
+                rows_data = batch_df.to_dict("records")
+                FORMAT = '\nRespond with JSON only: {"rows": [{"col": "val"}, ...]}'
+                user_prompt = (
+                    f"Data (rows {offset}-{end - 1}):\n"
+                    f"{json.dumps(rows_data, indent=2, default=str)}\n\n"
+                    f"Instruction: {instruction}\n{FORMAT}"
+                )
+
+                system_prompt = agent_config.get("system_prompt") or DATA_SYSTEM_PROMPT
+
+                llm_kwargs = {}
+                if agent_config.get("api_key"):
+                    llm_kwargs["api_key"] = agent_config["api_key"]
+                llm = get_chat_model(
+                    provider,
+                    model=agent_config.get("model"),
+                    temperature=agent_config.get("temperature", 0.3),
+                    **llm_kwargs,
+                )
+                response = await llm.ainvoke([
+                    SystemMessage(content=system_prompt),
+                    HumanMessage(content=user_prompt),
+                ])
+
+                raw_text = response.content.strip()
+                if raw_text.startswith("```"):
+                    raw_text = raw_text.split("\n", 1)[1] if "\n" in raw_text else raw_text[3:]
+                if raw_text.endswith("```"):
+                    raw_text = raw_text[:-3]
+                raw_text = raw_text.strip()
+
+                ai_response = json.loads(raw_text)
+                ai_rows = ai_response.get("rows", [])
+
+                # Apply changes
+                changed = 0
+                for i, ai_row in enumerate(ai_rows):
+                    row_idx = offset + i
+                    if row_idx >= total_rows:
+                        break
+                    for col, new_val in ai_row.items():
+                        if col not in df.columns:
+                            continue
+                        old_val = df.at[df.index[row_idx], col]
+                        if _is_null(old_val) and _is_null(new_val):
+                            continue
+                        if str(old_val) == str(new_val):
+                            continue
+                        df.at[df.index[row_idx], col] = new_val
+                        changed += 1
+
+                # Save partial to DB
+                before_snapshot = {
+                    "columns": dataset.columns,
+                    "row_count": dataset.row_count,
+                    "preview_data": dataset.preview_data,
+                }
+                dataset.columns = detect_columns(df)
+                dataset.preview_data = get_preview_data(df)
+                after_snapshot = {
+                    "columns": dataset.columns,
+                    "row_count": dataset.row_count,
+                    "preview_data": dataset.preview_data,
+                }
+                await save_operation(
+                    dataset.id,
+                    "ai_data_clean_batch",
+                    {
+                        "instruction": instruction,
+                        "columns": column_list,
+                        "batch": f"{offset}-{end - 1}",
+                        "cells_changed": changed,
+                    },
+                    before_snapshot,
+                    after_snapshot,
+                    session,
+                )
+                await session.commit()
+
+                job_manager.update(
+                    job_id,
+                    completed=job.completed + 1,
+                    current_row=end,
+                )
+
+            except Exception as e:
+                logger.error(f"Batch {batch_idx} failed: {e}")
+                job_manager.update(
+                    job_id,
+                    failed=job.failed + 1,
+                    errors=[*job.errors, f"Rows {offset}-{end - 1}: {str(e)}"],
+                    current_row=end,
+                )
+
+            yield sse_event("progress", job.to_dict())
+
+            # Delay between batches
+            if end < total_rows and delay > 0:
+                await asyncio.sleep(delay)
+
+        # Final status
+        final_status = JobStatus.DONE if job.failed == 0 else JobStatus.ERROR
+        job_manager.update(job_id, status=final_status, finished_at=time.time())
+        yield sse_event("done", job.to_dict())
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+    )
+
+
+def _is_null(val):
+    """Check if a value is null-like."""
+    if val is None:
+        return True
+    s = str(val).lower()
+    return s in ("nan", "none", "nat", "")
