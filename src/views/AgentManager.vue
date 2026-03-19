@@ -101,7 +101,7 @@
             placeholder="e.g., My OpenAI Agent"
           ></BFormInput>
           <BFormInvalidFeedback
-            v-if="!$refs.createForm.$el.checkValidity() && !createAgent.name"
+            v-if="!createForm.value || !createForm.value.$el.checkValidity() && !createAgent.name"
           >
             Name is required.
           </BFormInvalidFeedback>
@@ -200,7 +200,7 @@
             required
           ></BFormInput>
           <BFormInvalidFeedback
-            v-if="!$refs.editForm.checkValidity() && !editAgent.name"
+            v-if="!editForm.value || !editForm.value.$el.checkValidity() && !editAgent.name"
           >
             Name is required.
           </BFormInvalidFeedback>
@@ -358,6 +358,10 @@ const createAgent = ref({
 const editAgent = ref({});
 let selectedAgentId = null;
 
+// Template refs
+const createForm = ref(null);
+const editForm = ref(null);
+
 const agentFields = computed(() => [
   { key: 'name', label: 'Name', sortable: true },
   {
@@ -386,12 +390,12 @@ const createFormValid = computed(() => {
   const tempValid = createAgent.value.temperature >= 0 && createAgent.value.temperature <= 2;
   
   // If form ref is not available yet, rely on basic model validation
-  if (!$refs.createForm) {
+  if (!createForm.value) {
     return hasName && tempValid;
   }
   
   // Form is available, check its validity along with our model constraints
-  return $refs.createForm.$el.checkValidity() && hasName && tempValid;
+  return createForm.value.$el.checkValidity() && hasName && tempValid;
 });
 
 const editFormValid = computed(() => {
@@ -400,12 +404,12 @@ const editFormValid = computed(() => {
   const tempValid = editAgent.value.temperature >= 0 && editAgent.value.temperature <= 2;
   
   // If form ref is not available yet, rely on basic model validation
-  if (!$refs.editForm) {
+  if (!editForm.value) {
     return hasName && tempValid;
   }
   
   // Form is available, check its validity along with our model constraints
-  return $refs.editForm.$el.checkValidity() && hasName && tempValid;
+  return editForm.value.$el.checkValidity() && hasName && tempValid;
 });
 
 const fetchAgents = async () => {
