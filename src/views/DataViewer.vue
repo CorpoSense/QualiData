@@ -307,11 +307,14 @@
     <BModal v-model="showDataAiModal" title="AI Data Clean">
       <div class="alert alert-info">
         <i class="bi bi-info-circle me-2"></i>
-        <strong>Selected {{ selectedColumns.length === 1 ? 'column' : 'columns' }}:</strong> 
+        <strong>Selected {{ selectedColumns.length === 1 ? 'column' : 'columns' }}:</strong>
         {{ selectedColumns.length === 1 ? selectedColumns[0] : selectedColumns.join(', ') }}
       </div>
       <BFormGroup label="AI Agent *">
         <BFormSelect v-model="selectedAgentId" :options="agentOptions" required></BFormSelect>
+      </BFormGroup>
+      <BFormGroup label="Rows to process">
+        <BFormSelect v-model="dataAiBatchSize" :options="limitOptions"></BFormSelect>
       </BFormGroup>
       <BFormGroup label="Instruction">
         <BFormTextarea v-model="dataAiInstruction" placeholder="e.g., Extract email domains, Standardize phone numbers, Categorize product types"></BFormTextarea>
@@ -529,6 +532,7 @@ const selectedColumns = ref([])  // Selected columns (click on table headers)
 const selectedRows = ref([])  // Selected rows
 const structuralAiInstruction = ref('')
 const dataAiInstruction = ref('')
+const dataAiBatchSize = ref(10)
 
 // Computed fields for BTable - disable sorting to allow column selection
 const tableFields = computed(() => {
@@ -956,11 +960,12 @@ async function applyDataAiClean() {
   if (!selectedAgentId.value) {
     toast.warning('Please select an AI Agent'); return
   }
-  const payload = { 
-    columns: selectedColumns.value, 
+  const payload = {
+    columns: selectedColumns.value,
     instruction: dataAiInstruction.value,
     type: 'data',
-    agent_id: selectedAgentId.value
+    agent_id: selectedAgentId.value,
+    batch_size: dataAiBatchSize.value
   };
   operating.value = true;
   try {

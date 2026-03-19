@@ -352,16 +352,33 @@ async def _ai_data_clean(
     from app.routers.datasets import detect_columns, get_preview_data
     from app.routers.operations import save_operation
 
-    # Build prompt with sample data
-    column_samples = {}
-    for col in columns:
-        column_samples[col] = df[col].head(batch_size).tolist()
+    # Build prompt: target columns to transform, all columns as context
+    sample_rows = df.head(batch_size)
+    target_samples = {col: sample_rows[col].tolist() for col in columns if col in df.columns}
+    context_samples = {col: sample_rows[col].tolist() for col in df.columns if col not in columns}
 
-    samples_text = json.dumps(column_samples, indent=2, default=str)
+    samples_text = json.dumps(target_samples, indent=2, default=str)
+    context_text = (
+        f"\nOther columns (for context only, do NOT transform these):\n"
+        f"{json.dumps(context_samples, indent=2, default=str)}"
+        if context_samples else ""
+    )
+
+    FORMAT_INSTRUCTIONS = """
+Respond with JSON only. Use this format:
+{"operations": [{"column": "col_name", "transformations": [{"original": "old_value", "cleaned": "new_value"}, ...]}]}
+
+Rules:
+- Only transform the columns listed below
+- Provide cleaned values for every original value shown
+- Keep values that don't need cleaning as-is
+- Use null for missing/empty values"""
+
     user_prompt = (
-        f"Column data (first {batch_size} rows):\n{samples_text}\n\n"
-        f"Instruction: {instruction}\n\n"
-        f"Respond with JSON only."
+        f"Columns to transform (first {batch_size} rows):\n{samples_text}"
+        f"{context_text}\n\n"
+        f"Instruction: {instruction}\n"
+        f"{FORMAT_INSTRUCTIONS}"
     )
 
     system_prompt = agent_config.get("system_prompt") or DATA_SYSTEM_PROMPT
