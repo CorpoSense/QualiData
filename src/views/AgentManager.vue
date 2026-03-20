@@ -368,14 +368,15 @@ const providerModels = ref([]);
 
 const openCreateModal = () => {
   showCreateModal.value = true;
-  fetchModels(createAgent.value.provider);
+  fetchModels(createAgent.value.provider, createAgent.value.api_key);
 };
 
-async function fetchModels(provider) {
+async function fetchModels(provider, apiKey) {
   try {
-    const res = await fetch(`${API_URL}/ai/models/${provider}`, {
-      headers: getAuthHeader(),
-    })
+    const params = new URLSearchParams()
+    if (apiKey) params.set('api_key', apiKey)
+    const url = `${API_URL}/ai/models/${provider}${params.toString() ? '?' + params : ''}`
+    const res = await fetch(url, { headers: getAuthHeader() })
     if (res.ok) {
       const data = await res.json()
       providerModels.value = data.models || []
@@ -581,7 +582,8 @@ onMounted(() => {
   fetchAgents();
 });
 
-watch(() => createAgent.value.provider, (p) => { if (p) fetchModels(p) })
+watch(() => createAgent.value.provider, (p) => { if (p) fetchModels(p, createAgent.value.api_key) })
+watch(() => createAgent.value.api_key, (k) => { if (k && createAgent.value.provider) fetchModels(createAgent.value.provider, k) })
 watch(() => editAgent.value.provider, (p) => { if (p) fetchModels(p) })
 
 watch(

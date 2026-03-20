@@ -1,5 +1,8 @@
 """AI endpoints for data cleaning assistance."""
 
+import os
+
+import httpx
 from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import (
@@ -39,46 +42,95 @@ async def get_providers():
     return ProvidersListResponse(providers=providers)
 
 
-# Common models per provider (curated list for autocomplete suggestions)
-COMMON_MODELS = {
-    "openai": [
-        "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo",
-        "o1", "o1-mini", "o3-mini",
-    ],
-    "anthropic": [
-        "claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219",
-        "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022",
-        "claude-3-opus-20240229", "claude-3-haiku-20240307",
-    ],
-    "google": [
-        "gemini-2.0-flash", "gemini-2.0-pro", "gemini-1.5-pro",
-        "gemini-1.5-flash", "gemini-1.0-pro",
-    ],
-    "ollama": [
-        "llama3.2", "llama3.1", "llama3", "mistral", "codellama",
-        "phi3", "gemma2", "qwen2.5",
-    ],
-    "groq": [
-        "llama-3.3-70b-versatile", "llama-3.1-70b-versatile",
-        "llama-3.1-8b-instant", "mixtral-8x7b-32768",
-        "gemma2-9b-it",
-    ],
-    "deepseek": [
-        "deepseek-chat", "deepseek-reasoner", "deepseek-coder",
-    ],
-    "openrouter": [
-        "openai/gpt-4o", "openai/gpt-4o-mini",
-        "anthropic/claude-3.5-sonnet", "anthropic/claude-3-haiku",
-        "google/gemini-2.0-flash", "meta-llama/llama-3.1-70b-instruct",
-        "mistralai/mistral-large",
-    ],
-}
+# Anthropic has no public model listing API — keep curated fallback
+ANTHROPIC_FALLBACK = [
+    "claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219",
+    "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022",
+    "claude-3-opus-20240229", "claude-3-haiku-20240307",
+]
+
+
+async def _fetch_models_from_api(provider: str, api_key: str | None = None) -> list[str]:
+    """Fetch available models from provider's API."""
+    provider = provider.lower()
+
+    # Resolve API key: param > env var
+    env_keys = {
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "google": "GOOGLE_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+        "openrouter": "OPENROUTER_API_KEY",
+    }
+    key = api_key or os.environ.get(env_keys.get(provider, ""), "")
+
+    if provider == "anthropic":
+        return ANTHROPIC_FALLBACK
+
+    if provider == "ollama":
+        # Ollama runs locally, no API key needed
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                resp = await client.get("http://localhost:11434/api/tags")
+                resp.raise_for_status()
+                data = resp.json()
+                return [m["name"] for m in data.get("models", [])]
+        except Exception:
+            return ["llama3.2", "llama3.1", "mistral", "codellama", "phi3", "gemma2"]
+
+    if not key:
+        return []
+
+    # OpenAI-compatible providers (OpenAI, Groq, DeepSeek, OpenRouter)
+    base_urls = {
+        "openai": "https://api.openai.com/v1",
+        "groq": "https://api.groq.com/openai/v1",
+        "deepseek": "https://api.deepseek.com",
+        "openrouter": "https://openrouter.ai/api/v1",
+    }
+
+    if provider in base_urls:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    f"{base_urls[provider]}/models",
+                    headers={"Authorization": f"Bearer {key}"},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                models = [m["id"] for m in data.get("data", [])]
+                models.sort()
+                return models
+        except Exception:
+            return []
+
+    # Google Gemini
+    if provider == "google":
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                models = [
+                    m["name"].split("/")[-1]
+                    for m in data.get("models", [])
+                    if "generateContent" in m.get("supportedGenerationMethods", [])
+                ]
+                models.sort()
+                return models
+        except Exception:
+            return []
+
+    return []
 
 
 @router.get("/models/{provider}")
-async def get_models(provider: str):
-    """List common models for a provider."""
-    models = COMMON_MODELS.get(provider.lower(), [])
+async def get_models(provider: str, api_key: str | None = None):
+    """List available models for a provider. Fetches from provider's API dynamically."""
+    models = await _fetch_models_from_api(provider, api_key)
     return {"provider": provider, "models": models}
 
 
