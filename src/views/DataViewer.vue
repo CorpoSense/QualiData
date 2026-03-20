@@ -71,6 +71,9 @@
             <BDropdownItem @click="applyStringOp('capitalize')">
               <i class="bi bi-type me-2"></i>Capitalize
             </BDropdownItem>
+            <BDropdownItem @click="openExtractJsonModal">
+              <i class="bi bi-braces me-2"></i>Extract JSON value…
+            </BDropdownItem>
           </BDropdown>
 
           <BDropdown text="Date Ops" size="sm">
@@ -308,6 +311,40 @@
       <template #footer>
         <BButton @click="showFillnaModal = false">Cancel</BButton>
         <BButton variant="primary" :loading="operating" @click="applyOperation('fillna', { method: 'constant', fill_value: fillValue })">Apply</BButton>
+      </template>
+    </BModal>
+
+    <!-- Extract JSON Modal -->
+    <BModal v-model="showExtractJsonModal" title="Extract JSON Value" size="lg">
+      <div class="alert alert-info py-2 mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        Extract a value from JSON strings in <strong>{{ selectedColumns[0] || 'selected column' }}</strong>.
+        Non-JSON values are left unchanged.
+      </div>
+      <div v-if="extractJsonSamples.length" class="mb-3">
+        <label class="form-label fw-bold small">Sample values:</label>
+        <div class="bg-light p-2 rounded" style="max-height: 120px; overflow-y: auto;">
+          <code v-for="(s, i) in extractJsonSamples" :key="i" class="d-block small text-truncate mb-1">{{ s }}</code>
+        </div>
+      </div>
+      <div v-if="extractJsonSuggestedKeys.length" class="mb-3">
+        <label class="form-label fw-bold small">Detected keys:</label>
+        <div class="d-flex flex-wrap gap-1">
+          <button
+            v-for="k in extractJsonSuggestedKeys"
+            :key="k"
+            class="btn btn-sm"
+            :class="extractJsonKey === k ? 'btn-primary' : 'btn-outline-secondary'"
+            @click="extractJsonKey = k"
+          >{{ k }}</button>
+        </div>
+      </div>
+      <BFormGroup label="Key to extract (dot notation for nested: a.b)">
+        <BFormInput v-model="extractJsonKey" placeholder="e.g., country, data.value"></BFormInput>
+      </BFormGroup>
+      <template #footer>
+        <BButton @click="showExtractJsonModal = false">Cancel</BButton>
+        <BButton variant="primary" :loading="operating" :disabled="!extractJsonKey" @click="applyExtractJson">Extract</BButton>
       </template>
     </BModal>
 
@@ -674,6 +711,10 @@ const selectedRowKeys = computed(() => {
 })
 const showColumnSelector = ref(false)
 const fillValue = ref('')
+const showExtractJsonModal = ref(false)
+const extractJsonKey = ref('')
+const extractJsonSamples = ref([])
+const extractJsonSuggestedKeys = ref([])
 const canUndo = ref(false)
 const canRedo = ref(false)
 const operating = ref(false)
@@ -958,6 +999,53 @@ async function applyStringOp(operation) {
   } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
 }
+
+function openExtractJsonModal() {
+  if (!selectedColumns.value || selectedColumns.value.length !== 1) {
+    toast.warning('Select exactly 1 column to extract JSON from')
+    return
+  }
+  // Get sample values from current data
+  const col = selectedColumns.value[0]
+  const samples = data.value.map(row => row[col]).filter(v => v != null).slice(0, 5)
+  extractJsonSamples.value = samples.map(s => String(s))
+
+  // Auto-detect keys from first valid JSON sample
+  extractJsonSuggestedKeys.value = []
+  for (const s of samples) {
+    try {
+      const obj = JSON.parse(String(s))
+      if (typeof obj === 'object' && obj !== null && !Array.isArray(obj)) {
+        extractJsonSuggestedKeys.value = Object.keys(obj)
+        break
+      }
+    } catch { /* not JSON */ }
+  }
+
+  extractJsonKey.value = extractJsonSuggestedKeys.value[0] || ''
+  showExtractJsonModal.value = true
+}
+
+async function applyExtractJson() {
+  if (!extractJsonKey.value) { toast.warning('Enter a key'); return }
+  const col = selectedColumns.value[0]
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/extract-json`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ column: col, key: extractJsonKey.value })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || 'JSON values extracted')
+      showExtractJsonModal.value = false
+      await refreshData()
+    } else { const err = await res.json(); toast.error(err.detail || 'Extraction failed') }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
 async function applyDatetimeOp(operation) {
   if (!selectedColumns.value || selectedColumns.value.length === 0) {
     toast.warning('No columns selected'); return

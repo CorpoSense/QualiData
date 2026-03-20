@@ -527,6 +527,76 @@ async def string_operations(
     return {"status": "success", "message": msg, "columns": dataset.columns, "results": results}
 
 
+@router.post("/datasets/{dataset_id}/operations/extract-json")
+async def extract_json_value(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Extract a value from JSON strings in a column.
+
+    Supports dot notation for nested keys: "a.b.c"
+    Non-JSON values or missing keys are left unchanged.
+    """
+    import json as json_mod
+
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+
+    df = pd.DataFrame(dataset.preview_data)
+    column = request.get("column")
+    key = request.get("key")
+
+    if not column or column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
+    if not key:
+        raise HTTPException(status_code=400, detail="key is required")
+
+    # Support dot notation for nested keys
+    key_parts = key.split(".")
+
+    changed = 0
+
+    def _extract(val):
+        nonlocal changed
+        if val is None or (isinstance(val, float) and pd.isna(val)):
+            return val
+        s = str(val).strip()
+        try:
+            obj = json_mod.loads(s)
+        except (json_mod.JSONDecodeError, ValueError):
+            return val  # not JSON, keep original
+
+        # Traverse nested keys
+        result = obj
+        for part in key_parts:
+            if isinstance(result, dict) and part in result:
+                result = result[part]
+            else:
+                return val  # key not found, keep original
+
+        changed += 1
+        return result
+
+    df[column] = df[column].apply(_extract)
+
+    if changed == 0:
+        return {"status": "no_changes", "message": f"No values extracted. Check that column contains JSON with key '{key}'.", "columns": dataset.columns}
+
+    from app.routers.datasets import detect_columns, get_preview_data
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    after_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": get_preview_data(df)}
+
+    await save_operation(dataset_id, "extract-json", {"column": column, "key": key}, before_snapshot, after_snapshot, session)
+    await session.commit()
+
+    return {"status": "success", "message": f"Extracted {changed} value(s) from '{column}' using key '{key}'", "columns": dataset.columns}
+
+
 # Datetime operations
 @router.post("/datasets/{dataset_id}/operations/datetime-operations")
 async def datetime_operations(
