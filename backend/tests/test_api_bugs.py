@@ -139,17 +139,17 @@ class TestDatabaseMigrations:
         assert not hasattr(Project, 'owner_id'), "Project should NOT have owner_id field"
 
     def test_no_duplicate_undo_redo_routes(self):
-        """Verify there's only one undo/redo route (not in both operations.py and undo_redo.py)."""
+        """Verify undo/redo routes come from undo_redo.py only."""
         from app.main import app
-        
+
         routes = [r.path for r in app.routes if hasattr(r, 'path')]
-        
+
         # Count how many undo/redo routes exist (exclude /redoc)
         undo_routes = [r for r in routes if 'undo' in r and 'operations' in r]
         redo_routes = [r for r in routes if 'redo' in r and 'operations' in r]
-        
-        # Should be exactly 1 undo and 1 redo (from undo_redo.py)
-        assert len(undo_routes) == 1, f"Found {len(undo_routes)} undo routes: {undo_routes}"
+
+        # Should be 2 undo routes (undo + undo-batch) and 1 redo (from undo_redo.py)
+        assert len(undo_routes) == 2, f"Found {len(undo_routes)} undo routes: {undo_routes}"
         assert len(redo_routes) == 1, f"Found {len(redo_routes)} redo routes: {redo_routes}"
 
     def test_operations_save_preview_data_for_undo(self):

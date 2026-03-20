@@ -610,16 +610,35 @@
       </div>
       
       <div v-else class="operation-list" style="max-height: 70vh; overflow-y: auto;">
+        <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="select-all-ops" :checked="allOpsSelected" @change="toggleAllOps">
+            <label class="form-check-label small" for="select-all-ops">Select all</label>
+          </div>
+          <BButton v-if="selectedOpIds.length > 0" size="sm" variant="outline-warning" @click="undoSelectedOps">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Undo {{ selectedOpIds.length }}
+          </BButton>
+        </div>
         <div v-for="op in operations" :key="op.id" class="card mb-2">
           <div class="card-body py-2 px-3">
             <div class="d-flex justify-content-between align-items-start">
-              <div>
-                <span class="badge" :class="op.is_undone ? 'bg-secondary' : 'bg-primary'">
-                  {{ op.operation_type }}
-                </span>
-                <small class="text-muted d-block mt-1">
-                  {{ formatDate(op.created_at) }}
-                </small>
+              <div class="d-flex align-items-start gap-2">
+                <input
+                  v-if="!op.is_undone"
+                  class="form-check-input mt-1"
+                  type="checkbox"
+                  :checked="selectedOpIds.includes(op.id)"
+                  @change="toggleOpSelection(op.id)"
+                >
+                <span v-else style="width: 16px;"></span>
+                <div>
+                  <span class="badge" :class="op.is_undone ? 'bg-secondary' : 'bg-primary'">
+                    {{ op.operation_type }}
+                  </span>
+                  <small class="text-muted d-block mt-1">
+                    {{ formatDate(op.created_at) }}
+                  </small>
+                </div>
               </div>
               <BButton v-if="!op.is_undone" size="sm" variant="outline-warning" @click="undoOperation(op.id)">
                 Undo
@@ -717,6 +736,11 @@ const extractJsonSamples = ref([])
 const extractJsonSuggestedKeys = ref([])
 const canUndo = ref(false)
 const canRedo = ref(false)
+const selectedOpIds = ref([])
+const allOpsSelected = computed(() => {
+  const undoable = operations.value.filter(op => !op.is_undone)
+  return undoable.length > 0 && undoable.every(op => selectedOpIds.value.includes(op.id))
+})
 const operating = ref(false)
 const aiInstruction = ref('')
 const clipboardData = ref('')
@@ -920,7 +944,7 @@ async function refreshData() {
     }
 
     const opsRes = await opsPromise
-    if (opsRes.ok) operations.value = await opsRes.json()
+    if (opsRes.ok) { operations.value = await opsRes.json(); selectedOpIds.value = [] }
     
     const profileRes = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/profile`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -1551,6 +1575,48 @@ async function undoOperation(opId) {
     })
     if (res.ok) {
       toast.success('Operation undone')
+      selectedOpIds.value = selectedOpIds.value.filter(id => id !== opId)
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed to undo')
+    }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    operating.value = false
+  }
+}
+
+function toggleOpSelection(opId) {
+  const idx = selectedOpIds.value.indexOf(opId)
+  if (idx >= 0) selectedOpIds.value.splice(idx, 1)
+  else selectedOpIds.value.push(opId)
+}
+
+function toggleAllOps() {
+  const undoable = operations.value.filter(op => !op.is_undone)
+  if (allOpsSelected.value) {
+    selectedOpIds.value = []
+  } else {
+    selectedOpIds.value = undoable.map(op => op.id)
+  }
+}
+
+async function undoSelectedOps() {
+  if (!selectedOpIds.value.length) return
+  if (!confirm(`Undo ${selectedOpIds.value.length} operation(s)?`)) return
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/undo-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ operation_ids: selectedOpIds.value })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message)
+      selectedOpIds.value = []
       await refreshData()
     } else {
       const err = await res.json()
