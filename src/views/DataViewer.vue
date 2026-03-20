@@ -173,7 +173,7 @@
     <div v-else class="card">
       <!-- Custom DataTable (no pagination - handled below) -->
       <DataTable
-        :items="data"
+        :items="filteredData"
         :fields="tableFields"
         :selected-columns="selectedColumns"
         @row-clicked="onRowClicked"
@@ -734,7 +734,7 @@ const paginatedData = computed(() => {
 const filteredData = computed(() => {
   if (!searchQuery.value) return paginatedData.value
   const q = searchQuery.value.toLowerCase()
-  return paginatedData.value.filter(row => Object.values(row).some(val => String(val).toLowerCase().includes(q)))
+  return paginatedData.value.filter(row => Object.values(row).some(val => String(val ?? '').toLowerCase().includes(q)))
 })
 
 async function fetchAgents() {
