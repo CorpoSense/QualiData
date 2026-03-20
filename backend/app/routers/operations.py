@@ -876,15 +876,19 @@ async def delete_rows(
 
     if mode == "first":
         count = int(request.get("count", 1))
-        if count < 1 or count >= total_before:
-            raise HTTPException(status_code=400, detail=f"Count must be between 1 and {total_before - 1}")
+        if count < 1:
+            raise HTTPException(status_code=400, detail="Count must be at least 1")
+        if count >= total_before:
+            raise HTTPException(status_code=400, detail=f"Cannot delete all rows ({count} >= {total_before}). Use a smaller count.")
         df = df.iloc[count:].reset_index(drop=True)
         msg = f"Deleted first {count} row(s)"
 
     elif mode == "last":
         count = int(request.get("count", 1))
-        if count < 1 or count >= total_before:
-            raise HTTPException(status_code=400, detail=f"Count must be between 1 and {total_before - 1}")
+        if count < 1:
+            raise HTTPException(status_code=400, detail="Count must be at least 1")
+        if count >= total_before:
+            raise HTTPException(status_code=400, detail=f"Cannot delete all rows ({count} >= {total_before}). Use a smaller count.")
         df = df.iloc[:-count].reset_index(drop=True)
         msg = f"Deleted last {count} row(s)"
 
@@ -893,6 +897,8 @@ async def delete_rows(
         end = int(request.get("end", total_before))
         if start < 0 or end > total_before or start >= end:
             raise HTTPException(status_code=400, detail=f"Invalid range: start={start}, end={end}")
+        if (end - start) >= total_before:
+            raise HTTPException(status_code=400, detail="Cannot delete all rows. Use a smaller range.")
         df = pd.concat([df.iloc[:start], df.iloc[end:]]).reset_index(drop=True)
         msg = f"Deleted rows {start + 1}-{end} ({end - start} row(s))"
 

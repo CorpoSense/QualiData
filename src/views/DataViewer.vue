@@ -17,8 +17,9 @@
           
           <div class="d-flex align-items-center gap-2 flex-wrap">
             <BFormInput v-model="searchQuery" size="sm" placeholder="Search..." style="width: 150px;"></BFormInput>
-            <BFormInput v-if="showRowFilter" v-model="rowFilterQuery" size="sm" placeholder="Filter rows (e.g., N/A, Paris)..." style="width: 200px;" variant="warning"></BFormInput>
-            <small v-if="showRowFilter && rowFilterQuery" class="text-muted">{{ filteredData.length }}/{{ data.length }} rows</small>
+            <span v-if="hasActiveFilter" class="badge bg-warning text-dark" style="cursor: pointer;" @click="showRowFilterModal = true" title="Click to edit filter">
+              <i class="bi bi-funnel-fill me-1"></i>{{ filteredData.length }}/{{ data.length }} rows
+            </span>
             <BButton size="sm" variant="info" @click="showProfile = true">
               <i class="bi bi-bar-chart me-1"></i> Profile
             </BButton>
@@ -122,8 +123,11 @@
           </BDropdown>
 
           <BDropdown text="Rows" size="sm">
-            <BDropdownItem @click="toggleRowFilter">
-              <i class="bi bi-funnel me-2"></i>{{ showRowFilter ? 'Hide filter' : 'Filter rows' }}
+            <BDropdownItem @click="showRowFilterModal = true">
+              <i class="bi bi-funnel me-2"></i>Filter rows
+            </BDropdownItem>
+            <BDropdownItem @click="clearRowFilter" v-if="hasActiveFilter">
+              <i class="bi bi-x-circle me-2"></i>Clear filter
             </BDropdownItem>
             <BDropdownItem @click="deleteRows('first')" :disabled="!data.length">
               <i class="bi bi-arrow-bar-up me-2"></i>Delete first N rows
@@ -406,6 +410,37 @@
       </template>
     </BModal>
 
+    <!-- Row Filter Modal -->
+    <BModal v-model="showRowFilterModal" title="Filter Rows" size="lg">
+      <div class="alert alert-secondary mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        <strong>Multi-column filter:</strong> Enter a value for any column to filter. Only rows matching <em>all</em> criteria are shown.
+        Leave fields empty to skip that column. Filtered rows can be deleted via the "Rows → Delete visible" menu.
+        Other operations (rename, sort, AI clean) still apply to the <strong>full dataset</strong>.
+      </div>
+      <div v-if="hasActiveFilter" class="alert alert-warning py-2 mb-3">
+        <i class="bi bi-funnel-fill me-1"></i>
+        Showing {{ filteredData.length }} of {{ data.length }} rows matching current filter.
+      </div>
+      <div class="row g-2">
+        <div v-for="col in columns" :key="col.field" class="col-md-6">
+          <BFormGroup :label="col.label || col.field" :label-for="'filter-' + col.field" label-size="sm">
+            <BFormInput
+              :id="'filter-' + col.field"
+              v-model="rowFilters[col.field]"
+              size="sm"
+              :placeholder="'Filter ' + (col.label || col.field) + '...'"
+            ></BFormInput>
+          </BFormGroup>
+        </div>
+      </div>
+      <template #footer>
+        <BButton variant="outline-secondary" @click="clearRowFilter">Clear all</BButton>
+        <BButton @click="showRowFilterModal = false">Cancel</BButton>
+        <BButton variant="primary" @click="applyRowFilter">Apply filter</BButton>
+      </template>
+    </BModal>
+
     <!-- Compare Modal -->
     <BModal v-model="showCompare" title="Compare Operations" size="lg">
       <p class="text-muted">Compare data before and after a cleaning operation.</p>
@@ -591,8 +626,8 @@ const startRow = computed(() => Math.min((page.value - 1) * limit.value + 1, tot
 const endRow = computed(() => Math.min(page.value * limit.value, totalRows.value))
 
 const searchQuery = ref('')
-const showRowFilter = ref(false)
-const rowFilterQuery = ref('')
+const showRowFilterModal = ref(false)
+const rowFilters = ref({})
 const showProfile = ref(false)
 const showCompare = ref(false)
 const showHistory = ref(false)
@@ -753,6 +788,8 @@ const paginatedData = computed(() => {
 })
 
 // Filtered data (search) applied on top of paginated data
+const hasActiveFilter = computed(() => Object.values(rowFilters.value).some(v => v && v.trim()))
+
 const filteredData = computed(() => {
   let result = paginatedData.value
   // Search filter
@@ -760,10 +797,15 @@ const filteredData = computed(() => {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(row => Object.values(row).some(val => String(val ?? '').toLowerCase().includes(q)))
   }
-  // Row filter
-  if (rowFilterQuery.value) {
-    const q = rowFilterQuery.value.toLowerCase()
-    result = result.filter(row => Object.values(row).some(val => String(val ?? '').toLowerCase().includes(q)))
+  // Multi-column filter
+  if (hasActiveFilter.value) {
+    result = result.filter(row => {
+      return Object.entries(rowFilters.value).every(([col, filterVal]) => {
+        if (!filterVal || !filterVal.trim()) return true
+        const cellVal = String(row[col] ?? '').toLowerCase()
+        return cellVal.includes(filterVal.trim().toLowerCase())
+      })
+    })
   }
   return result
 })
@@ -1015,9 +1057,11 @@ async function applyNumericOp(operation) {
 }
 async function applyDedup(type) { await applyOperation(type === 'duplicates' ? 'remove-duplicates' : 'fuzzy-dedupe', {}) }
 
-function toggleRowFilter() {
-  showRowFilter.value = !showRowFilter.value
-  if (!showRowFilter.value) rowFilterQuery.value = ''
+function applyRowFilter() { showRowFilterModal.value = false }
+
+function clearRowFilter() {
+  rowFilters.value = {}
+  showRowFilterModal.value = false
 }
 
 async function deleteRows(mode) {
@@ -1075,7 +1119,7 @@ async function deleteVisibleRows() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify({ mode: 'visible', indices: filteredData.value.map((_, i) => i) })
     })
-    if (res.ok) { toast.success('Visible rows deleted'); rowFilterQuery.value = ''; await refreshData() }
+    if (res.ok) { toast.success('Visible rows deleted'); rowFilters.value = {}; await refreshData() }
     else { const err = await res.json(); toast.error(err.detail || 'Delete failed') }
   } catch (e) { toast.error(e.message) }
   finally { operating.value = false }

@@ -278,3 +278,39 @@ class TestDeleteRowsOperation:
                     session=mock_session,
                 )
         assert exc_info.value.status_code == 400
+        assert "Cannot delete all rows" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_delete_range_all_rows_rejected(self):
+        from app.routers.operations import delete_rows
+        from fastapi import HTTPException
+        dataset = _make_mock_dataset([{"name": "A"}, {"name": "B"}, {"name": "C"}])
+        mock_session = AsyncMock()
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await delete_rows(
+                    dataset_id="test-ds-id",
+                    request={"mode": "range", "start": 0, "end": 3},
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_delete_visible_all_rows_allowed(self):
+        """Deleting all rows via 'visible' mode is allowed (for filter-based deletion)."""
+        from app.routers.operations import delete_rows
+        dataset = _make_mock_dataset([{"name": "A"}, {"name": "B"}])
+        mock_session = AsyncMock()
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await delete_rows(
+                dataset_id="test-ds-id",
+                request={"mode": "visible", "indices": [0, 1]},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+        assert result["status"] == "success"
+        assert result["row_count"] == 0
