@@ -1,175 +1,137 @@
 <template>
-  <div class="assistant-page">
-    <div class="row">
-      <!-- Sidebar: Project/Dataset Selection -->
-      <div class="col-md-3">
+  <div class="assistant-page p-3">
+    <div class="row g-3">
+      <!-- Left: Wizard Steps -->
+      <div class="col-md-4">
         <div class="card">
           <div class="card-body">
-            <h3 class="h5 mb-4">Select Data</h3>
-            
-            <BFormGroup label="Project">
-              <BFormSelect v-model="selectedProject" :options="projectOptions" @update:model-value="onProjectChange"></BFormSelect>
-            </BFormGroup>
+            <h2 class="h5 mb-3"><i class="bi bi-magic me-2"></i>AI Cleaning Assistant</h2>
 
-            <BFormGroup v-if="selectedProject" label="Dataset" class="mt-3">
-              <BFormSelect v-model="selectedDataset" :options="datasetOptions" @update:model-value="onDatasetChange"></BFormSelect>
-            </BFormGroup>
-          </div>
-        </div>
+            <!-- Steps -->
+            <ul class="nav nav-pills nav-fill mb-3" role="tablist">
+              <li v-for="(step, i) in steps" :key="i" class="nav-item">
+                <button class="nav-link" :class="{ active: currentStep === i, 'bg-success text-white': i < currentStep }" @click="goToStep(i)">
+                  {{ i + 1 }}. {{ step }}
+                </button>
+              </li>
+            </ul>
 
-        <!-- Column Info -->
-        <div v-if="columns.length" class="card mt-4">
-          <div class="card-body">
-            <h4 class="h6 mb-3">Columns</h4>
-            <div class="d-flex flex-wrap gap-2">
-              <BBadge v-for="col in columns" :key="col.name" :variant="getColumnType(col.dtype)">
-                {{ col.name }}
-              </BBadge>
+            <!-- Step 0: Select Data -->
+            <div v-if="currentStep === 0">
+              <BFormGroup label="Project">
+                <BFormSelect v-model="selectedProject" :options="projectOptions" @update:model-value="onProjectChange"></BFormSelect>
+              </BFormGroup>
+              <BFormGroup v-if="selectedProject" label="Dataset" class="mt-2">
+                <BFormSelect v-model="selectedDataset" :options="datasetOptions" @update:model-value="onDatasetChange"></BFormSelect>
+              </BFormGroup>
+              <BButton variant="primary" class="mt-3 w-100" :disabled="!selectedDataset" @click="currentStep = 1">
+                Next → Analyze
+              </BButton>
+            </div>
+
+            <!-- Step 1: Analyze -->
+            <div v-if="currentStep === 1">
+              <p class="text-muted small">Scan data for quality issues.</p>
+              <BButton variant="primary" class="w-100" :loading="analyzing" @click="analyzeData">
+                <i class="bi bi-search me-1"></i> Analyze Data
+              </BButton>
+              <div v-if="issues.length" class="mt-3">
+                <div v-for="(issue, i) in issues" :key="i" class="alert py-2 px-3 mb-2" :class="'alert-' + issue.alertClass">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <i class="bi me-1" :class="issue.icon"></i>
+                      <strong class="small">{{ issue.title }}</strong>
+                      <small class="d-block text-muted">{{ issue.description }}</small>
+                    </div>
+                    <BButton size="sm" variant="outline-primary" @click="startClean(i)">Fix →</BButton>
+                  </div>
+                </div>
+                <BButton variant="success" size="sm" class="w-100 mt-2" @click="currentStep = 2">
+                  Continue to Clean →
+                </BButton>
+              </div>
+            </div>
+
+            <!-- Step 2: Clean -->
+            <div v-if="currentStep === 2">
+              <p class="text-muted small">Apply operations. Undo any step if needed.</p>
+              <div v-for="(op, i) in pendingOps" :key="i" class="card mb-2" :class="{ 'border-primary': activeOpIndex === i }">
+                <div class="card-body py-2 px-3">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <span class="badge" :class="op.applied ? 'bg-success' : 'bg-light text-dark'">{{ op.label }}</span>
+                      <small class="text-muted d-block">{{ op.description }}</small>
+                    </div>
+                    <div class="d-flex gap-1">
+                      <BButton v-if="op.applied" size="sm" variant="outline-warning" @click="undoOp(i)" title="Undo">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                      </BButton>
+                      <BButton v-if="!op.applied" size="sm" variant="outline-primary" @click="activeOpIndex = activeOpIndex === i ? null : i">
+                        {{ activeOpIndex === i ? 'Hide' : 'Options' }}
+                      </BButton>
+                      <BButton v-if="!op.applied && activeOpIndex === i" size="sm" variant="primary" @click="applyOp(i)">
+                        Apply
+                      </BButton>
+                    </div>
+                  </div>
+                  <!-- Options -->
+                  <div v-if="activeOpIndex === i && !op.applied && op.options" class="mt-2">
+                    <div v-for="opt in op.options" :key="opt.key" class="mb-1">
+                      <label class="form-label small mb-0">{{ opt.label }}</label>
+                      <BFormSelect v-if="opt.type === 'select'" v-model="op.params[opt.key]" :options="opt.choices" size="sm"></BFormSelect>
+                      <BFormInput v-else v-model="op.params[opt.key]" size="sm" :type="opt.type || 'text'" :placeholder="opt.placeholder"></BFormInput>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-if="!pendingOps.length" class="text-muted text-center py-3 small">No issues found — nothing to clean!</div>
+              <BButton variant="success" size="sm" class="w-100 mt-2" :disabled="!pendingOps.some(o => o.applied)" @click="currentStep = 3">
+                Review Results →
+              </BButton>
+            </div>
+
+            <!-- Step 3: Review -->
+            <div v-if="currentStep === 3">
+              <div class="alert alert-success py-2">
+                <i class="bi bi-check-circle me-1"></i>
+                <strong>{{ appliedCount }} operation(s) applied.</strong>
+              </div>
+              <div class="d-grid gap-2">
+                <BButton size="sm" variant="outline-warning" @click="resetAll">
+                  <i class="bi bi-arrow-counterclockwise me-1"></i> Undo All & Restart
+                </BButton>
+                <BButton size="sm" variant="outline-secondary" @click="currentStep = 2">
+                  ← Back to Clean
+                </BButton>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Main: Wizard -->
-      <div class="col-md-9">
-        <div class="card">
-          <div class="card-body">
-            <h2 class="h4 mb-4">AI Cleaning Assistant</h2>
-            
-            <!-- Steps Navigation -->
-            <ul class="nav nav-pills mb-4" role="tablist">
-              <li class="nav-item">
-                <button 
-                  class="nav-link" 
-                  :class="{ active: currentStep === 0 }"
-                  @click="currentStep = 0"
-                >
-                  1. Analyze
-                </button>
-              </li>
-              <li class="nav-item">
-                <button 
-                  class="nav-link" 
-                  :class="{ active: currentStep === 1 }"
-                  :disabled="!analysisResults"
-                  @click="currentStep = 1"
-                >
-                  2. Operations
-                </button>
-              </li>
-              <li class="nav-item">
-                <button 
-                  class="nav-link" 
-                  :class="{ active: currentStep === 2 }"
-                  :disabled="!operationResult"
-                  @click="currentStep = 2"
-                >
-                  3. Results
-                </button>
-              </li>
-            </ul>
-
-            <!-- Step 1: Analyze -->
-            <div v-show="currentStep === 0">
-              <h3 class="h5">Analyze Your Data</h3>
-              <p class="mb-4">Let AI analyze your dataset and suggest cleaning operations.</p>
-              
-              <BButton 
-                variant="primary" 
-                :loading="analyzing"
-                :disabled="!selectedDataset"
-                @click="analyzeData"
-              >
-                Analyze Dataset
-              </BButton>
-
-              <!-- Analysis Results -->
-              <div v-if="analysisResults" class="mt-4">
-                <BAlert variant="info" :closable="false">
-                  <strong>Analysis Complete!</strong>
-                  <p>{{ analysisResults.message }}</p>
-                </BAlert>
-
-                <div v-if="analysisResults.data?.insights?.length" class="mt-3">
-                  <div v-for="(insight, i) in analysisResults.data.insights" :key="i" class="mb-2">
-                    <BBadge :variant="insight.type === 'warning' ? 'warning' : 'info'">
-                      {{ insight.type }}
-                    </BBadge>
-                    <span class="ms-2">{{ insight.message }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Step 2: Operations -->
-            <div v-show="currentStep === 1">
-              <h3 class="h5">Select Operation</h3>
-              
-              <BFormGroup class="mt-3">
-                <BFormSelect v-model="selectedOperation" :options="operationOptions"></BFormSelect>
-              </BFormGroup>
-
-              <!-- Operation Options -->
-              <div v-if="selectedOperation === 'remove_nulls'" class="mt-4">
-                <BFormGroup label="Method">
-                  <BFormRadioGroup v-model="operationParams.method">
-                    <BFormRadio value="drop">Drop rows with nulls</BFormRadio>
-                    <BFormRadio value="fill_mean">Fill with mean (numeric)</BFormRadio>
-                    <BFormRadio value="fill_mode">Fill with mode</BFormRadio>
-                    <BFormRadio value="constant">Fill with value</BFormRadio>
-                  </BFormRadioGroup>
-                </BFormGroup>
-              </div>
-
-              <div v-if="selectedOperation === 'standardize'" class="mt-4">
-                <BFormGroup label="Operation">
-                  <BFormRadioGroup v-model="operationParams.operation">
-                    <BFormRadio value="trim">Trim whitespace</BFormRadio>
-                    <BFormRadio value="lower">Lowercase</BFormRadio>
-                    <BFormRadio value="upper">Uppercase</BFormRadio>
-                    <BFormRadio value="title">Title case</BFormRadio>
-                  </BFormRadioGroup>
-                </BFormGroup>
-              </div>
-
-              <BButton 
-                variant="primary" 
-                :loading="executing"
-                :disabled="!selectedOperation"
-                class="mt-4"
-                @click="executeOperation"
-              >
-                Apply Operation
-              </BButton>
-            </div>
-
-            <!-- Step 3: Results -->
-            <div v-show="currentStep === 2">
-              <h3 class="h5">Results</h3>
-              
-              <BAlert v-if="operationResult" :variant="operationResult.status === 'success' ? 'success' : 'danger'">
-                {{ operationResult.message }}
-              </BAlert>
-
-              <div v-if="operationResult?.columns" class="mt-4">
-                <h4 class="h6">Updated Columns:</h4>
-                <div class="d-flex flex-wrap gap-2 mt-2">
-                  <BBadge v-for="col in operationResult.columns" :key="col.name" variant="success">
-                    {{ col.name }}
-                  </BBadge>
-                </div>
-              </div>
-
-              <div class="d-flex gap-2 mt-4">
-                <BButton variant="primary" @click="currentStep = 0">
-                  Start Over
-                </BButton>
-                <BButton @click="$router.push(`/projects/${selectedProject}`)">
-                  View Project
-                </BButton>
-              </div>
+      <!-- Right: Data Table (always visible) -->
+      <div class="col-md-8">
+        <div v-if="!selectedDataset" class="card">
+          <div class="card-body text-center text-muted py-5">
+            <i class="bi bi-table fs-1 d-block mb-2"></i>
+            Select a project and dataset to begin.
+          </div>
+        </div>
+        <div v-else>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <small class="text-muted">{{ data.length }} rows (page {{ page }})</small>
+            <div class="d-flex gap-1">
+              <button class="btn btn-sm btn-outline-secondary" :disabled="page <= 1" @click="page--; loadData()">← Prev</button>
+              <button class="btn btn-sm btn-outline-secondary" @click="page++; loadData()">Next →</button>
             </div>
           </div>
+          <DataTable
+            :items="data"
+            :fields="tableFields"
+            :selected-columns="[]"
+            @row-clicked="() => {}"
+            @head-clicked="() => {}"
+          />
         </div>
       </div>
     </div>
@@ -177,163 +139,275 @@
 </template>
 
 <script setup>
+import { ref, computed, watch } from 'vue'
 import { getApiUrl } from '@/utils/api'
-import { ref, reactive, onMounted, computed } from 'vue'
-import { BFormGroup, BFormSelect, BFormRadioGroup, BFormRadio, BButton, BBadge, BAlert } from 'bootstrap-vue-next'
+import { useToast } from '@/composables/useToast'
+import DataTable from '@/components/DataTable.vue'
+import { BFormGroup, BFormSelect, BFormInput, BButton, BAlert } from 'bootstrap-vue-next'
 
 const apiUrl = getApiUrl()
+const toast = useToast()
 
+const steps = ['Select', 'Analyze', 'Clean', 'Review']
+const currentStep = ref(0)
+
+// Data selection
 const projects = ref([])
 const datasets = ref([])
 const selectedProject = ref(null)
 const selectedDataset = ref(null)
 const columns = ref([])
-const currentStep = ref(0)
-const analyzing = ref(false)
-const executing = ref(false)
-const analysisResults = ref(null)
-const operationResult = ref(null)
-const selectedOperation = ref('')
 
-const operationParams = reactive({
-  method: 'drop',
-  operation: 'trim'
-})
+// Data table
+const data = ref([])
+const page = ref(1)
+const limit = ref(20)
+const totalRows = ref(0)
+
+// Analysis
+const analyzing = ref(false)
+const issues = ref([])
+
+// Clean
+const pendingOps = ref([])
+const activeOpIndex = ref(null)
+
+const appliedCount = computed(() => pendingOps.value.filter(o => o.applied).length)
 
 const projectOptions = computed(() => [
-  { value: null, text: 'Select project', disabled: true },
+  { value: null, text: 'Select project…', disabled: true },
   ...projects.value.map(p => ({ value: p.id, text: p.name }))
 ])
 
 const datasetOptions = computed(() => [
-  { value: null, text: 'Select dataset', disabled: true },
+  { value: null, text: 'Select dataset…', disabled: true },
   ...datasets.value.map(d => ({ value: d.id, text: d.name }))
 ])
 
-const operationOptions = [
-  { value: '', text: 'Select operation', disabled: true },
-  { value: 'remove_nulls', text: 'Remove Missing Values' },
-  { value: 'remove_duplicates', text: 'Remove Duplicates' },
-  { value: 'standardize', text: 'Standardize Text' },
-  { value: 'ai_clean', text: 'AI-Powered Cleaning' }
-]
+const tableFields = computed(() => columns.value.map(c => ({ key: c.name, label: c.name })))
 
-onMounted(async () => {
-  await fetchProjects()
-})
+// Init
+fetchProjects()
 
 async function fetchProjects() {
   try {
     const res = await fetch(`${apiUrl}/api/projects?page=1&page_size=100`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
-    if (res.ok) {
-      const data = await res.json()
-      projects.value = data.projects
-    }
-  } catch (e) {
-    console.error(e)
-  }
+    if (res.ok) projects.value = (await res.json()).projects || []
+  } catch { /* silent */ }
 }
 
 async function onProjectChange() {
   datasets.value = []
   selectedDataset.value = null
   columns.value = []
-  
-  if (!selectedProject.value) return
-  
+  data.value = []
   try {
     const res = await fetch(`${apiUrl}/api/datasets?project_id=${selectedProject.value}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
-    if (res.ok) {
-      datasets.value = await res.json()
-    }
-  } catch (e) {
-    console.error(e)
-  }
+    if (res.ok) datasets.value = await res.json()
+  } catch { /* silent */ }
 }
 
 async function onDatasetChange() {
   columns.value = []
+  data.value = []
+  page.value = 1
+  issues.value = []
+  pendingOps.value = []
+  currentStep.value = 1
+  await loadData()
+}
+
+async function loadData() {
   if (!selectedDataset.value) return
-  
   try {
-    const res = await fetch(`${apiUrl}/api/datasets/${selectedDataset.value}/preview?limit=1`, {
+    const res = await fetch(`${apiUrl}/api/datasets/${selectedDataset.value}/preview?limit=${limit.value}&page=${page.value}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
     if (res.ok) {
-      const data = await res.json()
-      columns.value = data.columns || []
+      const preview = await res.json()
+      data.value = preview.preview_data || []
+      columns.value = (preview.columns || []).map(c => ({ name: c.name }))
+      totalRows.value = preview.row_count || 0
     }
-  } catch (e) {
-    console.error(e)
+  } catch { /* silent */ }
+}
+
+function goToStep(i) {
+  if (i <= currentStep.value || (i === 1 && selectedDataset.value) || (i === 2 && issues.value.length) || (i === 3 && appliedCount.value > 0)) {
+    currentStep.value = i
   }
 }
 
 async function analyzeData() {
   analyzing.value = true
+  issues.value = []
+  pendingOps.value = []
   try {
-    const res = await fetch(`${apiUrl}/api/assistant/analyze`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify({ dataset_id: selectedDataset.value })
+    const res = await fetch(`${apiUrl}/api/datasets/${selectedDataset.value}/profile`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
-    if (res.ok) {
-      analysisResults.value = await res.json()
-      currentStep.value = 1
+    if (!res.ok) { toast.error('Failed to analyze'); return }
+    const profile = await res.json()
+    const found = []
+
+    // Missing values
+    if (profile.null_counts) {
+      for (const [col, count] of Object.entries(profile.null_counts)) {
+        if (count > 0) {
+          const pct = Math.round((count / (profile.row_count || 1)) * 100)
+          found.push({
+            title: `Missing values in "${col}"`,
+            description: `${count} nulls (${pct}%)`,
+            alertClass: pct > 50 ? 'danger' : pct > 10 ? 'warning' : 'info',
+            icon: 'bi-exclamation-triangle',
+            operation: 'fillna',
+            column: col,
+            params: { method: 'constant', fill_value: '' },
+            options: [
+              { key: 'method', label: 'Method', type: 'select', choices: [
+                { value: 'constant', text: 'Custom value' },
+                { value: 'drop', text: 'Drop rows' },
+                { value: 'forward', text: 'Forward fill' },
+                { value: 'backward', text: 'Backward fill' },
+              ]},
+              { key: 'fill_value', label: 'Value (if constant)', type: 'text', placeholder: 'e.g. N/A' },
+            ]
+          })
+        }
+      }
     }
-  } catch (e) {
-    console.error(e)
-  } finally {
-    analyzing.value = false
-  }
+
+    // Duplicates
+    if (profile.duplicate_rows > 0) {
+      found.push({
+        title: 'Duplicate rows',
+        description: `${profile.duplicate_rows} duplicate(s)`,
+        alertClass: 'warning',
+        icon: 'bi-files',
+        operation: 'remove-duplicates',
+        column: null,
+        params: {},
+        options: null,
+      })
+    }
+
+    // JSON columns
+    if (profile.columns) {
+      for (const col of profile.columns) {
+        if (col.dtype === 'object' && col.sample_values?.some(v => typeof v === 'string' && v.startsWith('{'))) {
+          found.push({
+            title: `JSON in "${col.name}"`,
+            description: 'Extract values from JSON strings',
+            alertClass: 'info',
+            icon: 'bi-braces',
+            operation: 'extract-json',
+            column: col.name,
+            params: { key: '' },
+            options: [{ key: 'key', label: 'Key to extract', type: 'text', placeholder: 'e.g. country' }],
+          })
+        }
+      }
+    }
+
+    issues.value = found
+    pendingOps.value = found.map(f => ({
+      label: f.title,
+      description: f.description,
+      operation: f.operation,
+      column: f.column,
+      params: { ...f.params },
+      options: f.options,
+      applied: false,
+    }))
+  } catch (e) { toast.error(e.message) }
+  finally { analyzing.value = false }
 }
 
-async function executeOperation() {
-  executing.value = true
-  try {
-    let endpoint = ''
-    let body = {}
-    
-    if (selectedOperation.value === 'remove_nulls') {
-      endpoint = `${apiUrl}/api/datasets/${selectedDataset.value}/operations/fillna`
-      body = { method: operationParams.method }
-    } else if (selectedOperation.value === 'remove_duplicates') {
-      endpoint = `${apiUrl}/api/datasets/${selectedDataset.value}/operations/remove-duplicates`
-      body = {}
-    } else if (selectedOperation.value === 'standardize') {
-      endpoint = `${apiUrl}/api/datasets/${selectedDataset.value}/operations/string-operations`
-      body = { column: columns.value[0]?.name, operation: operationParams.operation }
-    }
-    
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(body)
-    })
-    
-    if (res.ok) {
-      operationResult.value = await res.json()
-      currentStep.value = 2
-    }
-  } catch (e) {
-    console.error(e)
-  } finally {
-    executing.value = false
-  }
+function startClean(issueIndex) {
+  currentStep.value = 2
+  activeOpIndex.value = issueIndex
 }
 
-function getColumnType(dtype) {
-  if (dtype.includes('int') || dtype.includes('float')) return 'info'
-  if (dtype === 'object') return 'warning'
-  return 'secondary'
+async function applyOp(index) {
+  const op = pendingOps.value[index]
+  if (!op) return
+  const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` }
+  let endpoint, body
+
+  if (op.operation === 'fillna') {
+    endpoint = `${apiUrl}/api/datasets/${selectedDataset.value}/operations/fillna`
+    body = { columns: op.column ? [op.column] : undefined, ...op.params }
+  } else if (op.operation === 'remove-duplicates') {
+    endpoint = `${apiUrl}/api/datasets/${selectedDataset.value}/operations/remove-duplicates`
+    body = {}
+  } else if (op.operation === 'extract-json') {
+    endpoint = `${apiUrl}/api/datasets/${selectedDataset.value}/operations/extract-json`
+    body = { column: op.column, key: op.params.key }
+  } else {
+    toast.warning(`Unknown: ${op.operation}`)
+    return
+  }
+
+  try {
+    const res = await fetch(endpoint, { method: 'POST', headers: auth, body: JSON.stringify(body) })
+    if (res.ok) {
+      op.applied = true
+      activeOpIndex.value = null
+      toast.success(`Applied: ${op.label}`)
+      await loadData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed')
+    }
+  } catch (e) { toast.error(e.message) }
+}
+
+async function undoOp(index) {
+  const op = pendingOps.value[index]
+  if (!op?.applied) return
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${selectedDataset.value}/operations/undo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({})
+    })
+    if (res.ok) {
+      op.applied = false
+      toast.success('Undone')
+      await loadData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Undo failed')
+    }
+  } catch (e) { toast.error(e.message) }
+}
+
+async function resetAll() {
+  const applied = pendingOps.value.filter(o => o.applied)
+  for (let i = applied.length - 1; i >= 0; i--) {
+    try {
+      await fetch(`${apiUrl}/api/datasets/${selectedDataset.value}/operations/undo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({})
+      })
+    } catch { /* continue */ }
+  }
+  currentStep.value = 1
+  issues.value = []
+  pendingOps.value = []
+  await loadData()
+  toast.success('All undone')
 }
 </script>
+
+<style scoped>
+.assistant-page {
+  background: #f8f9fa;
+  min-height: 100vh;
+}
+</style>
