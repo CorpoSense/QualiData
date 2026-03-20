@@ -634,6 +634,15 @@
       @cancel="onPromptCancel"
     />
 
+    <!-- Reusable Confirm Modal -->
+    <BModal v-model="confirmConfig.show" :title="confirmConfig.title" @hide="onConfirmCancel">
+      <p class="mb-0">{{ confirmConfig.message }}</p>
+      <template #footer>
+        <BButton @click="onConfirmCancel">Cancel</BButton>
+        <BButton :variant="confirmConfig.variant" @click="onConfirmOk">{{ confirmConfig.confirmText }}</BButton>
+      </template>
+    </BModal>
+
     <!-- History Sidebar -->
     <div v-if="showHistory" class="history-sidebar">
       <div class="d-flex justify-content-between align-items-center mb-3">
@@ -734,7 +743,9 @@ const rowFilters = ref({})
 const filteredMatchingIndices = ref(null)
 const filteredTotalMatching = ref(null)
 const promptConfig = ref({ show: false, title: '', message: '', defaultValue: '', inputType: 'text', confirmText: 'OK' })
+const confirmConfig = ref({ show: false, title: 'Confirm', message: '', confirmText: 'Confirm', variant: 'primary' })
 let promptResolve = null
+let confirmResolve = null
 const showProfile = ref(false)
 const showCompare = ref(false)
 const showHistory = ref(false)
@@ -1195,7 +1206,7 @@ async function applyStructuralOp(operation) {
     if (!selectedColumns.value || selectedColumns.value.length === 0) {
       toast.warning('No columns selected'); return
     }
-    if (!confirm(`Are you sure you want to delete ${selectedColumns.value.length} columns?`)) return
+    if (!(await showConfirm({ title: 'Delete Columns', message: `Delete ${selectedColumns.value.length} column(s)?`, variant: 'danger', confirmText: 'Delete' }))) return
     operating.value = true
     try {
       const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/structural`, {
@@ -1275,6 +1286,29 @@ function onPromptCancel() {
   if (promptResolve) { promptResolve(null); promptResolve = null }
 }
 
+function showConfirm(options) {
+  return new Promise((resolve) => {
+    confirmResolve = resolve
+    confirmConfig.value = {
+      show: true,
+      title: options.title || 'Confirm',
+      message: options.message || '',
+      confirmText: options.confirmText || 'Confirm',
+      variant: options.variant || 'primary',
+    }
+  })
+}
+
+function onConfirmOk() {
+  confirmConfig.value.show = false
+  if (confirmResolve) { confirmResolve(true); confirmResolve = null }
+}
+
+function onConfirmCancel() {
+  confirmConfig.value.show = false
+  if (confirmResolve) { confirmResolve(false); confirmResolve = null }
+}
+
 async function deleteRows(mode) {
   let n
   if (mode === 'first') {
@@ -1282,13 +1316,13 @@ async function deleteRows(mode) {
     if (!val) return
     n = parseInt(val)
     if (isNaN(n) || n < 1) return
-    if (!confirm(`Delete first ${n} row(s)?`)) return
+    if (!(await showConfirm({ title: 'Delete Rows', message: `Delete first ${n} row(s)?`, variant: 'danger', confirmText: 'Delete' }))) return
   } else if (mode === 'last') {
     const val = await showPrompt({ title: 'Delete Last N Rows', message: 'Delete last N rows:', defaultValue: '1', inputType: 'number' })
     if (!val) return
     n = parseInt(val)
     if (isNaN(n) || n < 1) return
-    if (!confirm(`Delete last ${n} row(s)?`)) return
+    if (!(await showConfirm({ title: 'Delete Rows', message: `Delete last ${n} row(s)?`, variant: 'danger', confirmText: 'Delete' }))) return
   } else if (mode === 'range') {
     const val1 = await showPrompt({ title: 'Delete Row Range', message: 'Delete from row number:', defaultValue: '1', inputType: 'number' })
     if (!val1) return
@@ -1300,7 +1334,7 @@ async function deleteRows(mode) {
     if (isNaN(n2) || n2 < n1) return
     n = n1
     const count = n2 - n1 + 1
-    if (!confirm(`Delete rows ${n1} to ${n2} (${count} rows)?`)) return
+    if (!(await showConfirm({ title: 'Delete Rows', message: `Delete rows ${n1} to ${n2} (${count} rows)?`, variant: 'danger', confirmText: 'Delete' }))) return
     // Send n1 and count to backend
     operating.value = true
     try {
@@ -1331,7 +1365,7 @@ async function deleteRows(mode) {
 async function deleteVisibleRows() {
   if (!filteredData.value.length) { toast.warning('No visible rows to delete'); return }
   const count = filteredTotalMatching.value || filteredData.value.length
-  if (!confirm(`Delete ${count} row(s)${hasActiveFilter.value ? ' matching filter' : ''}?`)) return
+  if (!(await showConfirm({ title: 'Delete Rows', message: `Delete ${count} row(s)${hasActiveFilter.value ? ' matching filter' : ''}?`, variant: 'danger', confirmText: 'Delete' }))) return
   operating.value = true
   try {
     let body
@@ -1684,7 +1718,7 @@ function formatOpParamsPretty(params) {
 }
 
 async function deleteOperation(opId) {
-  if (!confirm('Delete this operation record?')) return
+  if (!(await showConfirm({ title: 'Delete Operation', message: 'Delete this operation record?', variant: 'danger', confirmText: 'Delete' }))) return
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/${opId}`, {
@@ -1719,7 +1753,7 @@ function toggleAllOps() {
 
 async function undoSelectedOps() {
   if (!selectedOpIds.value.length) return
-  if (!confirm(`Undo ${selectedOpIds.value.length} operation(s)?`)) return
+  if (!(await showConfirm({ title: 'Undo Operations', message: `Undo ${selectedOpIds.value.length} operation(s)?`, variant: 'warning', confirmText: 'Undo' }))) return
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/undo-batch`, {
