@@ -595,7 +595,6 @@ const batchSize = ref(10)
 const batchDelay = ref(3)
 const batchStartRow = ref(0)
 const batchProgress = ref(null)
-let batchEventSource = null
 
 // Computed fields for BTable - disable sorting to allow column selection
 const tableFields = computed(() => {
@@ -1047,10 +1046,6 @@ async function applyStructuralAiClean() {
 }
 
 function closeDataAiModal() {
-  if (batchEventSource) {
-    batchEventSource.close()
-    batchEventSource = null
-  }
   showDataAiModal.value = false
   batchProgress.value = null
   operating.value = false
@@ -1124,36 +1119,63 @@ async function applyDataAiClean() {
     const { job_id, warning } = await startRes.json()
     if (warning) toast.warning(warning)
 
-    // Step 2: Stream progress via SSE
+    // Step 2: Stream progress via SSE using fetch (EventSource can't send headers)
     const columnsParam = selectedColumns.value.join(',')
     const sseUrl = `${apiUrl}/api/datasets/${datasetId.value}/ai-batch/${job_id}/stream?columns=${encodeURIComponent(columnsParam)}&instruction=${encodeURIComponent(dataAiInstruction.value)}&agent_id=${selectedAgentId.value}&batch_size=${batchSize.value}&delay=${batchDelay.value}&start_row=${batchStartRow.value}`
 
-    batchEventSource = new EventSource(sseUrl)
-
-    batchEventSource.addEventListener('progress', (e) => {
-      batchProgress.value = JSON.parse(e.data)
-    })
-
-    batchEventSource.addEventListener('done', async (e) => {
-      batchProgress.value = JSON.parse(e.data)
-      batchEventSource.close()
-      batchEventSource = null
-      operating.value = false
-      toast.success(`Batch complete: ${batchProgress.value.completed} succeeded, ${batchProgress.value.failed} failed`)
-      await refreshData()
-    })
-
-    batchEventSource.addEventListener('error', (e) => {
-      try {
-        batchProgress.value = JSON.parse(e.data)
-      } catch {
-        // Connection error, not a data error
+    try {
+      const sseRes = await fetch(sseUrl, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      })
+      if (!sseRes.ok) {
+        const err = await sseRes.json().catch(() => ({}))
+        toast.error(err.detail || `SSE connection failed (${sseRes.status})`)
+        operating.value = false
+        return
       }
-      batchEventSource.close()
-      batchEventSource = null
+
+      const reader = sseRes.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        // Parse SSE events from buffer
+        const events = buffer.split('\n\n')
+        buffer = events.pop() || '' // keep incomplete event in buffer
+
+        for (const evt of events) {
+          const lines = evt.split('\n')
+          let eventType = ''
+          let data = ''
+          for (const line of lines) {
+            if (line.startsWith('event: ')) eventType = line.slice(7)
+            if (line.startsWith('data: ')) data = line.slice(6)
+          }
+          if (!eventType || !data) continue
+
+          const parsed = JSON.parse(data)
+
+          if (eventType === 'progress') {
+            batchProgress.value = parsed
+          } else if (eventType === 'done') {
+            batchProgress.value = parsed
+            toast.success(`Batch complete: ${parsed.completed} succeeded, ${parsed.failed} failed`)
+            await refreshData()
+          } else if (eventType === 'error') {
+            batchProgress.value = parsed
+            toast.error('Batch processing failed')
+          }
+        }
+      }
+    } catch (e) {
+      toast.error(e.message || 'SSE connection lost')
+    } finally {
       operating.value = false
-      toast.error('Batch processing failed')
-    })
+    }
 
   } catch (e) {
     toast.error(e.message)
