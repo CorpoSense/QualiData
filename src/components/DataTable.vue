@@ -12,13 +12,25 @@
               @click="$emit('head-clicked', field)"
               style="cursor: pointer"
             >
-              {{ field.label }}
+              <span class="d-flex align-items-center justify-content-between">
+                {{ field.label }}
+                <button
+                  class="btn btn-sm btn-outline-secondary border-0 py-0 px-1 sort-btn"
+                  :class="{ active: sortKey === field.key }"
+                  @click.stop="toggleSort(field.key)"
+                  :title="sortTitle(field.key)"
+                >
+                  <i v-if="sortKey !== field.key" class="bi bi-arrow-down-up text-muted"></i>
+                  <i v-else-if="sortDir === 'asc'" class="bi bi-arrow-up"></i>
+                  <i v-else class="bi bi-arrow-down"></i>
+                </button>
+              </span>
             </th>
           </tr>
         </thead>
         <tbody>
           <tr 
-            v-for="(row, index) in items" 
+            v-for="(row, index) in sortedItems" 
             :key="index"
             @click="$emit('row-clicked', { item: row, index })"
           >
@@ -26,7 +38,7 @@
               {{ row[field.key] }}
             </td>
           </tr>
-          <tr v-if="items.length === 0">
+          <tr v-if="sortedItems.length === 0">
             <td :colspan="fields.length" class="text-center text-muted py-4">
               No data to display
             </td>
@@ -38,6 +50,8 @@
 </template>
 
 <script setup>
+import { ref, computed } from 'vue'
+
 const props = defineProps({
   items: { type: Array, default: () => [] },
   fields: { type: Array, default: () => [] },
@@ -45,6 +59,47 @@ const props = defineProps({
 })
 
 defineEmits(['row-clicked', 'head-clicked'])
+
+const sortKey = ref(null)
+const sortDir = ref('asc')
+
+function toggleSort(key) {
+  if (sortKey.value === key) {
+    if (sortDir.value === 'asc') {
+      sortDir.value = 'desc'
+    } else {
+      // Reset
+      sortKey.value = null
+      sortDir.value = 'asc'
+    }
+  } else {
+    sortKey.value = key
+    sortDir.value = 'asc'
+  }
+}
+
+function sortTitle(key) {
+  if (sortKey.value !== key) return 'Sort'
+  return sortDir.value === 'asc' ? 'Sorted ascending' : 'Sorted descending'
+}
+
+const sortedItems = computed(() => {
+  if (!sortKey.value) return props.items
+  const key = sortKey.value
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  return [...props.items].sort((a, b) => {
+    const va = a[key]
+    const vb = b[key]
+    if (va == null && vb == null) return 0
+    if (va == null) return dir
+    if (vb == null) return -dir
+    // Numeric comparison if both are numbers
+    const na = Number(va)
+    const nb = Number(vb)
+    if (!isNaN(na) && !isNaN(nb)) return (na - nb) * dir
+    return String(va).localeCompare(String(vb)) * dir
+  })
+})
 
 function isSelected(field) {
   const fieldKey = field.key || field.field
@@ -59,4 +114,6 @@ table { margin-bottom: 0; }
 th { user-select: none; }
 th:hover { background-color: var(--bs-table-hover-bg); }
 td { vertical-align: middle; }
+.sort-btn { font-size: 0.7rem; line-height: 1; opacity: 0.4; }
+.sort-btn:hover, .sort-btn.active { opacity: 1; }
 </style>
