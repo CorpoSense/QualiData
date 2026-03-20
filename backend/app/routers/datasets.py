@@ -273,6 +273,73 @@ async def preview_dataset(
     }
 
 
+@router.post("/{dataset_id}/filtered")
+async def filtered_dataset_post(
+    dataset_id: str,
+    filters: dict,
+    limit: int = Query(10, ge=1, le=500),
+    page: int = Query(1, ge=1),
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Filter dataset rows by column values (POST with JSON body).
+
+    Body: {"country": "N/A", "city": "Paris"} — only non-empty values are used as filters.
+    Returns matching rows with pagination + total matching count.
+    """
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    project_result = await session.execute(
+        select(Project).where(
+            Project.id == dataset.project_id, Project.user_id == current_user.id
+        )
+    )
+    if not project_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    preview_list = dataset.preview_data or []
+    if not preview_list:
+        return {"columns": dataset.columns or [], "preview_data": [], "row_count": 0, "total_matching": 0, "page": page, "limit": limit}
+
+    # Build active filters (non-empty values only)
+    active_filters = {k: str(v).strip().lower() for k, v in filters.items() if v and str(v).strip()}
+
+    # Filter rows
+    matching_indices = []
+    for i, row in enumerate(preview_list):
+        match = True
+        for col, filter_val in active_filters.items():
+            cell_val = str(row.get(col, "")).lower()
+            if filter_val not in cell_val:
+                match = False
+                break
+        if match:
+            matching_indices.append(i)
+
+    total_matching = len(matching_indices)
+
+    # Paginate matching indices
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    page_indices = matching_indices[start_idx:end_idx]
+
+    preview_data = [preview_list[i] for i in page_indices]
+
+    return {
+        "columns": dataset.columns or [],
+        "preview_data": preview_data,
+        "row_count": dataset.row_count,
+        "total_matching": total_matching,
+        "matching_indices": matching_indices,
+        "page": page,
+        "limit": limit,
+    }
+
+
 @router.get("/{dataset_id}/export")
 async def export_dataset(
     dataset_id: str,

@@ -628,6 +628,8 @@ const endRow = computed(() => Math.min(page.value * limit.value, totalRows.value
 const searchQuery = ref('')
 const showRowFilterModal = ref(false)
 const rowFilters = ref({})
+const filteredMatchingIndices = ref(null)
+const filteredTotalMatching = ref(null)
 const showProfile = ref(false)
 const showCompare = ref(false)
 const showHistory = ref(false)
@@ -792,21 +794,13 @@ const hasActiveFilter = computed(() => Object.values(rowFilters.value).some(v =>
 
 const filteredData = computed(() => {
   let result = paginatedData.value
-  // Search filter
+  // Search filter (always client-side, on top of current page data)
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(row => Object.values(row).some(val => String(val ?? '').toLowerCase().includes(q)))
   }
-  // Multi-column filter
-  if (hasActiveFilter.value) {
-    result = result.filter(row => {
-      return Object.entries(rowFilters.value).every(([col, filterVal]) => {
-        if (!filterVal || !filterVal.trim()) return true
-        const cellVal = String(row[col] ?? '').toLowerCase()
-        return cellVal.includes(filterVal.trim().toLowerCase())
-      })
-    })
-  }
+  // Note: when hasActiveFilter is true, data is already server-filtered
+  // via refreshData's /filtered endpoint call. No client-side multi-column filter needed.
   return result
 })
 
@@ -844,25 +838,47 @@ watch(showCompare, (val) => {
 async function refreshData() {
   loading.value = true
   try {
-    // Fetch paginated data from API
-    const [previewRes, opsRes] = await Promise.all([
-      fetch(`${apiUrl}/api/datasets/${datasetId.value}/preview?limit=${limit.value}&page=${page.value}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      }),
-      fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    const authHeader = { Authorization: `Bearer ${localStorage.getItem('token')}` }
+
+    // Choose endpoint based on filter state
+    let previewRes
+    if (hasActiveFilter.value) {
+      const activeFilters = {}
+      for (const [k, v] of Object.entries(rowFilters.value)) {
+        if (v && v.trim()) activeFilters[k] = v.trim()
+      }
+      previewRes = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/filtered?limit=${limit.value}&page=${page.value}`, {
+        method: 'POST',
+        headers: { ...authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify(activeFilters)
       })
-    ])
-    
+    } else {
+      previewRes = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/preview?limit=${limit.value}&page=${page.value}`, {
+        headers: authHeader
+      })
+    }
+
+    // Always fetch operations (parallel with preview when no filter)
+    const opsPromise = fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations`, { headers: authHeader })
+
     if (previewRes.ok) {
       const preview = await previewRes.json()
       data.value = preview.preview_data || []
       columns.value = (preview.columns || []).map(col => ({ field: col.name, label: col.name }))
       dataset.value = preview
-      totalRows.value = preview.row_count || 0
-      // Don't overwrite page value - it's managed by goToNext/goToPrev
+
+      if (hasActiveFilter.value) {
+        filteredMatchingIndices.value = preview.matching_indices || null
+        filteredTotalMatching.value = preview.total_matching ?? null
+        totalRows.value = preview.total_matching || 0
+      } else {
+        filteredMatchingIndices.value = null
+        filteredTotalMatching.value = null
+        totalRows.value = preview.row_count || 0
+      }
     }
-    
+
+    const opsRes = await opsPromise
     if (opsRes.ok) operations.value = await opsRes.json()
     
     const profileRes = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/profile`, {
@@ -1057,11 +1073,19 @@ async function applyNumericOp(operation) {
 }
 async function applyDedup(type) { await applyOperation(type === 'duplicates' ? 'remove-duplicates' : 'fuzzy-dedupe', {}) }
 
-function applyRowFilter() { showRowFilterModal.value = false }
+async function applyRowFilter() {
+  showRowFilterModal.value = false
+  page.value = 1
+  await refreshData()
+}
 
 function clearRowFilter() {
   rowFilters.value = {}
+  filteredMatchingIndices.value = null
+  filteredTotalMatching.value = null
   showRowFilterModal.value = false
+  page.value = 1
+  refreshData()
 }
 
 async function deleteRows(mode) {
@@ -1111,15 +1135,24 @@ async function deleteRows(mode) {
 
 async function deleteVisibleRows() {
   if (!filteredData.value.length) { toast.warning('No visible rows to delete'); return }
-  if (!confirm(`Delete ${filteredData.value.length} visible row(s)?`)) return
+  const count = filteredTotalMatching.value || filteredData.value.length
+  if (!confirm(`Delete ${count} row(s)${hasActiveFilter.value ? ' matching filter' : ''}?`)) return
   operating.value = true
   try {
+    let body
+    if (filteredMatchingIndices.value) {
+      // Server-side filter: use matching indices from the filtered response
+      body = { mode: 'visible', indices: filteredMatchingIndices.value }
+    } else {
+      // No filter: use current page indices
+      body = { mode: 'visible', indices: filteredData.value.map((_, i) => i) }
+    }
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/delete-rows`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ mode: 'visible', indices: filteredData.value.map((_, i) => i) })
+      body: JSON.stringify(body)
     })
-    if (res.ok) { toast.success('Visible rows deleted'); rowFilters.value = {}; await refreshData() }
+    if (res.ok) { toast.success('Rows deleted'); rowFilters.value = {}; filteredMatchingIndices.value = null; await refreshData() }
     else { const err = await res.json(); toast.error(err.detail || 'Delete failed') }
   } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
