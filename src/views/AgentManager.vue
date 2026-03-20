@@ -134,7 +134,11 @@
             type="text"
             required
             placeholder="e.g., gpt-4o-mini"
+            list="model-suggestions"
           ></BFormInput>
+          <datalist id="model-suggestions">
+            <option v-for="m in providerModels" :key="m" :value="m"></option>
+          </datalist>
         </BFormGroup>
 
         <BFormGroup label="API Key:" label-for="create-api-key">
@@ -240,6 +244,7 @@
             v-model="editAgent.model"
             type="text"
             required
+            list="model-suggestions"
           ></BFormInput>
         </BFormGroup>
 
@@ -359,10 +364,24 @@ const deleting = ref(false);
 const showCreateModal = ref(false);
 const showEditModal = ref(false);
 const showDeleteConfirm = ref(false);
+const providerModels = ref([]);
 
 const openCreateModal = () => {
   showCreateModal.value = true;
+  fetchModels(createAgent.value.provider);
 };
+
+async function fetchModels(provider) {
+  try {
+    const res = await fetch(`${API_URL}/ai/models/${provider}`, {
+      headers: getAuthHeader(),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      providerModels.value = data.models || []
+    }
+  } catch { providerModels.value = [] }
+}
 
 const currentPage = ref(1);
 const perPage = ref(10);
@@ -502,6 +521,7 @@ const editAgentFn = (agent) => {
   editAgent.value = { ...agent };
   selectedAgentId = agent.id;
   showEditModal.value = true;
+  fetchModels(agent.provider);
 };
 
 const updateAgentFn = async () => {
@@ -560,6 +580,9 @@ const deleteAgentFn = async () => {
 onMounted(() => {
   fetchAgents();
 });
+
+watch(() => createAgent.value.provider, (p) => { if (p) fetchModels(p) })
+watch(() => editAgent.value.provider, (p) => { if (p) fetchModels(p) })
 
 watch(
   () => agents.value,

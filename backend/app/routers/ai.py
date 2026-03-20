@@ -39,6 +39,49 @@ async def get_providers():
     return ProvidersListResponse(providers=providers)
 
 
+# Common models per provider (curated list for autocomplete suggestions)
+COMMON_MODELS = {
+    "openai": [
+        "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo",
+        "o1", "o1-mini", "o3-mini",
+    ],
+    "anthropic": [
+        "claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219",
+        "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022",
+        "claude-3-opus-20240229", "claude-3-haiku-20240307",
+    ],
+    "google": [
+        "gemini-2.0-flash", "gemini-2.0-pro", "gemini-1.5-pro",
+        "gemini-1.5-flash", "gemini-1.0-pro",
+    ],
+    "ollama": [
+        "llama3.2", "llama3.1", "llama3", "mistral", "codellama",
+        "phi3", "gemma2", "qwen2.5",
+    ],
+    "groq": [
+        "llama-3.3-70b-versatile", "llama-3.1-70b-versatile",
+        "llama-3.1-8b-instant", "mixtral-8x7b-32768",
+        "gemma2-9b-it",
+    ],
+    "deepseek": [
+        "deepseek-chat", "deepseek-reasoner", "deepseek-coder",
+    ],
+    "openrouter": [
+        "openai/gpt-4o", "openai/gpt-4o-mini",
+        "anthropic/claude-3.5-sonnet", "anthropic/claude-3-haiku",
+        "google/gemini-2.0-flash", "meta-llama/llama-3.1-70b-instruct",
+        "mistralai/mistral-large",
+    ],
+}
+
+
+@router.get("/models/{provider}")
+async def get_models(provider: str):
+    """List common models for a provider."""
+    models = COMMON_MODELS.get(provider.lower(), [])
+    return {"provider": provider, "models": models}
+
+
 @router.post("/analyze", response_model=AnalyzeDataResponse)
 async def analyze_data(request: AnalyzeDataRequest):
     """
