@@ -377,8 +377,12 @@
         </small>
       </div>
       <template #footer>
-        <BButton @click="closeDataAiModal">Cancel</BButton>
-        <BButton variant="primary" :loading="operating" :disabled="!selectedAgentId || !dataAiInstruction" @click="applyDataAiClean">Apply</BButton>
+        <BButton v-if="!operating && !batchProgress" @click="showDataAiModal = false">Cancel</BButton>
+        <BButton v-if="!operating && !batchProgress" variant="primary" :disabled="!selectedAgentId || !dataAiInstruction" @click="applyDataAiClean">Apply</BButton>
+        <BButton v-if="operating" variant="outline-secondary" disabled>
+          <i class="bi bi-hourglass-split me-1"></i>Processing…
+        </BButton>
+        <BButton v-if="!operating && batchProgress && (batchProgress.status === 'done' || batchProgress.status === 'error')" variant="primary" @click="closeDataAiModal">Close</BButton>
       </template>
     </BModal>
 
