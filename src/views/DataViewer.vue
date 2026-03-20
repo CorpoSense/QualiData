@@ -13,6 +13,9 @@
             <BButton size="sm" variant="outline-secondary" @click="refreshData">
               <i class="bi bi-arrow-clockwise me-1"></i> Refresh
             </BButton>
+            <BButton size="sm" :variant="showAssistant ? 'primary' : 'outline-primary'" @click="toggleAssistant">
+              <i class="bi bi-magic me-1"></i> Assist
+            </BButton>
           </div>
           
           <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -193,6 +196,111 @@
     <div v-if="loading" class="text-center py-5">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+
+    <!-- AI Assistant Panel -->
+    <div v-if="showAssistant" class="assistant-panel card mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="mb-0"><i class="bi bi-magic me-2"></i>AI Assistant — Step {{ assistantStep + 1 }} of 3</h6>
+          <div class="d-flex gap-1">
+            <BButton v-if="assistantStep > 0" size="sm" variant="outline-secondary" @click="assistantPrev">
+              <i class="bi bi-arrow-left"></i> Back
+            </BButton>
+            <BButton size="sm" variant="outline-secondary" @click="showAssistant = false">
+              <i class="bi bi-x-lg"></i>
+            </BButton>
+          </div>
+        </div>
+
+        <!-- Step indicators -->
+        <div class="d-flex gap-2 mb-3">
+          <span v-for="(label, i) in ['Analyze', 'Clean', 'Review']" :key="i"
+            class="badge"
+            :class="i === assistantStep ? 'bg-primary' : i < assistantStep ? 'bg-success' : 'bg-secondary'"
+          >{{ i + 1 }}. {{ label }}</span>
+        </div>
+
+        <!-- Step 1: Analyze -->
+        <div v-if="assistantStep === 0">
+          <p class="text-muted small mb-3">Scan your data for issues: missing values, duplicates, type problems.</p>
+          <BButton size="sm" variant="primary" :loading="assistantAnalyzing" @click="assistantAnalyze">
+            <i class="bi bi-search me-1"></i> Analyze Data
+          </BButton>
+          <div v-if="assistantIssues.length" class="mt-3">
+            <div v-for="(issue, i) in assistantIssues" :key="i" class="alert py-2 px-3 mb-2" :class="'alert-' + (issue.severity === 'high' ? 'danger' : issue.severity === 'medium' ? 'warning' : 'info')">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <i class="bi me-1" :class="issue.icon"></i>
+                  <strong>{{ issue.title }}</strong>
+                  <small class="d-block text-muted">{{ issue.description }}</small>
+                </div>
+                <BButton size="sm" :variant="issue.severity === 'high' ? 'danger' : 'outline-primary'" @click="assistantStartClean(i)">
+                  Fix →
+                </BButton>
+              </div>
+            </div>
+            <BButton size="sm" variant="success" class="mt-2" @click="assistantStep = 1">
+              <i class="bi bi-arrow-right me-1"></i> Continue to Clean
+            </BButton>
+          </div>
+        </div>
+
+        <!-- Step 2: Clean (apply operations one by one) -->
+        <div v-if="assistantStep === 1">
+          <p class="text-muted small mb-2">Apply cleaning operations. Use Undo to revert between steps.</p>
+          <div v-if="assistantPendingOps.length === 0" class="text-muted text-center py-3">
+            <i class="bi bi-check-circle fs-4 d-block mb-1"></i>
+            All suggested operations applied!
+          </div>
+          <div v-for="(op, i) in assistantPendingOps" :key="i" class="card mb-2" :class="{ 'border-primary': assistantActiveOp === i }">
+            <div class="card-body py-2 px-3">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <span class="badge bg-light text-dark">{{ op.label }}</span>
+                  <small class="text-muted d-block">{{ op.description }}</small>
+                </div>
+                <div class="d-flex gap-1">
+                  <BButton v-if="op.applied" size="sm" variant="outline-warning" @click="assistantUndoOp(i)" title="Undo this step">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                  </BButton>
+                  <BButton v-if="!op.applied" size="sm" variant="outline-primary" @click="assistantApplyOp(i)">
+                    Apply
+                  </BButton>
+                  <span v-if="op.applied" class="badge bg-success mt-1"><i class="bi bi-check"></i></span>
+                </div>
+              </div>
+              <!-- Operation options -->
+              <div v-if="assistantActiveOp === i && !op.applied && op.options" class="mt-2">
+                <div v-for="opt in op.options" :key="opt.key" class="mb-1">
+                  <label class="form-label small mb-0">{{ opt.label }}</label>
+                  <BFormSelect v-if="opt.type === 'select'" v-model="op.params[opt.key]" :options="opt.choices" size="sm"></BFormSelect>
+                  <BFormInput v-else v-model="op.params[opt.key]" size="sm" :type="opt.type || 'text'" :placeholder="opt.placeholder"></BFormInput>
+                </div>
+              </div>
+            </div>
+          </div>
+          <BButton v-if="assistantPendingOps.some(o => o.applied)" size="sm" variant="success" class="mt-2" @click="assistantStep = 2">
+            <i class="bi bi-arrow-right me-1"></i> Review Results
+          </BButton>
+        </div>
+
+        <!-- Step 3: Review -->
+        <div v-if="assistantStep === 2">
+          <div class="alert alert-success py-2">
+            <i class="bi bi-check-circle me-1"></i>
+            <strong>Done!</strong> {{ assistantAppliedCount }} operation(s) applied.
+          </div>
+          <div class="d-flex gap-2">
+            <BButton size="sm" variant="outline-secondary" @click="assistantReset">
+              <i class="bi bi-arrow-counterclockwise me-1"></i> Undo All & Start Over
+            </BButton>
+            <BButton size="sm" variant="primary" @click="showAssistant = false">
+              <i class="bi bi-check-lg me-1"></i> Close
+            </BButton>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -742,6 +850,13 @@ const showRowFilterModal = ref(false)
 const rowFilters = ref({})
 const filteredMatchingIndices = ref(null)
 const filteredTotalMatching = ref(null)
+const showAssistant = ref(false)
+const assistantStep = ref(0)
+const assistantAnalyzing = ref(false)
+const assistantIssues = ref([])
+const assistantPendingOps = ref([])
+const assistantActiveOp = ref(null)
+const assistantAppliedCount = ref(0)
 const promptConfig = ref({ show: false, title: '', message: '', defaultValue: '', inputType: 'text', confirmText: 'OK' })
 const confirmConfig = ref({ show: false, title: 'Confirm', message: '', confirmText: 'Confirm', variant: 'primary' })
 let promptResolve = null
@@ -1785,6 +1900,204 @@ async function fetchOperations() {
     if (res.ok) { operations.value = await res.json(); selectedOpIds.value = [] }
   } catch { /* silent */ }
 }
+
+// --- AI Assistant Functions ---
+
+function toggleAssistant() {
+  showAssistant.value = !showAssistant.value
+  if (showAssistant.value) {
+    assistantStep.value = 0
+    assistantIssues.value = []
+    assistantPendingOps.value = []
+    assistantActiveOp.value = null
+    assistantAppliedCount.value = 0
+  }
+}
+
+async function assistantAnalyze() {
+  assistantAnalyzing.value = true
+  assistantIssues.value = []
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/profile`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) {
+      const profile = await res.json()
+      const issues = []
+
+      // Check missing values
+      if (profile.null_counts) {
+        for (const [col, count] of Object.entries(profile.null_counts)) {
+          if (count > 0) {
+            const pct = Math.round((count / (profile.row_count || 1)) * 100)
+            issues.push({
+              title: `Missing values in "${col}"`,
+              description: `${count} nulls (${pct}%)`,
+              severity: pct > 50 ? 'high' : pct > 10 ? 'medium' : 'low',
+              icon: 'bi-exclamation-triangle',
+              operation: 'fillna',
+              column: col,
+              params: { method: 'constant', fill_value: '' },
+              options: [
+                { key: 'method', label: 'Fill method', type: 'select', choices: [
+                  { value: 'constant', text: 'Custom value' },
+                  { value: 'drop', text: 'Drop rows' },
+                  { value: 'forward', text: 'Forward fill' },
+                  { value: 'backward', text: 'Backward fill' },
+                ]},
+                { key: 'fill_value', label: 'Fill value (if constant)', type: 'text', placeholder: 'e.g., N/A, 0' },
+              ]
+            })
+          }
+        }
+      }
+
+      // Check duplicates
+      if (profile.duplicate_rows && profile.duplicate_rows > 0) {
+        issues.push({
+          title: 'Duplicate rows found',
+          description: `${profile.duplicate_rows} duplicate row(s)`,
+          severity: 'medium',
+          icon: 'bi-files',
+          operation: 'remove-duplicates',
+          column: null,
+          params: {},
+          options: null,
+        })
+      }
+
+      // Check column types
+      if (profile.columns) {
+        for (const col of profile.columns) {
+          if (col.dtype === 'object' && col.unique_values && col.sample_values) {
+            // Check if looks like JSON
+            const hasJson = col.sample_values.some(v => typeof v === 'string' && v.startsWith('{'))
+            if (hasJson) {
+              issues.push({
+                title: `JSON strings in "${col.name}"`,
+                description: 'Column contains JSON objects — extract values',
+                severity: 'low',
+                icon: 'bi-braces',
+                operation: 'extract-json',
+                column: col.name,
+                params: { key: '' },
+                options: [
+                  { key: 'key', label: 'Key to extract', type: 'text', placeholder: 'e.g., country, value' },
+                ]
+              })
+            }
+          }
+        }
+      }
+
+      assistantIssues.value = issues
+
+      // Build pending ops from issues
+      assistantPendingOps.value = issues.map(issue => ({
+        label: issue.title,
+        description: issue.description,
+        operation: issue.operation,
+        column: issue.column,
+        params: { ...issue.params },
+        options: issue.options,
+        applied: false,
+      }))
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { assistantAnalyzing.value = false }
+}
+
+function assistantStartClean(issueIndex) {
+  assistantStep.value = 1
+  assistantActiveOp.value = issueIndex
+}
+
+async function assistantApplyOp(index) {
+  const op = assistantPendingOps.value[index]
+  if (!op) return
+
+  const authHeader = { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` }
+  let endpoint, body
+
+  if (op.operation === 'fillna') {
+    endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/fillna`
+    body = { columns: op.column ? [op.column] : undefined, ...op.params }
+  } else if (op.operation === 'remove-duplicates') {
+    endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/remove-duplicates`
+    body = {}
+  } else if (op.operation === 'extract-json') {
+    endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/extract-json`
+    body = { column: op.column, key: op.params.key }
+  } else {
+    toast.warning(`Unknown operation: ${op.operation}`)
+    return
+  }
+
+  operating.value = true
+  try {
+    const res = await fetch(endpoint, { method: 'POST', headers: authHeader, body: JSON.stringify(body) })
+    if (res.ok) {
+      op.applied = true
+      assistantAppliedCount.value++
+      toast.success(`Applied: ${op.label}`)
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Operation failed')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
+async function assistantUndoOp(index) {
+  const op = assistantPendingOps.value[index]
+  if (!op || !op.applied) return
+
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/undo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({})
+    })
+    if (res.ok) {
+      op.applied = false
+      assistantAppliedCount.value--
+      toast.success('Undone')
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Undo failed')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
+function assistantPrev() {
+  if (assistantStep.value > 0) assistantStep.value--
+}
+
+async function assistantReset() {
+  // Undo all applied operations
+  const applied = assistantPendingOps.value.filter(o => o.applied)
+  for (let i = applied.length - 1; i >= 0; i--) {
+    operating.value = true
+    try {
+      await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/undo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({})
+      })
+    } catch { /* continue */ }
+  }
+  operating.value = false
+  assistantStep.value = 0
+  assistantIssues.value = []
+  assistantPendingOps.value = []
+  assistantAppliedCount.value = 0
+  await refreshData()
+  toast.success('All assistant operations undone')
+}
 </script>
 
 <style scoped>
@@ -1828,5 +2141,26 @@ async function fetchOperations() {
 .history-sidebar .badge {
   font-size: 0.7rem;
   font-weight: 500;
+}
+
+.assistant-panel {
+  border: 1px solid #c7d2fe;
+  background: linear-gradient(135deg, #f5f3ff, #eef2ff);
+  border-radius: 10px;
+}
+
+.assistant-panel .card {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  transition: border-color 0.15s;
+}
+
+.assistant-panel .card.border-primary {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 1px #6366f1;
+}
+
+.assistant-panel .badge {
+  font-size: 0.7rem;
 }
 </style>
