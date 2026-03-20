@@ -65,9 +65,6 @@ async def _fetch_models_from_api(provider: str, api_key: str | None = None) -> l
     }
     key = api_key or os.environ.get(env_keys.get(provider, ""), "")
 
-    if provider == "anthropic":
-        return ANTHROPIC_FALLBACK
-
     if provider == "ollama":
         # Ollama runs locally, no API key needed
         try:
@@ -81,6 +78,25 @@ async def _fetch_models_from_api(provider: str, api_key: str | None = None) -> l
 
     if not key:
         return []
+
+    # Anthropic: GET /v1/models (https://platform.claude.com/docs/en/api/models/list)
+    if provider == "anthropic":
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    "https://api.anthropic.com/v1/models",
+                    headers={
+                        "x-api-key": key,
+                        "anthropic-version": "2023-06-01",
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                models = [m["id"] for m in data.get("data", [])]
+                models.sort()
+                return models
+        except Exception:
+            return ANTHROPIC_FALLBACK
 
     # OpenAI-compatible providers (OpenAI, Groq, DeepSeek, OpenRouter)
     base_urls = {
