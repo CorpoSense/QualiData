@@ -858,6 +858,68 @@ async def structural_operations(
     return {"status": "success", "message": msg, "columns": dataset.columns, "results": results}
 
 
+@router.post("/datasets/{dataset_id}/operations/delete-rows")
+async def delete_rows(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Delete rows by mode: first, last, range, or visible (by index)."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+
+    df = pd.DataFrame(dataset.preview_data)
+    total_before = len(df)
+    mode = request.get("mode", "")
+
+    if mode == "first":
+        count = int(request.get("count", 1))
+        if count < 1 or count >= total_before:
+            raise HTTPException(status_code=400, detail=f"Count must be between 1 and {total_before - 1}")
+        df = df.iloc[count:].reset_index(drop=True)
+        msg = f"Deleted first {count} row(s)"
+
+    elif mode == "last":
+        count = int(request.get("count", 1))
+        if count < 1 or count >= total_before:
+            raise HTTPException(status_code=400, detail=f"Count must be between 1 and {total_before - 1}")
+        df = df.iloc[:-count].reset_index(drop=True)
+        msg = f"Deleted last {count} row(s)"
+
+    elif mode == "range":
+        start = int(request.get("start", 0))
+        end = int(request.get("end", total_before))
+        if start < 0 or end > total_before or start >= end:
+            raise HTTPException(status_code=400, detail=f"Invalid range: start={start}, end={end}")
+        df = pd.concat([df.iloc[:start], df.iloc[end:]]).reset_index(drop=True)
+        msg = f"Deleted rows {start + 1}-{end} ({end - start} row(s))"
+
+    elif mode == "visible":
+        indices = request.get("indices", [])
+        if not indices:
+            raise HTTPException(status_code=400, detail="No indices provided")
+        valid_indices = [i for i in indices if 0 <= i < total_before]
+        df = df.drop(df.index[valid_indices]).reset_index(drop=True)
+        msg = f"Deleted {len(valid_indices)} row(s)"
+
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown mode: {mode}")
+
+    from app.routers.datasets import detect_columns, get_preview_data
+    before_snapshot = {"columns": dataset.columns, "row_count": total_before, "preview_data": dataset.preview_data}
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    dataset.row_count = len(df)
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+
+    await save_operation(dataset_id, "delete-rows", request, before_snapshot, after_snapshot, session)
+    await session.commit()
+
+    return {"status": "success", "message": msg, "row_count": len(df)}
+
+
 # Fuzzy deduplication
 @router.post("/datasets/{dataset_id}/operations/fuzzy-dedupe")
 async def fuzzy_dedupe(

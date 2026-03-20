@@ -17,6 +17,8 @@
           
           <div class="d-flex align-items-center gap-2 flex-wrap">
             <BFormInput v-model="searchQuery" size="sm" placeholder="Search..." style="width: 150px;"></BFormInput>
+            <BFormInput v-if="showRowFilter" v-model="rowFilterQuery" size="sm" placeholder="Filter rows (e.g., N/A, Paris)..." style="width: 200px;" variant="warning"></BFormInput>
+            <small v-if="showRowFilter && rowFilterQuery" class="text-muted">{{ filteredData.length }}/{{ data.length }} rows</small>
             <BButton size="sm" variant="info" @click="showProfile = true">
               <i class="bi bi-bar-chart me-1"></i> Profile
             </BButton>
@@ -116,6 +118,24 @@
             </BDropdownItem>
             <BDropdownItem @click="applyDedup('fuzzy')">
               <i class="bi bi-search me-2"></i>Fuzzy match
+            </BDropdownItem>
+          </BDropdown>
+
+          <BDropdown text="Rows" size="sm">
+            <BDropdownItem @click="toggleRowFilter">
+              <i class="bi bi-funnel me-2"></i>{{ showRowFilter ? 'Hide filter' : 'Filter rows' }}
+            </BDropdownItem>
+            <BDropdownItem @click="deleteRows('first')" :disabled="!data.length">
+              <i class="bi bi-arrow-bar-up me-2"></i>Delete first N rows
+            </BDropdownItem>
+            <BDropdownItem @click="deleteRows('last')" :disabled="!data.length">
+              <i class="bi bi-arrow-bar-down me-2"></i>Delete last N rows
+            </BDropdownItem>
+            <BDropdownItem @click="deleteRows('range')" :disabled="!data.length">
+              <i class="bi bi-arrows-expand me-2"></i>Delete row range
+            </BDropdownItem>
+            <BDropdownItem @click="deleteVisibleRows" :disabled="!filteredData.length">
+              <i class="bi bi-trash me-2"></i>Delete {{ filteredData.length }} visible row(s)
             </BDropdownItem>
           </BDropdown>
 
@@ -571,6 +591,8 @@ const startRow = computed(() => Math.min((page.value - 1) * limit.value + 1, tot
 const endRow = computed(() => Math.min(page.value * limit.value, totalRows.value))
 
 const searchQuery = ref('')
+const showRowFilter = ref(false)
+const rowFilterQuery = ref('')
 const showProfile = ref(false)
 const showCompare = ref(false)
 const showHistory = ref(false)
@@ -732,9 +754,18 @@ const paginatedData = computed(() => {
 
 // Filtered data (search) applied on top of paginated data
 const filteredData = computed(() => {
-  if (!searchQuery.value) return paginatedData.value
-  const q = searchQuery.value.toLowerCase()
-  return paginatedData.value.filter(row => Object.values(row).some(val => String(val ?? '').toLowerCase().includes(q)))
+  let result = paginatedData.value
+  // Search filter
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    result = result.filter(row => Object.values(row).some(val => String(val ?? '').toLowerCase().includes(q)))
+  }
+  // Row filter
+  if (rowFilterQuery.value) {
+    const q = rowFilterQuery.value.toLowerCase()
+    result = result.filter(row => Object.values(row).some(val => String(val ?? '').toLowerCase().includes(q)))
+  }
+  return result
 })
 
 async function fetchAgents() {
@@ -983,6 +1014,72 @@ async function applyNumericOp(operation) {
   finally { operating.value = false }
 }
 async function applyDedup(type) { await applyOperation(type === 'duplicates' ? 'remove-duplicates' : 'fuzzy-dedupe', {}) }
+
+function toggleRowFilter() {
+  showRowFilter.value = !showRowFilter.value
+  if (!showRowFilter.value) rowFilterQuery.value = ''
+}
+
+async function deleteRows(mode) {
+  let n
+  if (mode === 'first') {
+    n = parseInt(prompt('Delete first N rows:', '1'))
+    if (isNaN(n) || n < 1) return
+    if (!confirm(`Delete first ${n} row(s)?`)) return
+  } else if (mode === 'last') {
+    n = parseInt(prompt('Delete last N rows:', '1'))
+    if (isNaN(n) || n < 1) return
+    if (!confirm(`Delete last ${n} row(s)?`)) return
+  } else if (mode === 'range') {
+    const n1 = parseInt(prompt('Delete from row number:', '1'))
+    if (isNaN(n1) || n1 < 1) return
+    const n2 = parseInt(prompt(`Delete up to row number (inclusive):`, `${n1}`))
+    if (isNaN(n2) || n2 < n1) return
+    n = n1
+    const count = n2 - n1 + 1
+    if (!confirm(`Delete rows ${n1} to ${n2} (${count} rows)?`)) return
+    // Send n1 and count to backend
+    operating.value = true
+    try {
+      const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/delete-rows`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ mode: 'range', start: n1 - 1, end: n2 })
+      })
+      if (res.ok) { toast.success('Rows deleted'); await refreshData() }
+      else { const err = await res.json(); toast.error(err.detail || 'Delete failed') }
+    } catch (e) { toast.error(e.message) }
+    finally { operating.value = false }
+    return
+  }
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/delete-rows`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ mode, count: n })
+    })
+    if (res.ok) { toast.success('Rows deleted'); await refreshData() }
+    else { const err = await res.json(); toast.error(err.detail || 'Delete failed') }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
+async function deleteVisibleRows() {
+  if (!filteredData.value.length) { toast.warning('No visible rows to delete'); return }
+  if (!confirm(`Delete ${filteredData.value.length} visible row(s)?`)) return
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/delete-rows`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ mode: 'visible', indices: filteredData.value.map((_, i) => i) })
+    })
+    if (res.ok) { toast.success('Visible rows deleted'); rowFilterQuery.value = ''; await refreshData() }
+    else { const err = await res.json(); toast.error(err.detail || 'Delete failed') }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
 
 async function undo() {
   operating.value = true

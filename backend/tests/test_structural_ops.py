@@ -179,3 +179,102 @@ class TestExistingStructuralOps:
         assert result["status"] == "success"
         assert "full_name" in dataset.preview_data[0]
         assert "name" not in dataset.preview_data[0]
+
+
+class TestDeleteRowsOperation:
+    """Test the delete-rows operation."""
+
+    @pytest.mark.asyncio
+    async def test_delete_first_n(self):
+        from app.routers.operations import delete_rows
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await delete_rows(
+                dataset_id="test-ds-id",
+                request={"mode": "first", "count": 1},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+        assert result["status"] == "success"
+        assert result["row_count"] == 1
+        assert dataset.preview_data[0]["name"] == "Bob"
+
+    @pytest.mark.asyncio
+    async def test_delete_last_n(self):
+        from app.routers.operations import delete_rows
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await delete_rows(
+                dataset_id="test-ds-id",
+                request={"mode": "last", "count": 1},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+        assert result["status"] == "success"
+        assert result["row_count"] == 1
+        assert dataset.preview_data[0]["name"] == "Alice"
+
+    @pytest.mark.asyncio
+    async def test_delete_range(self):
+        from app.routers.operations import delete_rows
+        dataset = _make_mock_dataset([
+            {"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}, {"name": "E"}
+        ])
+        mock_session = AsyncMock()
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await delete_rows(
+                dataset_id="test-ds-id",
+                request={"mode": "range", "start": 1, "end": 4},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+        assert result["status"] == "success"
+        assert result["row_count"] == 2
+        names = [r["name"] for r in dataset.preview_data]
+        assert names == ["A", "E"]
+
+    @pytest.mark.asyncio
+    async def test_delete_visible(self):
+        from app.routers.operations import delete_rows
+        dataset = _make_mock_dataset([
+            {"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}
+        ])
+        mock_session = AsyncMock()
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await delete_rows(
+                dataset_id="test-ds-id",
+                request={"mode": "visible", "indices": [0, 2]},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+        assert result["status"] == "success"
+        assert result["row_count"] == 2
+        names = [r["name"] for r in dataset.preview_data]
+        assert names == ["B", "D"]
+
+    @pytest.mark.asyncio
+    async def test_delete_all_rows_rejected(self):
+        from app.routers.operations import delete_rows
+        from fastapi import HTTPException
+        dataset = _make_mock_dataset([{"name": "A"}])
+        mock_session = AsyncMock()
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await delete_rows(
+                    dataset_id="test-ds-id",
+                    request={"mode": "first", "count": 1},
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+        assert exc_info.value.status_code == 400
