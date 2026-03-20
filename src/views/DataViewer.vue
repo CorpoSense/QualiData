@@ -447,6 +447,33 @@
       </template>
     </BModal>
 
+    <!-- Operation Details Modal -->
+    <BModal v-model="showOpDetailsModal" title="Operation Details" size="md">
+      <div v-if="selectedOp">
+        <div class="mb-3">
+          <span class="badge" :class="selectedOp.is_undone ? 'bg-secondary' : 'bg-primary'">
+            {{ selectedOp.operation_type }}
+          </span>
+          <span v-if="selectedOp.is_undone" class="badge bg-warning text-dark ms-1">Undone</span>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">Date</small>
+          <div>{{ formatDate(selectedOp.created_at) }}</div>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">ID</small>
+          <div><code class="small">{{ selectedOp.id }}</code></div>
+        </div>
+        <div v-if="selectedOp.operation_params">
+          <small class="text-muted">Parameters</small>
+          <pre class="bg-light p-2 rounded small mb-0" style="max-height: 200px; overflow-y: auto;">{{ formatOpParamsPretty(selectedOp.operation_params) }}</pre>
+        </div>
+      </div>
+      <template #footer>
+        <BButton variant="primary" @click="showOpDetailsModal = false">Close</BButton>
+      </template>
+    </BModal>
+
     <!-- Row Filter Modal -->
     <BModal v-model="showRowFilterModal" title="Filter Rows" size="lg">
       <div class="alert alert-secondary mb-3">
@@ -632,20 +659,27 @@
                 >
                 <span v-else style="width: 16px;"></span>
                 <div>
-                  <span class="badge" :class="op.is_undone ? 'bg-secondary' : 'bg-primary'">
-                    {{ op.operation_type }}
-                  </span>
+                  <div class="d-flex align-items-center gap-1">
+                    <span class="badge" :class="op.is_undone ? 'bg-secondary' : 'bg-primary'">
+                      {{ op.operation_type }}
+                    </span>
+                    <button class="btn btn-sm btn-link text-muted p-0" @click="showOpDetails(op)" title="View details">
+                      <i class="bi bi-info-circle"></i>
+                    </button>
+                  </div>
                   <small class="text-muted d-block mt-1">
                     {{ formatDate(op.created_at) }}
                   </small>
                 </div>
               </div>
-              <BButton v-if="!op.is_undone" size="sm" variant="outline-warning" @click="undoOperation(op.id)">
-                Undo
-              </BButton>
-            </div>
-            <div v-if="op.operation_params" class="mt-2">
-              <small class="text-muted">{{ formatOperationParams(op.operation_params) }}</small>
+              <div class="d-flex align-items-center gap-1">
+                <BButton v-if="!op.is_undone" size="sm" variant="outline-warning" @click="undoOperation(op.id)">
+                  Undo
+                </BButton>
+                <BButton v-if="op.is_undone" size="sm" variant="outline-danger" @click="deleteOperation(op.id)" title="Delete this record">
+                  <i class="bi bi-trash"></i>
+                </BButton>
+              </div>
             </div>
           </div>
         </div>
@@ -737,6 +771,8 @@ const extractJsonSuggestedKeys = ref([])
 const canUndo = ref(false)
 const canRedo = ref(false)
 const selectedOpIds = ref([])
+const showOpDetailsModal = ref(false)
+const selectedOp = ref(null)
 const allOpsSelected = computed(() => {
   const undoable = operations.value.filter(op => !op.is_undone)
   return undoable.length > 0 && undoable.every(op => selectedOpIds.value.includes(op.id))
@@ -1588,6 +1624,37 @@ async function undoOperation(opId) {
   }
 }
 
+function showOpDetails(op) {
+  selectedOp.value = op
+  showOpDetailsModal.value = true
+}
+
+function formatOpParamsPretty(params) {
+  if (!params) return ''
+  try {
+    return JSON.stringify(params, null, 2)
+  } catch { return String(params) }
+}
+
+async function deleteOperation(opId) {
+  if (!confirm('Delete this operation record?')) return
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/${opId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) {
+      toast.success('Operation deleted')
+      await fetchOperations()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed to delete')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
 function toggleOpSelection(opId) {
   const idx = selectedOpIds.value.indexOf(opId)
   if (idx >= 0) selectedOpIds.value.splice(idx, 1)
@@ -1628,6 +1695,15 @@ async function undoSelectedOps() {
     operating.value = false
   }
 }
+
+async function fetchOperations() {
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) { operations.value = await res.json(); selectedOpIds.value = [] }
+  } catch { /* silent */ }
+}
 </script>
 
 <style scoped>
@@ -1639,12 +1715,37 @@ async function undoSelectedOps() {
   position: fixed;
   top: 0;
   right: 0;
-  width: 350px;
+  width: 360px;
   height: 100vh;
-  background: white;
-  box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+  background: #f8fafc;
+  box-shadow: -4px 0 16px rgba(0,0,0,0.08);
   z-index: 99999 !important;
   overflow-y: auto;
-  padding-top: 60px;
+  padding: 70px 12px 12px;
+}
+
+.history-sidebar h6 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.history-sidebar .card {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  transition: box-shadow 0.15s ease;
+}
+
+.history-sidebar .card:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.history-sidebar .card-body {
+  padding: 10px 12px;
+}
+
+.history-sidebar .badge {
+  font-size: 0.7rem;
+  font-weight: 500;
 }
 </style>

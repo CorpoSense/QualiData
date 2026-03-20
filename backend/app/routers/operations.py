@@ -426,6 +426,39 @@ async def get_operation_history(
     ]
 
 
+@router.delete("/datasets/{dataset_id}/operations/{operation_id}")
+async def delete_operation_history(
+    dataset_id: str,
+    operation_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Delete an operation history record. Only undone operations can be deleted."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+
+    result = await session.execute(
+        select(OperationHistory).where(
+            OperationHistory.id == operation_id,
+            cast(OperationHistory.dataset_id, String) == dataset_id,
+        )
+    )
+    operation = result.scalar_one_or_none()
+
+    if not operation:
+        raise HTTPException(status_code=404, detail="Operation not found")
+
+    if not operation.is_undone:
+        raise HTTPException(
+            status_code=400,
+            detail="Can only delete undone operations. Undo it first.",
+        )
+
+    await session.delete(operation)
+    await session.commit()
+
+    return {"status": "success", "message": "Operation deleted"}
+
+
 # String operations
 @router.post("/datasets/{dataset_id}/operations/string-operations")
 async def string_operations(

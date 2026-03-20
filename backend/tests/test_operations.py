@@ -98,3 +98,81 @@ class TestOperationHistoryModel:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestDeleteOperationHistory:
+    """Test DELETE /datasets/{id}/operations/{op_id}."""
+
+    @pytest.mark.asyncio
+    async def test_delete_undone_operation(self):
+        from app.routers.operations import delete_operation_history
+
+        dataset = MagicMock()
+        dataset.id = "ds-1"
+        dataset.project_id = "proj-1"
+
+        op = MagicMock()
+        op.id = "op-1"
+        op.is_undone = True
+
+        mock_session = AsyncMock()
+
+        async def mock_execute(stmt):
+            mock_r = MagicMock()
+            s = str(stmt)
+            if "projects" in s.lower():
+                mock_r.scalar_one_or_none.return_value = MagicMock()
+            elif "operation_history" in s.lower():
+                mock_r.scalar_one_or_none.return_value = op
+            elif "datasets" in s.lower():
+                mock_r.scalar_one_or_none.return_value = dataset
+            return mock_r
+
+        mock_session.execute = mock_execute
+
+        result = await delete_operation_history(
+            dataset_id="ds-1",
+            operation_id="op-1",
+            current_user=MagicMock(id="u1"),
+            session=mock_session,
+        )
+        assert result["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_delete_active_operation_rejected(self):
+        from fastapi import HTTPException
+        from app.routers.operations import delete_operation_history
+
+        dataset = MagicMock()
+        dataset.id = "ds-1"
+        dataset.project_id = "proj-1"
+
+        op = MagicMock()
+        op.id = "op-1"
+        op.is_undone = False  # not undone
+
+        mock_session = AsyncMock()
+
+        async def mock_execute(stmt):
+            mock_r = MagicMock()
+            s = str(stmt)
+            if "projects" in s.lower():
+                mock_r.scalar_one_or_none.return_value = MagicMock()
+            elif "operation_history" in s.lower():
+                mock_r.scalar_one_or_none.return_value = op
+            elif "datasets" in s.lower():
+                mock_r.scalar_one_or_none.return_value = dataset
+            return mock_r
+
+        mock_session.execute = mock_execute
+
+        with pytest.raises(HTTPException) as exc_info:
+            await delete_operation_history(
+                dataset_id="ds-1",
+                operation_id="op-1",
+                current_user=MagicMock(id="u1"),
+                session=mock_session,
+            )
+
+        assert exc_info.value.status_code == 400
+        assert "Undo it first" in exc_info.value.detail
