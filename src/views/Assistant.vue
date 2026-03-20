@@ -31,24 +31,39 @@
 
             <!-- Step 1: Analyze -->
             <div v-if="currentStep === 1">
-              <p class="text-muted small">Scan data for quality issues.</p>
-              <BButton variant="primary" class="w-100" :loading="analyzing" @click="analyzeData">
-                <i class="bi bi-search me-1"></i> Analyze Data
-              </BButton>
-              <div v-if="issues.length" class="mt-3">
-                <div v-for="(issue, i) in issues" :key="i" class="alert py-2 px-3 mb-2" :class="'alert-' + issue.alertClass">
-                  <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                      <i class="bi me-1" :class="issue.icon"></i>
-                      <strong class="small">{{ issue.title }}</strong>
-                      <small class="d-block text-muted">{{ issue.description }}</small>
-                    </div>
-                    <BButton size="sm" variant="outline-primary" @click="startClean(i)">Fix →</BButton>
-                  </div>
+              <p class="text-muted small mb-3">Scanning your data for quality issues.</p>
+
+              <!-- Analysis checklist -->
+              <div class="list-group list-group-flush mb-3">
+                <div v-for="check in analysisChecks" :key="check.label" class="list-group-item d-flex align-items-center py-2 px-2">
+                  <span v-if="check.status === 'pending'" class="text-muted me-2"><i class="bi bi-circle"></i></span>
+                  <span v-else-if="check.status === 'running'" class="text-primary me-2"><i class="bi bi-arrow-repeat spin"></i></span>
+                  <span v-else-if="check.status === 'done'" class="text-success me-2"><i class="bi bi-check-circle-fill"></i></span>
+                  <span class="small" :class="check.status === 'pending' ? 'text-muted' : ''">{{ check.label }}</span>
+                  <span v-if="check.result" class="ms-auto small text-muted">{{ check.result }}</span>
                 </div>
-                <BButton variant="success" size="sm" class="w-100 mt-2" @click="currentStep = 2">
-                  Continue to Clean →
-                </BButton>
+              </div>
+
+              <!-- Start button -->
+              <BButton v-if="!analysisDone" variant="primary" class="w-100" :loading="analyzing" :disabled="analyzing" @click="analyzeData">
+                <i class="bi bi-search me-1"></i> {{ analyzing ? 'Analyzing…' : 'Start Analysis' }}
+              </BButton>
+
+              <!-- Results summary -->
+              <div v-if="analysisDone" class="mt-3">
+                <div class="alert" :class="issues.length ? 'alert-warning' : 'alert-success'" py-2>
+                  <i class="bi me-1" :class="issues.length ? 'bi-exclamation-triangle' : 'bi-check-circle'"></i>
+                  <strong>{{ issues.length ? `${issues.length} issue(s) found` : 'No issues found!' }}</strong>
+                  <small class="d-block text-muted">
+                    {{ issues.length ? 'Click "Fix →" on each issue or continue to the clean step.' : 'Your data looks clean. You can go back to select a different dataset.' }}
+                  </small>
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                  <BButton size="sm" variant="outline-secondary" @click="currentStep = 0">← Back</BButton>
+                  <BButton v-if="issues.length" size="sm" variant="success" @click="currentStep = 2">
+                    Continue to Clean →
+                  </BButton>
+                </div>
               </div>
             </div>
 
@@ -166,7 +181,14 @@ const totalRows = ref(0)
 
 // Analysis
 const analyzing = ref(false)
+const analysisDone = ref(false)
 const issues = ref([])
+const analysisChecks = ref([
+  { label: 'Check for missing values', status: 'pending', result: '' },
+  { label: 'Check for duplicates', status: 'pending', result: '' },
+  { label: 'Check for JSON columns', status: 'pending', result: '' },
+  { label: 'Check column types', status: 'pending', result: '' },
+])
 
 // Clean
 const pendingOps = ref([])
@@ -217,6 +239,8 @@ async function onDatasetChange() {
   page.value = 1
   issues.value = []
   pendingOps.value = []
+  analysisDone.value = false
+  analysisChecks.value.forEach(c => { c.status = 'pending'; c.result = '' })
   currentStep.value = 1
   await loadData()
 }
@@ -244,8 +268,13 @@ function goToStep(i) {
 
 async function analyzeData() {
   analyzing.value = true
+  analysisDone.value = false
   issues.value = []
   pendingOps.value = []
+
+  // Reset checks
+  analysisChecks.value.forEach(c => { c.status = 'pending'; c.result = '' })
+
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${selectedDataset.value}/profile`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -254,18 +283,21 @@ async function analyzeData() {
     const profile = await res.json()
     const found = []
 
-    // Missing values
+    // Check 1: Missing values
+    analysisChecks.value[0].status = 'running'
+    await sleep(300)
     if (profile.null_counts) {
-      for (const [col, count] of Object.entries(profile.null_counts)) {
-        if (count > 0) {
+      const nullCols = Object.entries(profile.null_counts).filter(([, c]) => c > 0)
+      if (nullCols.length) {
+        analysisChecks.value[0].result = `${nullCols.length} column(s) with nulls`
+        for (const [col, count] of nullCols) {
           const pct = Math.round((count / (profile.row_count || 1)) * 100)
           found.push({
             title: `Missing values in "${col}"`,
             description: `${count} nulls (${pct}%)`,
             alertClass: pct > 50 ? 'danger' : pct > 10 ? 'warning' : 'info',
             icon: 'bi-exclamation-triangle',
-            operation: 'fillna',
-            column: col,
+            operation: 'fillna', column: col,
             params: { method: 'constant', fill_value: '' },
             options: [
               { key: 'method', label: 'Method', type: 'select', choices: [
@@ -278,54 +310,73 @@ async function analyzeData() {
             ]
           })
         }
+      } else {
+        analysisChecks.value[0].result = 'No nulls ✓'
       }
     }
+    analysisChecks.value[0].status = 'done'
 
-    // Duplicates
+    // Check 2: Duplicates
+    analysisChecks.value[1].status = 'running'
+    await sleep(300)
     if (profile.duplicate_rows > 0) {
+      analysisChecks.value[1].result = `${profile.duplicate_rows} found`
       found.push({
         title: 'Duplicate rows',
         description: `${profile.duplicate_rows} duplicate(s)`,
-        alertClass: 'warning',
-        icon: 'bi-files',
-        operation: 'remove-duplicates',
-        column: null,
-        params: {},
-        options: null,
+        alertClass: 'warning', icon: 'bi-files',
+        operation: 'remove-duplicates', column: null,
+        params: {}, options: null,
       })
+    } else {
+      analysisChecks.value[1].result = 'None ✓'
     }
+    analysisChecks.value[1].status = 'done'
 
-    // JSON columns
+    // Check 3: JSON columns
+    analysisChecks.value[2].status = 'running'
+    await sleep(300)
     if (profile.columns) {
-      for (const col of profile.columns) {
-        if (col.dtype === 'object' && col.sample_values?.some(v => typeof v === 'string' && v.startsWith('{'))) {
+      const jsonCols = profile.columns.filter(c =>
+        c.dtype === 'object' && c.sample_values?.some(v => typeof v === 'string' && v.startsWith('{'))
+      )
+      if (jsonCols.length) {
+        analysisChecks.value[2].result = `${jsonCols.length} column(s)`
+        for (const col of jsonCols) {
           found.push({
             title: `JSON in "${col.name}"`,
             description: 'Extract values from JSON strings',
-            alertClass: 'info',
-            icon: 'bi-braces',
-            operation: 'extract-json',
-            column: col.name,
+            alertClass: 'info', icon: 'bi-braces',
+            operation: 'extract-json', column: col.name,
             params: { key: '' },
             options: [{ key: 'key', label: 'Key to extract', type: 'text', placeholder: 'e.g. country' }],
           })
         }
+      } else {
+        analysisChecks.value[2].result = 'None found'
       }
     }
+    analysisChecks.value[2].status = 'done'
+
+    // Check 4: Column types
+    analysisChecks.value[3].status = 'running'
+    await sleep(200)
+    analysisChecks.value[3].result = `${profile.columns?.length || 0} columns analyzed`
+    analysisChecks.value[3].status = 'done'
 
     issues.value = found
     pendingOps.value = found.map(f => ({
-      label: f.title,
-      description: f.description,
-      operation: f.operation,
-      column: f.column,
-      params: { ...f.params },
-      options: f.options,
-      applied: false,
+      label: f.title, description: f.description,
+      operation: f.operation, column: f.column,
+      params: { ...f.params }, options: f.options, applied: false,
     }))
+    analysisDone.value = true
+
   } catch (e) { toast.error(e.message) }
   finally { analyzing.value = false }
 }
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
 function startClean(issueIndex) {
   currentStep.value = 2
@@ -409,5 +460,12 @@ async function resetAll() {
 .assistant-page {
   background: #f8f9fa;
   min-height: 100vh;
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>
