@@ -286,18 +286,18 @@ async function analyzeData() {
     // Check 1: Missing values
     analysisChecks.value[0].status = 'running'
     await sleep(300)
-    if (profile.null_counts) {
-      const nullCols = Object.entries(profile.null_counts).filter(([, c]) => c > 0)
+    if (profile.columns) {
+      const nullCols = profile.columns.filter(c => c.null_count > 0)
       if (nullCols.length) {
         analysisChecks.value[0].result = `${nullCols.length} column(s) with nulls`
-        for (const [col, count] of nullCols) {
-          const pct = Math.round((count / (profile.row_count || 1)) * 100)
+        for (const col of nullCols) {
+          const pct = Math.round(col.null_percent || 0)
           found.push({
-            title: `Missing values in "${col}"`,
-            description: `${count} nulls (${pct}%)`,
+            title: `Missing values in "${col.name}"`,
+            description: `${col.null_count} nulls (${pct}%)`,
             alertClass: pct > 50 ? 'danger' : pct > 10 ? 'warning' : 'info',
             icon: 'bi-exclamation-triangle',
-            operation: 'fillna', column: col,
+            operation: 'fillna', column: col.name,
             params: { method: 'constant', fill_value: '' },
             options: [
               { key: 'method', label: 'Method', type: 'select', choices: [
@@ -319,17 +319,29 @@ async function analyzeData() {
     // Check 2: Duplicates
     analysisChecks.value[1].status = 'running'
     await sleep(300)
-    if (profile.duplicate_rows > 0) {
-      analysisChecks.value[1].result = `${profile.duplicate_rows} found`
-      found.push({
-        title: 'Duplicate rows',
-        description: `${profile.duplicate_rows} duplicate(s)`,
-        alertClass: 'warning', icon: 'bi-files',
-        operation: 'remove-duplicates', column: null,
-        params: {}, options: null,
-      })
+    // Detect duplicates from the loaded data
+    if (data.value.length > 0) {
+      const seen = new Set()
+      let dupes = 0
+      for (const row of data.value) {
+        const key = JSON.stringify(row)
+        if (seen.has(key)) dupes++
+        else seen.add(key)
+      }
+      if (dupes > 0) {
+        analysisChecks.value[1].result = `${dupes} found`
+        found.push({
+          title: 'Duplicate rows',
+          description: `${dupes} duplicate(s) in current page`,
+          alertClass: 'warning', icon: 'bi-files',
+          operation: 'remove-duplicates', column: null,
+          params: {}, options: null,
+        })
+      } else {
+        analysisChecks.value[1].result = 'None ✓'
+      }
     } else {
-      analysisChecks.value[1].result = 'None ✓'
+      analysisChecks.value[1].result = 'Skipped (no data)'
     }
     analysisChecks.value[1].status = 'done'
 
@@ -338,7 +350,7 @@ async function analyzeData() {
     await sleep(300)
     if (profile.columns) {
       const jsonCols = profile.columns.filter(c =>
-        c.dtype === 'object' && c.sample_values?.some(v => typeof v === 'string' && v.startsWith('{'))
+        c.dtype === 'object' && c.sample_values?.some(v => typeof v === 'string' && v.trim().startsWith('{'))
       )
       if (jsonCols.length) {
         analysisChecks.value[2].result = `${jsonCols.length} column(s)`
