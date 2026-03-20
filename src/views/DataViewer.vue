@@ -622,6 +622,18 @@
       </template>
     </BModal>
 
+    <!-- Reusable Prompt Modal -->
+    <PromptModal
+      v-model="promptConfig.show"
+      :title="promptConfig.title"
+      :message="promptConfig.message"
+      :default-value="promptConfig.defaultValue"
+      :input-type="promptConfig.inputType"
+      :confirm-text="promptConfig.confirmText"
+      @confirm="onPromptConfirm"
+      @cancel="onPromptCancel"
+    />
+
     <!-- History Sidebar -->
     <div v-if="showHistory" class="history-sidebar">
       <div class="d-flex justify-content-between align-items-center mb-3">
@@ -694,6 +706,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem } from 'bootstrap-vue-next'
 import DataTable from '../components/DataTable.vue'
+import PromptModal from '../components/PromptModal.vue'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
@@ -720,6 +733,8 @@ const showRowFilterModal = ref(false)
 const rowFilters = ref({})
 const filteredMatchingIndices = ref(null)
 const filteredTotalMatching = ref(null)
+const promptConfig = ref({ show: false, title: '', message: '', defaultValue: '', inputType: 'text', confirmText: 'OK' })
+let promptResolve = null
 const showProfile = ref(false)
 const showCompare = ref(false)
 const showHistory = ref(false)
@@ -1128,9 +1143,9 @@ async function applyDatetimeOp(operation) {
 }
 async function applyStructuralOp(operation) {
   if (operation === 'add_column') {
-    const newName = prompt('Enter new column name:')
+    const newName = await showPrompt({ title: 'Add Column', message: 'Enter new column name:' })
     if (!newName) return
-    const defaultValue = prompt(`Default value for "${newName}" (leave empty for blank):`) ?? ''
+    const defaultValue = await showPrompt({ title: 'Add Column', message: `Default value for "${newName}" (leave empty for blank):` }) ?? ''
     operating.value = true
     try {
       const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/structural`, {
@@ -1151,7 +1166,7 @@ async function applyStructuralOp(operation) {
     if (selectedColumns.value.length !== 1) {
       toast.warning('Select exactly 1 column to rename'); return
     }
-    const newName = prompt('Enter new column name:')
+    const newName = await showPrompt({ title: 'Rename Column', message: 'Enter new column name:' })
     if (!newName) return
     const col = selectedColumns.value[0]
     await applyOperation('structural', { operation, column: col, new_name: newName })
@@ -1159,7 +1174,7 @@ async function applyStructuralOp(operation) {
     if (!selectedColumns.value || selectedColumns.value.length === 0) {
       toast.warning('No columns selected'); return
     }
-    const dtype = prompt('Enter new type (int, float, str, bool):')
+    const dtype = await showPrompt({ title: 'Change Type', message: 'Enter new type (int, float, str, bool):' })
     if (!dtype) return
     operating.value = true
     try {
@@ -1236,20 +1251,52 @@ function clearRowFilter() {
   refreshData()
 }
 
+function showPrompt(options) {
+  return new Promise((resolve) => {
+    promptResolve = resolve
+    promptConfig.value = {
+      show: true,
+      title: options.title || 'Input',
+      message: options.message || '',
+      defaultValue: options.defaultValue || '',
+      inputType: options.inputType || 'text',
+      confirmText: options.confirmText || 'OK',
+    }
+  })
+}
+
+function onPromptConfirm(val) {
+  promptConfig.value.show = false
+  if (promptResolve) { promptResolve(val); promptResolve = null }
+}
+
+function onPromptCancel() {
+  promptConfig.value.show = false
+  if (promptResolve) { promptResolve(null); promptResolve = null }
+}
+
 async function deleteRows(mode) {
   let n
   if (mode === 'first') {
-    n = parseInt(prompt('Delete first N rows:', '1'))
+    const val = await showPrompt({ title: 'Delete First N Rows', message: 'Delete first N rows:', defaultValue: '1', inputType: 'number' })
+    if (!val) return
+    n = parseInt(val)
     if (isNaN(n) || n < 1) return
     if (!confirm(`Delete first ${n} row(s)?`)) return
   } else if (mode === 'last') {
-    n = parseInt(prompt('Delete last N rows:', '1'))
+    const val = await showPrompt({ title: 'Delete Last N Rows', message: 'Delete last N rows:', defaultValue: '1', inputType: 'number' })
+    if (!val) return
+    n = parseInt(val)
     if (isNaN(n) || n < 1) return
     if (!confirm(`Delete last ${n} row(s)?`)) return
   } else if (mode === 'range') {
-    const n1 = parseInt(prompt('Delete from row number:', '1'))
+    const val1 = await showPrompt({ title: 'Delete Row Range', message: 'Delete from row number:', defaultValue: '1', inputType: 'number' })
+    if (!val1) return
+    const n1 = parseInt(val1)
     if (isNaN(n1) || n1 < 1) return
-    const n2 = parseInt(prompt(`Delete up to row number (inclusive):`, `${n1}`))
+    const val2 = await showPrompt({ title: 'Delete Row Range', message: `Delete up to row number (inclusive):`, defaultValue: `${n1}`, inputType: 'number' })
+    if (!val2) return
+    const n2 = parseInt(val2)
     if (isNaN(n2) || n2 < n1) return
     n = n1
     const count = n2 - n1 + 1

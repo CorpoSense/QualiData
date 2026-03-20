@@ -95,8 +95,10 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { getApiUrl } from '@/utils/api'
+import { useToast } from '@/composables/useToast'
 
 const apiUrl = getApiUrl()
+const toast = useToast()
 
 const users = ref([])
 const loading = ref(true)
@@ -224,11 +226,11 @@ async function saveUser() {
       fetchUsers()
     } else {
       const err = await res.json()
-      alert(err.detail || 'Error saving user')
+      toast.error(err.detail || 'Error saving user')
     }
   } catch (e) {
     console.error(e)
-    alert('Error saving user')
+    toast.error('Error saving user')
   }
 }
 
@@ -256,11 +258,11 @@ async function deleteUser() {
       fetchUsers()
     } else {
       deleting.value = false
-      alert('Error deleting user')
+      toast.error('Error deleting user')
     }
   } catch (e) {
     console.error(e)
-    alert('Error deleting user')
+    toast.error('Error deleting user')
   }
 }
 

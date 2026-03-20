@@ -73,8 +73,10 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { getApiUrl } from '@/utils/api'
+import { useToast } from '@/composables/useToast'
 
 const apiUrl = getApiUrl()
+const toast = useToast()
 
 const profile = reactive({
   email: '',
@@ -140,14 +142,14 @@ async function saveProfile() {
     })
     
     if (res.ok) {
-      alert('Profile saved!')
+      toast.success('Profile saved!')
     } else {
       const err = await res.json()
-      alert(err.detail || 'Error saving profile')
+      toast.error(err.detail || 'Error saving profile')
     }
   } catch (e) {
     console.error(e)
-    alert('Error saving profile')
+    toast.error('Error saving profile')
   } finally {
     saving.value = false
   }
@@ -171,17 +173,17 @@ async function changePassword() {
     })
     
     if (res.ok) {
-      alert('Password changed successfully!')
+      toast.success('Password changed successfully!')
       passwordForm.current = ''
       passwordForm.new = ''
       passwordForm.confirm = ''
     } else {
       const err = await res.json()
-      alert(err.detail || 'Error changing password')
+      toast.error(err.detail || 'Error changing password')
     }
   } catch (e) {
     console.error(e)
-    alert('Error changing password')
+    toast.error('Error changing password')
   } finally {
     changingPassword.value = false
   }

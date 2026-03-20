@@ -543,8 +543,10 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
+const toast = useToast()
 const activeTab = ref('connect')
 const isAnnual = ref(true)
 
@@ -585,7 +587,7 @@ function goToDashboard() {
 
 function watchDemo() {
   // Could open a modal or YouTube link
-  alert('Demo video coming soon!')
+  toast.info('Demo video coming soon!')
 }
 </script>
 
