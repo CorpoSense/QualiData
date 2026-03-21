@@ -46,9 +46,35 @@
                 </div>
               </div>
 
-              <BButton variant="primary" class="mt-2 w-100" :disabled="!selectedDataset || (useAiAgent && !assistAgentId)" @click="startAnalysis">
-                {{ useAiAgent ? 'Start AI Analysis' : 'Next → Analyze' }}
+              <BButton variant="primary" class="mt-2 w-100" :disabled="!selectedDataset || (useAiAgent && !assistAgentId) || aiAnalyzing" @click="startAnalysis">
+                <template v-if="aiAnalyzing">
+                  <i class="bi bi-arrow-repeat spin me-1"></i>{{ aiAnalysisStage }}
+                </template>
+                <template v-else>
+                  {{ useAiAgent ? 'Start AI Analysis' : 'Next → Analyze' }}
+                </template>
               </BButton>
+
+              <!-- AI progress stages -->
+              <div v-if="useAiAgent && aiAnalyzing" class="mt-3">
+                <div v-for="(stage, i) in aiStages" :key="i" class="d-flex align-items-center gap-2 mb-1">
+                  <span v-if="stage.status === 'pending'" class="text-muted"><i class="bi bi-circle small"></i></span>
+                  <span v-else-if="stage.status === 'running'" class="text-primary"><i class="bi bi-arrow-repeat spin small"></i></span>
+                  <span v-else-if="stage.status === 'done'" class="text-success"><i class="bi bi-check-circle-fill small"></i></span>
+                  <span v-else-if="stage.status === 'error'" class="text-danger"><i class="bi bi-x-circle-fill small"></i></span>
+                  <small :class="stage.status === 'pending' ? 'text-muted' : ''">{{ stage.label }}</small>
+                </div>
+              </div>
+
+              <!-- AI error details -->
+              <div v-if="aiError" class="alert alert-danger mt-3 py-2">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                <strong>AI Analysis Failed</strong>
+                <small class="d-block mt-1">{{ aiError }}</small>
+                <BButton size="sm" variant="outline-danger" class="mt-2" @click="aiError = ''; aiStages.forEach(s => s.status = 'pending')">
+                  Try Again
+                </BButton>
+              </div>
             </div>
 
             <!-- Step 1: Analyze -->
@@ -245,6 +271,14 @@ const assistRows = ref(10)
 const assistIncludeDesc = ref(false)
 const aiSuggestions = ref([])
 const aiAnalyzing = ref(false)
+const aiAnalysisStage = ref('')
+const aiError = ref('')
+const aiStages = ref([
+  { label: 'Preparing data context', status: 'pending' },
+  { label: 'Connecting to AI agent', status: 'pending' },
+  { label: 'Analyzing and generating suggestions', status: 'pending' },
+  { label: 'Processing response', status: 'pending' },
+])
 
 const limitOptions = [
   { value: 10, text: '10 rows' },
@@ -554,8 +588,25 @@ async function analyzeData() {
 
 async function runAiAnalysis() {
   aiAnalyzing.value = true
+  aiError.value = ''
   aiSuggestions.value = []
+  aiStages.value.forEach(s => s.status = 'pending')
+
   try {
+    // Stage 1: Prepare
+    aiStages.value[0].status = 'running'
+    aiAnalysisStage.value = 'Preparing data…'
+    await sleep(200)
+    aiStages.value[0].status = 'done'
+
+    // Stage 2: Connect
+    aiStages.value[1].status = 'running'
+    aiAnalysisStage.value = 'Connecting to AI…'
+
+    // Stage 3+4: Actual API call
+    aiStages.value[2].status = 'running'
+    aiAnalysisStage.value = 'Analyzing…'
+
     const res = await fetch(`${apiUrl}/api/assistant/ai-suggest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
@@ -566,23 +617,43 @@ async function runAiAnalysis() {
         include_description: assistIncludeDesc.value,
       })
     })
+
+    aiStages.value[1].status = 'done'
+    aiStages.value[2].status = 'done'
+
     if (!res.ok) {
-      const err = await res.json()
-      toast.error(err.detail || 'AI analysis failed')
+      let errMsg = `HTTP ${res.status}`
+      try { const err = await res.json(); errMsg = err.detail || errMsg } catch { /* keep default */ }
+      aiStages.value[3].status = 'error'
+      aiError.value = errMsg
       return
     }
+
+    aiStages.value[3].status = 'running'
+    aiAnalysisStage.value = 'Processing…'
     const data = await res.json()
+
     aiSuggestions.value = (data.suggestions || []).map(s => ({
       ...s,
       params: { ...(s.params || {}) },
       accepted: true,
       applied: false,
     }))
+    aiStages.value[3].status = 'done'
 
-    // Move to review step
+    if (!aiSuggestions.value.length) {
+      aiError.value = 'AI returned no suggestions. Try different settings or a different agent.'
+      return
+    }
+
     currentStep.value = 2
-  } catch (e) { toast.error(e.message) }
-  finally { aiAnalyzing.value = false }
+  } catch (e) {
+    aiStages.value.forEach(s => { if (s.status === 'running') s.status = 'error' })
+    aiError.value = e.message || 'Connection failed'
+  } finally {
+    aiAnalyzing.value = false
+    aiAnalysisStage.value = ''
+  }
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
