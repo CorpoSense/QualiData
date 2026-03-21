@@ -468,7 +468,18 @@ async def update_dataset(
     session: AsyncSession = Depends(get_async_session),
 ):
     """Update dataset name and/or description."""
-    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    project_result = await session.execute(
+        select(Project).where(
+            Project.id == dataset.project_id, Project.user_id == current_user.id
+        )
+    )
+    if not project_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Access denied")
 
     name = request.get("name")
     description = request.get("description")
