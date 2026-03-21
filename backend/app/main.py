@@ -86,6 +86,13 @@ async def run_migrations():
                 ))
             except Exception as e:
                 logger.debug(f"Migration: agents.api_key - {e}")
+
+            try:
+                await conn.execute(text(
+                    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS base_url VARCHAR(500)"
+                ))
+            except Exception as e:
+                logger.debug(f"Migration: agents.base_url - {e}")
                     
         logger.info("Database migrations completed")
     except Exception as e:

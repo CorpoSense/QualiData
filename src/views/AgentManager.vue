@@ -153,6 +153,15 @@
           ></BFormInput>
         </BFormGroup>
 
+        <BFormGroup v-if="providersWithBaseUrl.includes(createAgent.provider)" label="Custom Base URL (optional):" label-for="create-base-url">
+          <BFormInput
+            id="create-base-url"
+            v-model="createAgent.base_url"
+            type="url"
+            placeholder="e.g., http://localhost:11434 or https://your-proxy.com/v1"
+          ></BFormInput>
+        </BFormGroup>
+
         <BFormGroup label="System Prompt (optional):" label-for="create-system">
           <BFormTextarea
             id="create-system"
@@ -261,6 +270,15 @@
           <small v-if="editAgent.has_api_key && !editAgent.api_key" class="text-muted">
             API key is set. Enter a new value to replace it.
           </small>
+        </BFormGroup>
+
+        <BFormGroup v-if="providersWithBaseUrl.includes(editAgent.provider)" label="Custom Base URL (optional):" label-for="edit-base-url">
+          <BFormInput
+            id="edit-base-url"
+            v-model="editAgent.base_url"
+            type="url"
+            :placeholder="editAgent.base_url || 'e.g., http://localhost:11434'"
+          ></BFormInput>
         </BFormGroup>
 
         <BFormGroup label="System Prompt (optional):" label-for="edit-system">
@@ -398,6 +416,7 @@ const createAgent = ref({
   provider: 'openai',
   model: '',
   api_key: '',
+  base_url: '',
   system_prompt: '',
   prompt_template: '',
   temperature: 0.3,
@@ -429,7 +448,10 @@ const providerOptions = [
   { value: 'groq', text: 'Groq' },
   { value: 'deepseek', text: 'DeepSeek' },
   { value: 'openrouter', text: 'OpenRouter' },
+  { value: 'huggingface', text: 'Huggingface' },
 ];
+
+const providersWithBaseUrl = ['openai', 'huggingface', 'ollama', 'groq', 'deepseek'];
 
 const createFormValid = computed(() => {
   // Check basic validity from our model first
@@ -507,6 +529,7 @@ const createAgentFn = async () => {
       provider: 'openai',
       model: '',
       api_key: '',
+      base_url: '',
       system_prompt: '',
       prompt_template: '',
       temperature: 0.3,

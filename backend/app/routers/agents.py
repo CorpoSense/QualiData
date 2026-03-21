@@ -27,6 +27,7 @@ class AgentBase(BaseModel):
 
 class AgentCreate(AgentBase):
     api_key: str | None = None
+    base_url: str | None = None
 
 
 class AgentUpdate(BaseModel):
@@ -40,6 +41,7 @@ class AgentUpdate(BaseModel):
     is_template: bool | None = None
     is_builtin: bool | None = None
     api_key: str | None = None
+    base_url: str | None = None
 
 
 class AgentResponse(BaseModel):
@@ -75,6 +77,7 @@ def _agent_to_response(agent: Agent) -> dict:
         "temperature": agent.temperature,
         "is_template": agent.is_template,
         "is_builtin": agent.is_builtin,
+        "base_url": agent.base_url,
         "created_at": agent.created_at,
         "updated_at": agent.updated_at,
         "has_api_key": bool(agent.api_key),

@@ -116,6 +116,7 @@ async def _get_agent_config(agent_id: str | None, user_id: str, session: AsyncSe
             "temperature": agent.temperature,
             "system_prompt": agent.system_prompt,
             "api_key": agent.api_key,
+            "base_url": agent.base_url,
         }
     # No agent selected — use defaults
     return {
@@ -124,6 +125,7 @@ async def _get_agent_config(agent_id: str | None, user_id: str, session: AsyncSe
         "temperature": 0.3,
         "system_prompt": None,
         "api_key": None,
+        "base_url": None,
     }
 
 
@@ -232,6 +234,8 @@ Respond with JSON only. Use one of these formats:
         llm_kwargs = {}
         if agent_config.get("api_key"):
             llm_kwargs["api_key"] = agent_config["api_key"]
+        if agent_config.get("base_url"):
+            llm_kwargs["base_url"] = agent_config["base_url"]
         llm = get_chat_model(
             provider,
             model=agent_config.get("model"),
@@ -412,6 +416,8 @@ You may change any column based on the instruction and other columns' context.""
         llm_kwargs = {}
         if agent_config.get("api_key"):
             llm_kwargs["api_key"] = agent_config["api_key"]
+        if agent_config.get("base_url"):
+            llm_kwargs["base_url"] = agent_config["base_url"]
         llm = get_chat_model(
             provider,
             model=agent_config.get("model"),
@@ -801,6 +807,8 @@ async def stream_ai_batch(
                 llm_kwargs = {}
                 if agent_config.get("api_key"):
                     llm_kwargs["api_key"] = agent_config["api_key"]
+                if agent_config.get("base_url"):
+                    llm_kwargs["base_url"] = agent_config["base_url"]
                 llm = get_chat_model(
                     provider,
                     model=agent_config.get("model"),

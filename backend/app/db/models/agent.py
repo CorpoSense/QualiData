@@ -41,6 +41,9 @@ class Agent(Base):
     # API credentials (stored encrypted at rest via DB encryption)
     api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Custom endpoint
+    base_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     # Generation settings
     temperature: Mapped[float] = mapped_column(Float, default=0.3)
 

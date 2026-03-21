@@ -22,7 +22,11 @@ class AIProvider(str, Enum):
     GROQ = "groq"
     DEEPSEEK = "deepseek"
     OPENROUTER = "openrouter"
+    HUGGINGFACE = "huggingface"
 
+
+# Providers that support custom base URLs
+CUSTOM_BASE_URL_PROVIDERS = {"openai", "huggingface", "ollama", "groq", "deepseek"}
 
 # Default models per provider
 DEFAULT_MODELS = {
@@ -32,7 +36,8 @@ DEFAULT_MODELS = {
     AIProvider.OLLAMA: "llama3.2",
     AIProvider.GROQ: "llama-3.3-70b-versatile",
     AIProvider.DEEPSEEK: "deepseek-chat",
-    AIProvider.OPENROUTER: "openai/gpt-4o-mini",  # OpenRouter uses provider/model format
+    AIProvider.OPENROUTER: "openai/gpt-4o-mini",
+    AIProvider.HUGGINGFACE: "meta-llama/Llama-3.1-8B-Instruct",
 }
 
 
@@ -40,6 +45,7 @@ def get_chat_model(
     provider: AIProvider,
     model: str | None = None,
     temperature: float = 0.7,
+    base_url: str | None = None,
     **kwargs,
 ) -> BaseChatModel:
     """
@@ -49,12 +55,17 @@ def get_chat_model(
         provider: The AI provider to use
         model: Specific model name (uses default if not provided)
         temperature: Sampling temperature (0-1)
-        **kwargs: Additional provider-specific arguments
+        base_url: Custom API base URL (for providers that support it)
+        **kwargs: Additional provider-specific arguments (api_key, etc.)
 
     Returns:
         A LangChain chat model instance
     """
     model_name = model or DEFAULT_MODELS[provider]
+
+    # Apply custom base URL if provided and supported
+    if base_url and provider.value in CUSTOM_BASE_URL_PROVIDERS:
+        kwargs["base_url"] = base_url
 
     match provider:
         case AIProvider.OPENAI:
@@ -106,6 +117,20 @@ def get_chat_model(
                 **kwargs,
             )
 
+        case AIProvider.HUGGINGFACE:
+            from langchain_huggingface import HuggingFaceEndpoint
+            hf_kwargs = {
+                "repo_id": model_name,
+                "temperature": temperature,
+            }
+            if kwargs.get("api_key"):
+                hf_kwargs["huggingfacehub_api_token"] = kwargs["api_key"]
+            if base_url:
+                hf_kwargs["endpoint_url"] = base_url
+            endpoint = HuggingFaceEndpoint(**hf_kwargs)
+            from langchain_huggingface import ChatHuggingFace
+            return ChatHuggingFace(llm=endpoint)
+
         case _:
             raise ValueError(f"Unsupported provider: {provider}")
 
@@ -116,6 +141,7 @@ def list_providers() -> list[dict]:
         {
             "provider": p.value,
             "default_model": DEFAULT_MODELS[p],
+            "supports_base_url": p.value in CUSTOM_BASE_URL_PROVIDERS,
         }
         for p in AIProvider
     ]
