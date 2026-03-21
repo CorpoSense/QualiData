@@ -460,6 +460,32 @@ async def get_dataset(
     return dataset
 
 
+@router.patch("/{dataset_id}")
+async def update_dataset(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Update dataset name and/or description."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+
+    name = request.get("name")
+    description = request.get("description")
+
+    if name is not None:
+        if not name.strip():
+            raise HTTPException(status_code=400, detail="Name cannot be empty")
+        dataset.name = name.strip()
+    if description is not None:
+        dataset.description = description.strip()
+
+    await session.commit()
+    await session.refresh(dataset)
+
+    return {"status": "success", "message": "Dataset updated", "dataset": {"id": dataset.id, "name": dataset.name, "description": dataset.description}}
+
+
 @router.delete("/{dataset_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_dataset(
     dataset_id: str,

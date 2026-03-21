@@ -81,6 +81,7 @@
             >
               <template #actions>
                 <BDropdownItem @click="previewDataset(dataset)">Preview</BDropdownItem>
+                <BDropdownItem @click="openRenameModal(dataset)">Rename</BDropdownItem>
                 <BDropdownItem @click="exportDataset(dataset)">Export</BDropdownItem>
                 <BDropdownItem @click="profileDataset(dataset)" variant="info">Profile</BDropdownItem>
                 <BDropdownItem @click="deleteDataset(dataset)" variant="danger">Delete</BDropdownItem>
@@ -184,6 +185,20 @@
       </div>
     </BModal>
 
+    <!-- Rename Dataset Modal -->
+    <BModal v-model="showRenameModal" title="Rename Dataset">
+      <BFormGroup label="Name" label-for="rename-ds-name">
+        <BFormInput id="rename-ds-name" v-model="renameDatasetName" required></BFormInput>
+      </BFormGroup>
+      <BFormGroup label="Description" label-for="rename-ds-desc">
+        <BFormTextarea id="rename-ds-desc" v-model="renameDatasetDesc" rows="2"></BFormTextarea>
+      </BFormGroup>
+      <template #footer>
+        <BButton @click="showRenameModal = false">Cancel</BButton>
+        <BButton variant="primary" :loading="renamingDataset" @click="renameDataset">Save</BButton>
+      </template>
+    </BModal>
+
     <!-- Preview Modal -->
     <BModal v-model="showPreviewModal" :has-modal-card="true" size="xl">
       <div class="modal-dialog modal-xl">
@@ -208,12 +223,14 @@
 import { getApiUrl } from '@/utils/api'
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { BButton, BTab, BTabs, BDropdown, BDropdownItem, BBadge, BModal, BFormGroup, BFormInput, BFormFile, BFormSelect, BTable } from 'bootstrap-vue-next'
+import { useToast } from '@/composables/useToast'
+import { BButton, BTab, BTabs, BDropdown, BDropdownItem, BBadge, BModal, BFormGroup, BFormInput, BFormTextarea, BFormFile, BFormSelect, BTable } from 'bootstrap-vue-next'
 import DatasetCard from '@/components/DatasetCard.vue'
 
 const route = useRoute()
 const router = useRouter()
 const apiUrl = getApiUrl()
+const toast = useToast()
 
 const projectId = route.params.id
 const loading = ref(true)
@@ -229,6 +246,11 @@ watch(showImportModal, (val) => {
   }
 })
 const showPreviewModal = ref(false)
+const showRenameModal = ref(false)
+const renameDatasetId = ref(null)
+const renameDatasetName = ref('')
+const renameDatasetDesc = ref('')
+const renamingDataset = ref(false)
 const showAssistantModal = ref(false)
 const importing = ref(false)
 const selectedDataset = ref(null)
@@ -398,6 +420,33 @@ async function previewDataset(dataset) {
   } catch (e) {
     console.error(e)
   }
+}
+
+function openRenameModal(dataset) {
+  renameDatasetId.value = dataset.id
+  renameDatasetName.value = dataset.name
+  renameDatasetDesc.value = dataset.description || ''
+  showRenameModal.value = true
+}
+
+async function renameDataset() {
+  if (!renameDatasetName.value.trim()) return
+  renamingDataset.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${renameDatasetId.value}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ name: renameDatasetName.value, description: renameDatasetDesc.value })
+    })
+    if (res.ok) {
+      showRenameModal.value = false
+      await fetchDatasets()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed to rename')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { renamingDataset.value = false }
 }
 
 async function deleteDataset(dataset) {
