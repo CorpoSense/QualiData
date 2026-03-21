@@ -13,7 +13,7 @@
         <BButton variant="primary" @click="showImportModal = true">
           <i class="bi bi-upload me-2"></i>Import Data
         </BButton>
-        <BButton variant="success" @click="$router.push('/assistant')">
+        <BButton variant="success" @click="$router.push(`/assistant?project=${projectId}`)">
           <i class="bi bi-robot me-2"></i>AI Assistant
         </BButton>
       </div>

@@ -224,12 +224,14 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { getApiUrl } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
 import DataTable from '@/components/DataTable.vue'
 import { BFormGroup, BFormSelect, BFormInput, BButton, BAlert } from 'bootstrap-vue-next'
 
 const apiUrl = getApiUrl()
+const route = useRoute()
 const toast = useToast()
 
 const steps = ['Select', 'Analyze', 'Clean', 'Review']
@@ -308,7 +310,15 @@ async function fetchProjects() {
     const res = await fetch(`${apiUrl}/api/projects?page=1&page_size=100`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
-    if (res.ok) projects.value = (await res.json()).projects || []
+    if (res.ok) {
+      projects.value = (await res.json()).projects || []
+      // Auto-select project from query param
+      const pid = route.query.project
+      if (pid && projects.value.some(p => p.id === pid)) {
+        selectedProject.value = pid
+        await onProjectChange()
+      }
+    }
   } catch { /* silent */ }
 }
 
