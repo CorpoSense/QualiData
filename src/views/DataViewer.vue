@@ -45,7 +45,16 @@
               <i class="bi bi-trash me-2"></i>Drop rows with nulls
             </BDropdownItem>
             <BDropdownItem @click="showFillnaModal = true">
-              <i class="bi bi-pencil me-2"></i>Fill with value...
+              <i class="bi bi-pencil me-2"></i>Fill with value…
+            </BDropdownItem>
+            <BDropdownItem @click="applyFillnaStat('mean')">
+              <i class="bi bi-calculator me-2"></i>Fill with mean (numeric)
+            </BDropdownItem>
+            <BDropdownItem @click="applyFillnaStat('median')">
+              <i class="bi bi-calculator me-2"></i>Fill with median (numeric)
+            </BDropdownItem>
+            <BDropdownItem @click="applyFillnaStat('mode')">
+              <i class="bi bi-bar-chart me-2"></i>Fill with mode
             </BDropdownItem>
             <BDropdownItem @click="applyOperation('fillna', { method: 'forward' })">
               <i class="bi bi-arrow-down me-2"></i>Forward fill
@@ -73,6 +82,9 @@
             </BDropdownItem>
             <BDropdownItem @click="openExtractJsonModal">
               <i class="bi bi-braces me-2"></i>Extract JSON value…
+            </BDropdownItem>
+            <BDropdownItem @click="showFindReplaceModal = true">
+              <i class="bi bi-arrow-left-right me-2"></i>Find & Replace…
             </BDropdownItem>
           </BDropdown>
 
@@ -345,6 +357,32 @@
       <template #footer>
         <BButton @click="showExtractJsonModal = false">Cancel</BButton>
         <BButton variant="primary" :loading="operating" :disabled="!extractJsonKey" @click="applyExtractJson">Extract</BButton>
+      </template>
+    </BModal>
+
+    <!-- Find & Replace Modal -->
+    <BModal v-model="showFindReplaceModal" title="Find & Replace">
+      <div class="alert alert-info py-2 mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        Replace values in <strong>{{ selectedColumns.length ? selectedColumns.join(', ') : 'selected column(s)' }}</strong>.
+      </div>
+      <BFormGroup label="Find" label-for="find-input">
+        <BFormInput id="find-input" v-model="findValue" placeholder="Text or regex to find"></BFormInput>
+      </BFormGroup>
+      <BFormGroup label="Replace with" label-for="replace-input">
+        <BFormInput id="replace-input" v-model="replaceValue" placeholder="Replacement text"></BFormInput>
+      </BFormGroup>
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" v-model="findReplaceRegex" id="fr-regex">
+        <label class="form-check-label" for="fr-regex">Use regex</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" v-model="findReplaceCaseSensitive" id="fr-case">
+        <label class="form-check-label" for="fr-case">Case sensitive</label>
+      </div>
+      <template #footer>
+        <BButton @click="showFindReplaceModal = false">Cancel</BButton>
+        <BButton variant="primary" :loading="operating" :disabled="!findValue" @click="applyFindReplace">Replace</BButton>
       </template>
     </BModal>
 
@@ -794,6 +832,11 @@ const showExtractJsonModal = ref(false)
 const extractJsonKey = ref('')
 const extractJsonSamples = ref([])
 const extractJsonSuggestedKeys = ref([])
+const showFindReplaceModal = ref(false)
+const findValue = ref('')
+const replaceValue = ref('')
+const findReplaceRegex = ref(false)
+const findReplaceCaseSensitive = ref(true)
 const canUndo = ref(false)
 const canRedo = ref(false)
 const selectedOpIds = ref([])
@@ -1132,6 +1175,32 @@ async function applyExtractJson() {
   finally { operating.value = false }
 }
 
+async function applyFindReplace() {
+  if (!selectedColumns.value.length) { toast.warning('Select columns first'); return }
+  if (!findValue.value) { toast.warning('Enter a find value'); return }
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/find-replace`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({
+        columns: selectedColumns.value,
+        find: findValue.value,
+        replace: replaceValue.value,
+        regex: findReplaceRegex.value,
+        case_sensitive: findReplaceCaseSensitive.value,
+      })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message)
+      showFindReplaceModal.value = false
+      await refreshData()
+    } else { const err = await res.json(); toast.error(err.detail || 'Find & Replace failed') }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
 async function applyDatetimeOp(operation) {
   if (!selectedColumns.value || selectedColumns.value.length === 0) {
     toast.warning('No columns selected'); return
@@ -1245,6 +1314,27 @@ async function applyNumericOp(operation) {
   } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
 }
+async function applyFillnaStat(method) {
+  operating.value = true
+  try {
+    const cols = selectedColumns.value.length ? selectedColumns.value : undefined
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/fillna`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ method, columns: cols })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || `Filled with ${method}`)
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Operation failed')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
 async function applyDedup(type) { await applyOperation(type === 'duplicates' ? 'remove-duplicates' : 'fuzzy-dedupe', {}) }
 
 async function applyRowFilter() {

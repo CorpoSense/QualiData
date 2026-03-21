@@ -630,6 +630,64 @@ async def extract_json_value(
     return {"status": "success", "message": f"Extracted {changed} value(s) from '{column}' using key '{key}'", "columns": dataset.columns}
 
 
+@router.post("/datasets/{dataset_id}/operations/find-replace")
+async def find_replace(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Find and replace values in columns. Supports plain text or regex."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+
+    df = pd.DataFrame(dataset.preview_data)
+    columns = request.get("columns", [])
+    find_val = request.get("find", "")
+    replace_val = request.get("replace", "")
+    use_regex = request.get("regex", False)
+    case_sensitive = request.get("case_sensitive", True)
+
+    if not find_val:
+        raise HTTPException(status_code=400, detail="'find' value is required")
+    if not columns:
+        raise HTTPException(status_code=400, detail="'columns' is required")
+
+    missing = [c for c in columns if c not in df.columns]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
+
+    changed = 0
+    for col in columns:
+        before_count = df[col].astype(str).str.contains(
+            find_val, regex=use_regex, case=case_sensitive, na=False
+        ).sum()
+        if use_regex:
+            df[col] = df[col].astype(str).str.replace(
+                find_val, replace_val, regex=True, case=case_sensitive
+            )
+        else:
+            df[col] = df[col].astype(str).str.replace(
+                find_val, replace_val, regex=False, case=case_sensitive
+            )
+        changed += before_count
+
+    if changed == 0:
+        return {"status": "no_changes", "message": f"No occurrences of '{find_val}' found"}
+
+    from app.routers.datasets import detect_columns, get_preview_data
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    after_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": get_preview_data(df)}
+
+    await save_operation(dataset_id, "find-replace", request, before_snapshot, after_snapshot, session)
+    await session.commit()
+
+    return {"status": "success", "message": f"Replaced {changed} occurrence(s)", "columns": dataset.columns}
+
+
 # Datetime operations
 @router.post("/datasets/{dataset_id}/operations/datetime-operations")
 async def datetime_operations(
@@ -766,12 +824,32 @@ async def fillna_operations(
         df = df.bfill()
         modified = before - df.isna().sum().sum()
     elif method == 'constant':
-        if fill_value:
+        if fill_value is not None:
             before = df.isna().sum().sum()
             df = df.fillna(fill_value)
             modified = before - df.isna().sum().sum()
         else:
             raise HTTPException(status_code=400, detail="fill_value required for constant method")
+    elif method in ('mean', 'median', 'mode'):
+        # Apply to specified columns or all numeric columns
+        target_cols = request.get('columns') or []
+        if not target_cols:
+            target_cols = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+        if not target_cols:
+            raise HTTPException(status_code=400, detail=f"No numeric columns to apply {method}")
+        before = df[target_cols].isna().sum().sum()
+        for col in target_cols:
+            if col not in df.columns:
+                continue
+            if method == 'mean':
+                df[col] = df[col].fillna(df[col].mean())
+            elif method == 'median':
+                df[col] = df[col].fillna(df[col].median())
+            elif method == 'mode':
+                mode_val = df[col].mode()
+                if len(mode_val) > 0:
+                    df[col] = df[col].fillna(mode_val.iloc[0])
+        modified = before - df[target_cols].isna().sum().sum()
     else:
         raise HTTPException(status_code=400, detail=f"Unknown method: {method}")
 
