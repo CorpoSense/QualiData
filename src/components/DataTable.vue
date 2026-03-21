@@ -5,6 +5,15 @@
       <table class="table table-hover table-striped table-sm">
         <thead>
           <tr>
+            <th v-if="selectable" style="width: 40px;" class="text-center">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                :checked="allSelected"
+                :indeterminate="someSelected && !allSelected"
+                @change="$emit('toggle-all')"
+              >
+            </th>
             <th 
               v-for="field in fields" 
               :key="field.key"
@@ -32,14 +41,22 @@
           <tr 
             v-for="(row, index) in sortedItems" 
             :key="index"
-            @click="$emit('row-clicked', { item: row, index })"
+            @click="!selectable && $emit('row-clicked', { item: row, index })"
           >
-            <td v-for="field in fields" :key="field.key">
+            <td v-if="selectable" class="text-center" @click.stop>
+              <input
+                class="form-check-input"
+                type="checkbox"
+                :checked="selectedRows.includes(index)"
+                @change="$emit('row-selected', index)"
+              >
+            </td>
+            <td v-for="field in fields" :key="field.key" @click="selectable && $emit('row-clicked', { item: row, index })">
               {{ row[field.key] }}
             </td>
           </tr>
           <tr v-if="sortedItems.length === 0">
-            <td :colspan="fields.length" class="text-center text-muted py-4">
+            <td :colspan="fields.length + (selectable ? 1 : 0)" class="text-center text-muted py-4">
               No data to display
             </td>
           </tr>
@@ -55,13 +72,20 @@ import { ref, computed } from 'vue'
 const props = defineProps({
   items: { type: Array, default: () => [] },
   fields: { type: Array, default: () => [] },
-  selectedColumns: { type: Array, default: () => [] }
+  selectedColumns: { type: Array, default: () => [] },
+  selectable: { type: Boolean, default: false },
+  selectedRows: { type: Array, default: () => [] },
 })
 
-defineEmits(['row-clicked', 'head-clicked'])
+defineEmits(['row-clicked', 'head-clicked', 'row-selected', 'toggle-all'])
 
 const sortKey = ref(null)
 const sortDir = ref('asc')
+
+const allSelected = computed(() =>
+  props.items.length > 0 && props.selectedRows.length === props.items.length
+)
+const someSelected = computed(() => props.selectedRows.length > 0)
 
 function toggleSort(key) {
   if (sortKey.value === key) {

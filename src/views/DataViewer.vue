@@ -137,6 +137,9 @@
             </BDropdownItem>
           </BDropdown>
 
+          <BButton size="sm" :variant="rowSelectMode ? 'warning' : 'outline-secondary'" @click="rowSelectMode = !rowSelectMode; if (!rowSelectMode) selectedRowIndices = []">
+            <i class="bi bi-check2-square me-1"></i>{{ rowSelectMode ? 'Cancel Select' : 'Select Rows' }}
+          </BButton>
           <BDropdown text="Rows" size="sm">
             <BDropdownItem @click="showRowFilterModal = true">
               <i class="bi bi-funnel me-2"></i>Filter rows
@@ -155,6 +158,9 @@
             </BDropdownItem>
             <BDropdownItem @click="deleteVisibleRows" :disabled="!filteredData.length">
               <i class="bi bi-trash me-2"></i>Delete {{ filteredData.length }} visible row(s)
+            </BDropdownItem>
+            <BDropdownItem v-if="rowSelectMode && selectedRowIndices.length > 0" @click="deleteSelectedRows" variant="danger">
+              <i class="bi bi-trash me-2"></i>Delete {{ selectedRowIndices.length }} selected row(s)
             </BDropdownItem>
           </BDropdown>
 
@@ -215,8 +221,12 @@
         :items="filteredData"
         :fields="tableFields"
         :selected-columns="selectedColumns"
+        :selectable="rowSelectMode"
+        :selected-rows="selectedRowIndices"
         @row-clicked="onRowClicked"
         @head-clicked="onHeadClicked"
+        @row-selected="toggleRowSelection"
+        @toggle-all="toggleAllRows"
       />
 
       <!-- Pagination Footer -->
@@ -778,6 +788,8 @@ const endRow = computed(() => Math.min(page.value * limit.value, totalRows.value
 const searchQuery = ref('')
 const showRowFilterModal = ref(false)
 const rowFilters = ref({})
+const rowSelectMode = ref(false)
+const selectedRowIndices = ref([])
 const filteredMatchingIndices = ref(null)
 const filteredTotalMatching = ref(null)
 const promptConfig = ref({ show: false, title: '', message: '', defaultValue: '', inputType: 'text', confirmText: 'OK' })
@@ -1350,6 +1362,42 @@ function clearRowFilter() {
   showRowFilterModal.value = false
   page.value = 1
   refreshData()
+}
+
+function toggleRowSelection(pageIndex) {
+  // Convert page-relative index to absolute index
+  const absoluteIndex = (page.value - 1) * limit.value + pageIndex
+  const idx = selectedRowIndices.value.indexOf(absoluteIndex)
+  if (idx >= 0) selectedRowIndices.value.splice(idx, 1)
+  else selectedRowIndices.value.push(absoluteIndex)
+}
+
+function toggleAllRows() {
+  if (selectedRowIndices.value.length === filteredData.value.length) {
+    selectedRowIndices.value = []
+  } else {
+    selectedRowIndices.value = filteredData.value.map((_, i) => (page.value - 1) * limit.value + i)
+  }
+}
+
+async function deleteSelectedRows() {
+  if (!selectedRowIndices.value.length) return
+  const ok = await showConfirm({ title: 'Delete Selected', message: `Delete ${selectedRowIndices.value.length} selected row(s)?`, variant: 'danger', confirmText: 'Delete' })
+  if (!ok) return
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/delete-rows`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ mode: 'visible', indices: selectedRowIndices.value })
+    })
+    if (res.ok) {
+      toast.success(`${selectedRowIndices.value.length} row(s) deleted`)
+      selectedRowIndices.value = []
+      await refreshData()
+    } else { const err = await res.json(); toast.error(err.detail || 'Delete failed') }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
 }
 
 function showPrompt(options) {
