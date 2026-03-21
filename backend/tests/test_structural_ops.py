@@ -314,3 +314,48 @@ class TestDeleteRowsOperation:
             )
         assert result["status"] == "success"
         assert result["row_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_delete_specific_indices(self):
+        """Simulate multi-row selection: delete specific rows by absolute index."""
+        from app.routers.operations import delete_rows
+        dataset = _make_mock_dataset([
+            {"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}, {"name": "E"}
+        ])
+        mock_session = AsyncMock()
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            # Select rows 1 and 3 (B and D)
+            result = await delete_rows(
+                dataset_id="test-ds-id",
+                request={"mode": "visible", "indices": [1, 3]},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+        assert result["status"] == "success"
+        assert result["row_count"] == 3
+        names = [r["name"] for r in dataset.preview_data]
+        assert names == ["A", "C", "E"]
+
+    @pytest.mark.asyncio
+    async def test_delete_non_consecutive_indices(self):
+        """Delete non-consecutive rows (simulating cross-page selection)."""
+        from app.routers.operations import delete_rows
+        dataset = _make_mock_dataset([
+            {"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}, {"name": "E"}
+        ])
+        mock_session = AsyncMock()
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await delete_rows(
+                dataset_id="test-ds-id",
+                request={"mode": "visible", "indices": [0, 2, 4]},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+        assert result["status"] == "success"
+        assert result["row_count"] == 2
+        names = [r["name"] for r in dataset.preview_data]
+        assert names == ["B", "D"]
