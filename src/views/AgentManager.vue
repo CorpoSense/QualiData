@@ -139,6 +139,9 @@
           <datalist id="model-suggestions">
             <option v-for="m in providerModels" :key="m" :value="m"></option>
           </datalist>
+          <small v-if="!providerModels.length" class="text-muted">
+            Enter API key above to load available models, or type a model name manually.
+          </small>
         </BFormGroup>
 
         <BFormGroup label="API Key:" label-for="create-api-key">

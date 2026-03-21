@@ -52,6 +52,8 @@ ANTHROPIC_FALLBACK = [
 
 async def _fetch_models_from_api(provider: str, api_key: str | None = None) -> list[str]:
     """Fetch available models from provider's API."""
+    import logging
+    logger = logging.getLogger(__name__)
     provider = provider.lower()
 
     # Resolve API key: param > env var
@@ -65,82 +67,72 @@ async def _fetch_models_from_api(provider: str, api_key: str | None = None) -> l
     }
     key = api_key or os.environ.get(env_keys.get(provider, ""), "")
 
+    # Ollama: local, no auth needed
     if provider == "ollama":
-        # Ollama runs locally, no API key needed
         try:
             async with httpx.AsyncClient(timeout=5) as client:
                 resp = await client.get("http://localhost:11434/api/tags")
                 resp.raise_for_status()
                 data = resp.json()
-                return [m["name"] for m in data.get("models", [])]
-        except Exception:
+                return sorted([m["name"] for m in data.get("models", [])])
+        except Exception as e:
+            logger.debug(f"Ollama models fetch failed: {e}")
             return ["llama3.2", "llama3.1", "mistral", "codellama", "phi3", "gemma2"]
 
+    # All other providers need an API key
     if not key:
         return []
 
-    # Anthropic: GET /v1/models (https://platform.claude.com/docs/en/api/models/list)
-    if provider == "anthropic":
-        try:
-            async with httpx.AsyncClient(timeout=10) as client:
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            if provider == "anthropic":
+                # Anthropic uses x-api-key header
                 resp = await client.get(
                     "https://api.anthropic.com/v1/models",
-                    headers={
-                        "x-api-key": key,
-                        "anthropic-version": "2023-06-01",
-                    },
+                    headers={"x-api-key": key, "anthropic-version": "2023-06-01"},
                 )
-                resp.raise_for_status()
-                data = resp.json()
-                models = [m["id"] for m in data.get("data", [])]
-                models.sort()
-                return models
-        except Exception:
-            return ANTHROPIC_FALLBACK
-
-    # OpenAI-compatible providers (OpenAI, Groq, DeepSeek, OpenRouter)
-    base_urls = {
-        "openai": "https://api.openai.com/v1",
-        "groq": "https://api.groq.com/openai/v1",
-        "deepseek": "https://api.deepseek.com",
-        "openrouter": "https://openrouter.ai/api/v1",
-    }
-
-    if provider in base_urls:
-        try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.get(
-                    f"{base_urls[provider]}/models",
-                    headers={"Authorization": f"Bearer {key}"},
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                models = [m["id"] for m in data.get("data", [])]
-                models.sort()
-                return models
-        except Exception:
-            return []
-
-    # Google Gemini
-    if provider == "google":
-        try:
-            async with httpx.AsyncClient(timeout=10) as client:
+            elif provider == "google":
+                # Google uses query param
                 resp = await client.get(
                     f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
                 )
-                resp.raise_for_status()
-                data = resp.json()
+            else:
+                # OpenAI-compatible: OpenAI, Groq, DeepSeek, OpenRouter
+                base_urls = {
+                    "openai": "https://api.openai.com/v1",
+                    "groq": "https://api.groq.com/openai/v1",
+                    "deepseek": "https://api.deepseek.com",
+                    "openrouter": "https://openrouter.ai/api/v1",
+                }
+                base = base_urls.get(provider)
+                if not base:
+                    return []
+                resp = await client.get(
+                    f"{base}/models",
+                    headers={"Authorization": f"Bearer {key}"},
+                )
+
+            resp.raise_for_status()
+            data = resp.json()
+
+            # Parse response based on provider
+            if provider == "google":
                 models = [
                     m["name"].split("/")[-1]
                     for m in data.get("models", [])
                     if "generateContent" in m.get("supportedGenerationMethods", [])
                 ]
-                models.sort()
-                return models
-        except Exception:
-            return []
+            else:
+                models = [m["id"] for m in data.get("data", [])]
 
-    return []
+            return sorted(models)
+
+    except Exception as e:
+        logger.warning(f"Models fetch failed for {provider}: {e}")
+        # Return fallback for Anthropic only
+        if provider == "anthropic":
+            return ANTHROPIC_FALLBACK
+        return []
 
 
 @router.get("/models/{provider}")
