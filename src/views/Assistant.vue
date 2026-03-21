@@ -187,6 +187,7 @@ const analysisChecks = ref([
   { label: 'Check for missing values', status: 'pending', result: '' },
   { label: 'Check for duplicates', status: 'pending', result: '' },
   { label: 'Check for JSON columns', status: 'pending', result: '' },
+  { label: 'Check for empty strings', status: 'pending', result: '' },
   { label: 'Check column types', status: 'pending', result: '' },
 ])
 
@@ -292,20 +293,31 @@ async function analyzeData() {
         analysisChecks.value[0].result = `${nullCols.length} column(s) with nulls`
         for (const col of nullCols) {
           const pct = Math.round(col.null_percent || 0)
+          const isNumeric = col.dtype && (col.dtype.includes('int') || col.dtype.includes('float'))
+
+          const methodChoices = [
+            { value: 'constant', text: 'Custom value' },
+            { value: 'drop', text: 'Drop rows' },
+            { value: 'forward', text: 'Forward fill' },
+            { value: 'backward', text: 'Backward fill' },
+          ]
+          if (isNumeric) {
+            methodChoices.push(
+              { value: 'mean', text: 'Mean (numeric)' },
+              { value: 'median', text: 'Median (numeric)' },
+            )
+          }
+          methodChoices.push({ value: 'mode', text: 'Mode (most frequent)' })
+
           found.push({
             title: `Missing values in "${col.name}"`,
-            description: `${col.null_count} nulls (${pct}%)`,
+            description: `${col.null_count} nulls (${pct}%)${isNumeric ? ' [numeric]' : ''}`,
             alertClass: pct > 50 ? 'danger' : pct > 10 ? 'warning' : 'info',
             icon: 'bi-exclamation-triangle',
             operation: 'fillna', column: col.name,
-            params: { method: 'constant', fill_value: '' },
+            params: { method: isNumeric ? 'mean' : 'constant', fill_value: '' },
             options: [
-              { key: 'method', label: 'Method', type: 'select', choices: [
-                { value: 'constant', text: 'Custom value' },
-                { value: 'drop', text: 'Drop rows' },
-                { value: 'forward', text: 'Forward fill' },
-                { value: 'backward', text: 'Backward fill' },
-              ]},
+              { key: 'method', label: 'Method', type: 'select', choices: methodChoices },
               { key: 'fill_value', label: 'Value (if constant)', type: 'text', placeholder: 'e.g. N/A' },
             ]
           })
@@ -370,11 +382,43 @@ async function analyzeData() {
     }
     analysisChecks.value[2].status = 'done'
 
-    // Check 4: Column types
+    // Check 4: Empty strings (suggests find-replace)
     analysisChecks.value[3].status = 'running'
-    await sleep(200)
-    analysisChecks.value[3].result = `${profile.columns?.length || 0} columns analyzed`
+    await sleep(300)
+    if (data.value.length > 0 && profile.columns) {
+      const stringCols = profile.columns.filter(c => c.dtype === 'object')
+      let emptyCount = 0
+      for (const col of stringCols) {
+        const empties = data.value.filter(row => {
+          const val = row[col.name]
+          return val !== null && val !== undefined && String(val).trim() === ''
+        }).length
+        if (empties > 0) {
+          emptyCount++
+          found.push({
+            title: `Empty strings in "${col.name}"`,
+            description: `${empties} empty string(s) — replace with value`,
+            alertClass: 'info', icon: 'bi-type',
+            operation: 'find-replace', column: col.name,
+            params: { find: '', replace: '', regex: false, case_sensitive: true },
+            options: [
+              { key: 'find', label: 'Find (empty string)', type: 'text', placeholder: 'Leave empty to match ""' },
+              { key: 'replace', label: 'Replace with', type: 'text', placeholder: 'e.g. N/A' },
+            ]
+          })
+        }
+      }
+      analysisChecks.value[3].result = emptyCount ? `${emptyCount} column(s)` : 'None found'
+    } else {
+      analysisChecks.value[3].result = 'Skipped'
+    }
     analysisChecks.value[3].status = 'done'
+
+    // Check 5: Column types
+    analysisChecks.value[4].status = 'running'
+    await sleep(200)
+    analysisChecks.value[4].result = `${profile.columns?.length || 0} columns analyzed`
+    analysisChecks.value[4].status = 'done'
 
     issues.value = found
     pendingOps.value = found.map(f => ({
@@ -410,6 +454,9 @@ async function applyOp(index) {
   } else if (op.operation === 'extract-json') {
     endpoint = `${apiUrl}/api/datasets/${selectedDataset.value}/operations/extract-json`
     body = { column: op.column, key: op.params.key }
+  } else if (op.operation === 'find-replace') {
+    endpoint = `${apiUrl}/api/datasets/${selectedDataset.value}/operations/find-replace`
+    body = { columns: [op.column], ...op.params }
   } else {
     toast.warning(`Unknown: ${op.operation}`)
     return
