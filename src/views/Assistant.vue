@@ -24,8 +24,30 @@
               <BFormGroup v-if="selectedProject" label="Dataset" class="mt-2">
                 <BFormSelect v-model="selectedDataset" :options="datasetOptions" @update:model-value="onDatasetChange"></BFormSelect>
               </BFormGroup>
-              <BButton variant="primary" class="mt-3 w-100" :disabled="!selectedDataset" @click="currentStep = 1">
-                Next → Analyze
+
+              <!-- AI Agent toggle -->
+              <div class="form-check form-switch mt-3 mb-2">
+                <input class="form-check-input" type="checkbox" v-model="useAiAgent" id="use-ai-toggle">
+                <label class="form-check-label" for="use-ai-toggle">
+                  <i class="bi bi-magic me-1"></i> Use AI Agent
+                </label>
+              </div>
+
+              <div v-if="useAiAgent" class="border rounded p-3 mb-3 bg-light">
+                <BFormGroup label="AI Agent *" label-for="assist-agent" label-size="sm">
+                  <BFormSelect id="assist-agent" v-model="assistAgentId" :options="assistAgentOptions" size="sm"></BFormSelect>
+                </BFormGroup>
+                <BFormGroup label="Rows for context" label-for="assist-rows" label-size="sm" class="mt-2">
+                  <BFormSelect id="assist-rows" v-model="assistRows" :options="limitOptions" size="sm"></BFormSelect>
+                </BFormGroup>
+                <div class="form-check mt-2">
+                  <input class="form-check-input" type="checkbox" v-model="assistIncludeDesc" id="assist-desc">
+                  <label class="form-check-label small" for="assist-desc">Include dataset description</label>
+                </div>
+              </div>
+
+              <BButton variant="primary" class="mt-2 w-100" :disabled="!selectedDataset || (useAiAgent && !assistAgentId)" @click="startAnalysis">
+                {{ useAiAgent ? 'Start AI Analysis' : 'Next → Analyze' }}
               </BButton>
             </div>
 
@@ -69,40 +91,87 @@
 
             <!-- Step 2: Clean -->
             <div v-if="currentStep === 2">
-              <p class="text-muted small">Apply operations. Undo any step if needed.</p>
-              <div v-for="(op, i) in pendingOps" :key="i" class="card mb-2" :class="{ 'border-primary': activeOpIndex === i }">
-                <div class="card-body py-2 px-3">
-                  <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                      <span class="badge" :class="op.applied ? 'bg-success' : 'bg-light text-dark'">{{ op.label }}</span>
-                      <small class="text-muted d-block">{{ op.description }}</small>
+              <p class="text-muted small">
+                {{ useAiAgent ? 'AI suggestions. Accept, tweak, or skip each one.' : 'Apply operations. Undo any step if needed.' }}
+              </p>
+
+              <!-- AI mode: show AI suggestions -->
+              <template v-if="useAiAgent">
+                <div v-for="(sug, i) in aiSuggestions" :key="'ai-'+i" class="card mb-2" :class="{ 'border-primary': activeOpIndex === i, 'opacity-50': !sug.accepted }">
+                  <div class="card-body py-2 px-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <div class="d-flex align-items-center gap-1 mb-1">
+                          <input class="form-check-input" type="checkbox" v-model="sug.accepted" :disabled="sug.applied">
+                          <span class="badge" :class="sug.applied ? 'bg-success' : 'bg-primary'">{{ sug.operation }}</span>
+                          <small v-if="sug.column" class="text-muted">{{ sug.column }}</small>
+                        </div>
+                        <small class="text-muted d-block">{{ sug.reasoning }}</small>
+                      </div>
+                      <div class="d-flex gap-1">
+                        <BButton v-if="sug.applied" size="sm" variant="outline-warning" @click="undoAiOp(i)" title="Undo">
+                          <i class="bi bi-arrow-counterclockwise"></i>
+                        </BButton>
+                        <BButton v-if="!sug.applied && sug.accepted" size="sm" variant="outline-primary" @click="activeOpIndex = activeOpIndex === i ? null : i">
+                          {{ activeOpIndex === i ? 'Hide' : 'Options' }}
+                        </BButton>
+                        <BButton v-if="!sug.applied && sug.accepted && activeOpIndex === i" size="sm" variant="primary" @click="applyAiOp(i)">
+                          Apply
+                        </BButton>
+                      </div>
                     </div>
-                    <div class="d-flex gap-1">
-                      <BButton v-if="op.applied" size="sm" variant="outline-warning" @click="undoOp(i)" title="Undo">
-                        <i class="bi bi-arrow-counterclockwise"></i>
-                      </BButton>
-                      <BButton v-if="!op.applied" size="sm" variant="outline-primary" @click="activeOpIndex = activeOpIndex === i ? null : i">
-                        {{ activeOpIndex === i ? 'Hide' : 'Options' }}
-                      </BButton>
-                      <BButton v-if="!op.applied && activeOpIndex === i" size="sm" variant="primary" @click="applyOp(i)">
-                        Apply
-                      </BButton>
-                    </div>
-                  </div>
-                  <!-- Options -->
-                  <div v-if="activeOpIndex === i && !op.applied && op.options" class="mt-2">
-                    <div v-for="opt in op.options" :key="opt.key" class="mb-1">
-                      <label class="form-label small mb-0">{{ opt.label }}</label>
-                      <BFormSelect v-if="opt.type === 'select'" v-model="op.params[opt.key]" :options="opt.choices" size="sm"></BFormSelect>
-                      <BFormInput v-else v-model="op.params[opt.key]" size="sm" :type="opt.type || 'text'" :placeholder="opt.placeholder"></BFormInput>
+                    <div v-if="activeOpIndex === i && !sug.applied && sug.params" class="mt-2">
+                      <div v-for="(val, key) in sug.params" :key="key" class="mb-1">
+                        <label class="form-label small mb-0">{{ key }}</label>
+                        <BFormInput v-model="sug.params[key]" size="sm" :placeholder="String(val)"></BFormInput>
+                      </div>
                     </div>
                   </div>
                 </div>
+                <div v-if="!aiSuggestions.length" class="text-muted text-center py-3 small">No AI suggestions.</div>
+              </template>
+
+              <!-- Manual mode: show pendingOps -->
+              <template v-else>
+                <div v-for="(op, i) in pendingOps" :key="i" class="card mb-2" :class="{ 'border-primary': activeOpIndex === i }">
+                  <div class="card-body py-2 px-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div>
+                        <span class="badge" :class="op.applied ? 'bg-success' : 'bg-light text-dark'">{{ op.label }}</span>
+                        <small class="text-muted d-block">{{ op.description }}</small>
+                      </div>
+                      <div class="d-flex gap-1">
+                        <BButton v-if="op.applied" size="sm" variant="outline-warning" @click="undoOp(i)" title="Undo">
+                          <i class="bi bi-arrow-counterclockwise"></i>
+                        </BButton>
+                        <BButton v-if="!op.applied" size="sm" variant="outline-primary" @click="activeOpIndex = activeOpIndex === i ? null : i">
+                          {{ activeOpIndex === i ? 'Hide' : 'Options' }}
+                        </BButton>
+                        <BButton v-if="!op.applied && activeOpIndex === i" size="sm" variant="primary" @click="applyOp(i)">
+                          Apply
+                        </BButton>
+                      </div>
+                    </div>
+                    <div v-if="activeOpIndex === i && !op.applied && op.options" class="mt-2">
+                      <div v-for="opt in op.options" :key="opt.key" class="mb-1">
+                        <label class="form-label small mb-0">{{ opt.label }}</label>
+                        <BFormSelect v-if="opt.type === 'select'" v-model="op.params[opt.key]" :options="opt.choices" size="sm"></BFormSelect>
+                        <BFormInput v-else v-model="op.params[opt.key]" size="sm" :type="opt.type || 'text'" :placeholder="opt.placeholder"></BFormInput>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="!pendingOps.length" class="text-muted text-center py-3 small">No issues found — nothing to clean!</div>
+              </template>
+
+              <div class="d-flex gap-2 mt-2">
+                <BButton v-if="useAiAgent && aiSuggestions.some(s => s.accepted && !s.applied)" size="sm" variant="primary" @click="applyAllAiSuggested">
+                  <i class="bi bi-lightning me-1"></i> Apply All Accepted
+                </BButton>
+                <BButton variant="success" size="sm" :disabled="!currentAppliedCount" @click="currentStep = 3">
+                  Review →
+                </BButton>
               </div>
-              <div v-if="!pendingOps.length" class="text-muted text-center py-3 small">No issues found — nothing to clean!</div>
-              <BButton variant="success" size="sm" class="w-100 mt-2" :disabled="!pendingOps.some(o => o.applied)" @click="currentStep = 3">
-                Review Results →
-              </BButton>
             </div>
 
             <!-- Step 3: Review -->
@@ -166,6 +235,27 @@ const toast = useToast()
 const steps = ['Select', 'Analyze', 'Clean', 'Review']
 const currentStep = ref(0)
 
+// AI Agent mode
+const useAiAgent = ref(false)
+const assistAgentId = ref(null)
+const assistAgents = ref([])
+const assistRows = ref(10)
+const assistIncludeDesc = ref(false)
+const aiSuggestions = ref([])
+const aiAnalyzing = ref(false)
+
+const limitOptions = [
+  { value: 10, text: '10 rows' },
+  { value: 25, text: '25 rows' },
+  { value: 50, text: '50 rows' },
+  { value: 100, text: '100 rows' },
+]
+
+const assistAgentOptions = computed(() => [
+  { value: null, text: 'Select agent…', disabled: true },
+  ...assistAgents.value.map(a => ({ value: a.id, text: `${a.name} (${a.provider}/${a.model})` }))
+])
+
 // Data selection
 const projects = ref([])
 const datasets = ref([])
@@ -196,6 +286,7 @@ const pendingOps = ref([])
 const activeOpIndex = ref(null)
 
 const appliedCount = computed(() => pendingOps.value.filter(o => o.applied).length)
+const currentAppliedCount = computed(() => useAiAgent.value ? aiSuggestions.value.filter(s => s.accepted && s.applied).length : pendingOps.value.filter(o => o.applied).length)
 
 const projectOptions = computed(() => [
   { value: null, text: 'Select project…', disabled: true },
@@ -219,6 +310,25 @@ async function fetchProjects() {
     })
     if (res.ok) projects.value = (await res.json()).projects || []
   } catch { /* silent */ }
+}
+
+async function fetchAgents() {
+  try {
+    const res = await fetch(`${apiUrl}/api/agents/`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) assistAgents.value = await res.json() || []
+  } catch { /* silent */ }
+}
+
+fetchAgents()
+
+function startAnalysis() {
+  if (useAiAgent.value) {
+    runAiAnalysis()
+  } else {
+    currentStep.value = 1
+  }
 }
 
 async function onProjectChange() {
@@ -432,6 +542,39 @@ async function analyzeData() {
   finally { analyzing.value = false }
 }
 
+async function runAiAnalysis() {
+  aiAnalyzing.value = true
+  aiSuggestions.value = []
+  try {
+    const res = await fetch(`${apiUrl}/api/assistant/ai-suggest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({
+        dataset_id: selectedDataset.value,
+        agent_id: assistAgentId.value,
+        rows: assistRows.value,
+        include_description: assistIncludeDesc.value,
+      })
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      toast.error(err.detail || 'AI analysis failed')
+      return
+    }
+    const data = await res.json()
+    aiSuggestions.value = (data.suggestions || []).map(s => ({
+      ...s,
+      params: { ...(s.params || {}) },
+      accepted: true,
+      applied: false,
+    }))
+
+    // Move to review step
+    currentStep.value = 2
+  } catch (e) { toast.error(e.message) }
+  finally { aiAnalyzing.value = false }
+}
+
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
 function startClean(issueIndex) {
@@ -496,8 +639,64 @@ async function undoOp(index) {
   } catch (e) { toast.error(e.message) }
 }
 
+async function applyAiOp(index) {
+  const sug = aiSuggestions.value[index]
+  if (!sug || !sug.accepted) return
+
+  const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` }
+  const ops = { 'fillna': 'fillna', 'remove-duplicates': 'remove-duplicates', 'extract-json': 'extract-json', 'find-replace': 'find-replace', 'string-operations': 'string-operations' }
+  const endpoint = `${apiUrl}/api/datasets/${selectedDataset.value}/operations/${ops[sug.operation] || sug.operation}`
+
+  let body = { ...sug.params }
+  if (sug.column) body.column = sug.column
+  if (sug.operation === 'fillna' && sug.column) body.columns = [sug.column]
+  if (sug.operation === 'find-replace' && sug.column) body.columns = [sug.column]
+
+  try {
+    const res = await fetch(endpoint, { method: 'POST', headers: auth, body: JSON.stringify(body) })
+    if (res.ok) {
+      sug.applied = true
+      activeOpIndex.value = null
+      toast.success(`Applied: ${sug.operation}`)
+      await loadData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed')
+    }
+  } catch (e) { toast.error(e.message) }
+}
+
+async function undoAiOp(index) {
+  const sug = aiSuggestions.value[index]
+  if (!sug?.applied) return
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${selectedDataset.value}/operations/undo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({})
+    })
+    if (res.ok) {
+      sug.applied = false
+      toast.success('Undone')
+      await loadData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Undo failed')
+    }
+  } catch (e) { toast.error(e.message) }
+}
+
+async function applyAllAiSuggested() {
+  for (let i = 0; i < aiSuggestions.value.length; i++) {
+    if (aiSuggestions.value[i].accepted && !aiSuggestions.value[i].applied) {
+      await applyAiOp(i)
+    }
+  }
+}
+
 async function resetAll() {
-  const applied = pendingOps.value.filter(o => o.applied)
+  const items = useAiAgent.value ? aiSuggestions.value : pendingOps.value
+  const applied = items.filter(o => o.applied)
   for (let i = applied.length - 1; i >= 0; i--) {
     try {
       await fetch(`${apiUrl}/api/datasets/${selectedDataset.value}/operations/undo`, {
@@ -510,6 +709,7 @@ async function resetAll() {
   currentStep.value = 1
   issues.value = []
   pendingOps.value = []
+  aiSuggestions.value = []
   await loadData()
   toast.success('All undone')
 }

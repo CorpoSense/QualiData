@@ -232,3 +232,124 @@ async def execute_operation(
             "operation": operation,
         },
     )
+
+
+@router.post("/assistant/ai-suggest")
+async def ai_suggest_operations(
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Use AI to analyze data and suggest cleaning operations.
+
+    Body: { dataset_id, agent_id, rows: 10, include_description: false }
+    Returns: { suggestions: [{operation, column, params, reasoning}, ...] }
+    """
+    import json as json_mod
+    import pandas as pd
+    from sqlalchemy import select
+    from langchain_core.messages import HumanMessage, SystemMessage
+    from app.services.ai_provider import AIProvider, get_chat_model
+    from app.routers.ai_operations import _get_agent_config
+
+    dataset_id = request.get("dataset_id")
+    agent_id = request.get("agent_id")
+    rows = min(int(request.get("rows", 10)), 100)
+    include_description = request.get("include_description", False)
+
+    if not dataset_id or not agent_id:
+        raise HTTPException(status_code=400, detail="dataset_id and agent_id required")
+
+    # Get dataset
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    project_result = await session.execute(
+        select(Project).where(Project.id == dataset.project_id, Project.user_id == current_user.id)
+    )
+    if not project_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to analyze")
+
+    df = pd.DataFrame(dataset.preview_data)
+
+    # Build context
+    column_info = []
+    for col in df.columns:
+        nulls = int(df[col].isna().sum())
+        dtype = str(df[col].dtype)
+        unique = int(df[col].nunique())
+        sample = df[col].dropna().head(3).tolist()
+        column_info.append({
+            "name": col, "dtype": dtype, "null_count": nulls,
+            "unique_count": unique, "sample_values": [str(s) for s in sample]
+        })
+
+    sample_rows = df.head(rows).to_dict("records")
+
+    context = f"Columns ({len(df.columns)}):\n{json_mod.dumps(column_info, indent=2)}\n\n"
+    context += f"Sample rows ({rows}):\n{json_mod.dumps(sample_rows, indent=2, default=str)}\n\n"
+    if include_description and dataset.description:
+        context += f"Dataset description: {dataset.description}\n\n"
+
+    AVAILABLE_OPS = """
+Available operations:
+- fillna: {operation: "fillna", column: "col", params: {method: "constant|drop|forward|backward|mean|median|mode", fill_value: "val"}}
+- remove-duplicates: {operation: "remove-duplicates", params: {}}
+- find-replace: {operation: "find-replace", column: "col", params: {find: "old", replace: "new", regex: false, case_sensitive: true}}
+- extract-json: {operation: "extract-json", column: "col", params: {key: "field"}}
+- string-operations: {operation: "string-operations", column: "col", params: {operation: "upper|lower|trim|title|capitalize"}}
+
+Respond with JSON only: {"suggestions": [{"operation": "...", "column": "...", "params": {...}, "reasoning": "..."}, ...]}
+Suggest only operations that would meaningfully improve data quality. Be specific about which columns to target and why."""
+
+    system_prompt = "You are a data cleaning expert. Analyze the data and suggest the best cleaning operations."
+
+    try:
+        agent_config = await _get_agent_config(agent_id, current_user.id, session)
+        provider = AIProvider(agent_config["provider"])
+        llm_kwargs = {}
+        if agent_config.get("api_key"):
+            llm_kwargs["api_key"] = agent_config["api_key"]
+        llm = get_chat_model(
+            provider, model=agent_config.get("model"),
+            temperature=agent_config.get("temperature", 0.3), **llm_kwargs,
+        )
+
+        sys = agent_config.get("system_prompt") or system_prompt
+        response = await llm.ainvoke([
+            SystemMessage(content=sys),
+            HumanMessage(content=context + AVAILABLE_OPS),
+        ])
+
+        raw = response.content.strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
+        if raw.endswith("```"):
+            raw = raw[:-3]
+        raw = raw.strip()
+
+        ai_response = json_mod.loads(raw)
+        suggestions = ai_response.get("suggestions", [])
+
+        # Validate suggestions
+        valid = []
+        for s in suggestions:
+            if isinstance(s, dict) and s.get("operation"):
+                valid.append({
+                    "operation": s.get("operation", ""),
+                    "column": s.get("column"),
+                    "params": s.get("params", {}),
+                    "reasoning": s.get("reasoning", ""),
+                })
+
+        return {"status": "success", "suggestions": valid, "rows_analyzed": len(sample_rows)}
+
+    except json_mod.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="AI returned invalid response. Try again.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI error: {str(e)}")
