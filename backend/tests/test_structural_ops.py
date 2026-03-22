@@ -181,6 +181,98 @@ class TestExistingStructuralOps:
         assert "name" not in dataset.preview_data[0]
 
 
+class TestReorderColumnsOperation:
+    """Test the reorder-columns operation."""
+
+    @pytest.mark.asyncio
+    async def test_reorder_moves_selected_to_start(self):
+        """Moving selected columns to the start reorders correctly."""
+        from app.routers.operations import reorder_columns, ReorderColumnsRequest
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await reorder_columns(
+                dataset_id="test-ds-id",
+                request=ReorderColumnsRequest(columns=["city", "name", "age"]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert list(dataset.preview_data[0].keys()) == ["city", "name", "age"]
+
+    @pytest.mark.asyncio
+    async def test_reorder_moves_selected_to_end(self):
+        """Moving selected columns to the end reorders correctly."""
+        from app.routers.operations import reorder_columns, ReorderColumnsRequest
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await reorder_columns(
+                dataset_id="test-ds-id",
+                request=ReorderColumnsRequest(columns=["age", "city", "name"]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert list(dataset.preview_data[0].keys()) == ["age", "city", "name"]
+
+    @pytest.mark.asyncio
+    async def test_reorder_preserves_data(self):
+        """Reordering columns does not lose or corrupt row data."""
+        from app.routers.operations import reorder_columns, ReorderColumnsRequest
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await reorder_columns(
+                dataset_id="test-ds-id",
+                request=ReorderColumnsRequest(columns=["city", "age", "name"]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        row = dataset.preview_data[0]
+        assert row["name"] == "Alice"
+        assert row["age"] == 30
+        assert row["city"] == "Paris"
+
+    @pytest.mark.asyncio
+    async def test_reorder_rejects_column_mismatch(self):
+        """Reorder with wrong column set raises 400."""
+        from app.routers.operations import reorder_columns, ReorderColumnsRequest
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await reorder_columns(
+                    dataset_id="test-ds-id",
+                    request=ReorderColumnsRequest(columns=["name", "age"]),  # missing "city"
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+
+        assert exc_info.value.status_code == 400
+        assert "mismatch" in exc_info.value.detail.lower()
+
+
 class TestDeleteRowsOperation:
     """Test the delete-rows operation."""
 

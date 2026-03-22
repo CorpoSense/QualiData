@@ -202,7 +202,13 @@
       <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-secondary" @click="selectedColumns = []">
         Clear
       </BButton>
-      <span v-else class="text-muted small ms-2">
+      <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" @click="reorderColumns('left')" title="Move selected columns to the left">
+        <i class="bi bi-arrow-left"></i>
+      </BButton>
+      <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" @click="reorderColumns('right')" title="Move selected columns to the right">
+        <i class="bi bi-arrow-right"></i>
+      </BButton>
+      <span v-if="selectedColumns.length === 0" class="text-muted small ms-2">
         <i class="bi bi-info-circle me-1"></i>Click column headers to select
       </span>
     </div>
@@ -1541,6 +1547,33 @@ async function undo() {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
     if (res.ok) { toast.success('Undo successful'); await refreshData() }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
+async function reorderColumns(direction) {
+  if (!selectedColumns.value.length) return
+  const allCols = columns.value.map(c => c.field)
+  const selected = selectedColumns.value
+  const remaining = allCols.filter(c => !selected.includes(c))
+  const newOrder = direction === 'left'
+    ? [...selected, ...remaining]
+    : [...remaining, ...selected]
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/reorder-columns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ columns: newOrder })
+    })
+    if (res.ok) {
+      toast.success('Columns reordered')
+      selectedColumns.value = []
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Reorder failed')
+    }
   } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
 }
