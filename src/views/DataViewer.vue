@@ -597,7 +597,12 @@
       <div v-if="importPreview">
         <div class="alert alert-info py-2 small mb-3">
           <i class="bi bi-info-circle me-1"></i>
-          Review operations before applying. Uncheck any you want to skip.
+          Review operations before applying.
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <input class="form-check-input" type="checkbox" :checked="allImportSelected" :indeterminate="someImportSelected && !allImportSelected" @change="toggleAllImport">
+          <label class="form-check-label small fw-bold">Select all</label>
+          <span class="text-muted small ms-auto">{{ importPreview.filter(o => o.selected).length }}/{{ importPreview.length }} selected</span>
         </div>
         <div v-for="(op, i) in importPreview" :key="i" class="d-flex align-items-start gap-2 mb-2 p-2 rounded" :class="op.column_missing ? 'bg-warning bg-opacity-10' : 'bg-light'">
           <input class="form-check-input mt-1" type="checkbox" v-model="op.selected" :disabled="op.column_missing">
@@ -1869,6 +1874,22 @@ const canParseImport = computed(() => {
   return importFile.value !== null
 })
 
+const allImportSelected = computed(() =>
+  importPreview.value && importPreview.value.length > 0 &&
+  importPreview.value.filter(o => !o.column_missing).every(o => o.selected)
+)
+const someImportSelected = computed(() =>
+  importPreview.value && importPreview.value.some(o => o.selected)
+)
+
+function toggleAllImport() {
+  if (!importPreview.value) return
+  const allSel = allImportSelected.value
+  importPreview.value.forEach(o => {
+    if (!o.column_missing) o.selected = !allSel
+  })
+}
+
 async function exportOperations() {
   const recipe = operations.value
     .filter(op => !op.is_undone)
@@ -1880,30 +1901,47 @@ async function exportOperations() {
     }))
 
   const json = JSON.stringify(recipe, null, 2)
-  const filename = `operations-recipe-${datasetId.value.slice(0, 8)}.json`
+  const baseName = `operations-recipe-${datasetId.value.slice(0, 8)}`
 
-  if (exportZip.value) {
-    // Use compression via Blob (no zip library, just gzip-like download)
-    // For simplicity, download as JSON with .zip note
+  try {
+    if (exportZip.value) {
+      // Gzip compress using CompressionStream API
+      const cs = new CompressionStream('gzip')
+      const writer = cs.writable.getWriter()
+      writer.write(new TextEncoder().encode(json))
+      writer.close()
+      const compressed = await new Response(cs.readable).blob()
+      const url = URL.createObjectURL(compressed)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${baseName}.json.gz`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Recipe exported (gzipped)')
+    } else {
+      const blob = new Blob([json], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${baseName}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Recipe exported')
+    }
+  } catch (e) {
+    // Fallback if CompressionStream is not supported
     const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = filename + '.json'
+    a.download = `${baseName}.json`
     a.click()
     URL.revokeObjectURL(url)
-    toast.success('Recipe exported')
-  } else {
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Recipe exported')
+    toast.warning('Compression not supported, exported as plain JSON')
   }
+
   showExportRecipe.value = false
+  exportZip.value = false
 }
 
 async function onImportFileSelected() {
