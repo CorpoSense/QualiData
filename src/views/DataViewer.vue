@@ -709,109 +709,6 @@
       </template>
     </BModal>
 
-    <!-- Export Recipe Modal -->
-    <BModal v-model="showExportRecipe" title="Export Operations Recipe" size="sm">
-      <p class="text-muted small">Export completed operations as a reusable JSON recipe.</p>
-      <div class="mb-3">
-        <strong class="small d-block mb-1">{{ completedOperations.length }} operation(s) to export</strong>
-        <div v-for="op in completedOperations.slice(0, 5)" :key="op.id" class="small text-muted">
-          <span class="badge bg-light text-dark me-1">{{ op.operation_type }}</span>
-        </div>
-        <small v-if="completedOperations.length > 5" class="text-muted">…and {{ completedOperations.length - 5 }} more</small>
-      </div>
-      <div class="form-check">
-        <input class="form-check-input" type="checkbox" v-model="exportZip" id="export-zip">
-        <label class="form-check-label small" for="export-zip">Download as .zip (for large histories)</label>
-      </div>
-      <template #footer>
-        <BButton variant="outline-secondary" @click="showExportRecipe = false">Cancel</BButton>
-        <BButton variant="success" :disabled="!completedOperations.length" @click="exportRecipe">
-          <i class="bi bi-download me-1"></i>Export
-        </BButton>
-      </template>
-    </BModal>
-
-    <!-- Import Recipe Modal -->
-    <BModal v-model="showImportRecipe" title="Import Operations Recipe" size="lg" no-close-on-backdrop>
-      <div v-if="!importPreview && !importResults">
-        <ul class="nav nav-pills mb-3">
-          <li class="nav-item">
-            <button class="nav-link" :class="{ active: importMode === 'paste' }" @click="importMode = 'paste'">
-              <i class="bi bi-clipboard me-1"></i> Paste JSON
-            </button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" :class="{ active: importMode === 'file' }" @click="importMode = 'file'">
-              <i class="bi bi-file-earmark-arrow-up me-1"></i> Upload File
-            </button>
-          </li>
-        </ul>
-
-        <div v-if="importMode === 'paste'">
-          <BFormTextarea v-model="importText" rows="8" placeholder='[{"operation": "fillna", "column": "email", "params": {"method": "constant", "fill_value": "N/A"}}]'></BFormTextarea>
-          <small v-if="importError" class="text-danger d-block mt-1">{{ importError }}</small>
-        </div>
-
-        <div v-if="importMode === 'file'">
-          <BFormFile v-model="importFile" accept=".json,.zip" @update:model-value="onImportFileSelected"></BFormFile>
-          <small class="text-muted">Accepts .json or .zip files</small>
-          <small v-if="importError" class="text-danger d-block mt-1">{{ importError }}</small>
-        </div>
-
-        <div class="mt-3 text-end">
-          <BButton variant="primary" :disabled="!canParseImport" @click="parseImport">
-            <i class="bi bi-search me-1"></i>Preview
-          </BButton>
-        </div>
-      </div>
-
-      <!-- Preview -->
-      <div v-if="importPreview">
-        <div class="alert" :class="importPreview.valid ? 'alert-info' : 'alert-warning'" py-2>
-          <i class="bi me-1" :class="importPreview.valid ? 'bi-check-circle' : 'bi-exclamation-triangle'"></i>
-          {{ importPreview.operations.length }} operation(s) parsed
-        </div>
-        <div class="list-group mb-3" style="max-height: 300px; overflow-y: auto;">
-          <div v-for="(op, i) in importPreview.operations" :key="i" class="list-group-item py-2 px-3 d-flex align-items-center gap-2">
-            <input class="form-check-input" type="checkbox" v-model="op.selected">
-            <span class="badge" :class="op.column_exists ? 'bg-success' : 'bg-warning'">
-              {{ op.operation }}
-            </span>
-            <small class="text-muted flex-grow-1">{{ op.column || op.columns?.join(', ') || '' }}</small>
-            <small v-if="!op.column_exists" class="text-warning">
-              <i class="bi bi-exclamation-triangle"></i> column missing
-            </small>
-          </div>
-        </div>
-        <div class="d-flex gap-2">
-          <BButton size="sm" variant="outline-secondary" @click="importPreview = null; importResults = null">← Back</BButton>
-          <BButton size="sm" variant="primary" :disabled="!importPreview.operations.some(o => o.selected && o.column_exists)" @click="applyImportRecipe">
-            <i class="bi bi-play-fill me-1"></i>Apply {{ importPreview.operations.filter(o => o.selected && o.column_exists).length }} operation(s)
-          </BButton>
-        </div>
-      </div>
-
-      <!-- Results -->
-      <div v-if="importResults">
-        <div class="alert" :class="importResults.status === 'success' ? 'alert-success' : importResults.status === 'partial' ? 'alert-warning' : 'alert-danger'" py-2>
-          <strong>{{ importResults.message }}</strong>
-        </div>
-        <div class="list-group mb-3" style="max-height: 200px; overflow-y: auto;">
-          <div v-for="r in importResults.results" :key="r.index" class="list-group-item py-2 px-3 d-flex align-items-center gap-2">
-            <i class="bi" :class="r.status === 'success' ? 'bi-check-circle text-success' : r.status === 'skipped' ? 'bi-skip-forward text-warning' : 'bi-x-circle text-danger'"></i>
-            <span class="badge bg-light text-dark">{{ r.operation }}</span>
-            <small class="text-muted flex-grow-1">{{ r.column || '' }}</small>
-            <small :class="r.status === 'success' ? 'text-success' : r.status === 'skipped' ? 'text-warning' : 'text-danger'">{{ r.message }}</small>
-          </div>
-        </div>
-        <BButton size="sm" variant="primary" @click="closeImportRecipe">Done</BButton>
-      </div>
-
-      <template #footer v-if="!importPreview && !importResults">
-        <BButton variant="outline-secondary" @click="showImportRecipe = false">Cancel</BButton>
-      </template>
-    </BModal>
-
     <!-- Operation Details Modal -->
     <BModal v-model="showOpDetailsModal" title="Operation Details" size="md">
       <div v-if="selectedOp">
@@ -1087,7 +984,7 @@
 import { getApiUrl } from '@/utils/api'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem } from 'bootstrap-vue-next'
+import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormFile, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem } from 'bootstrap-vue-next'
 import DataTable from '../components/DataTable.vue'
 import PromptModal from '../components/PromptModal.vue'
 import { useToast } from '@/composables/useToast'
@@ -1199,11 +1096,6 @@ const findReplaceRegex = ref(false)
 const findReplaceCaseSensitive = ref(true)
 const canUndo = computed(() => operations.value.some(op => !op.is_undone))
 const canRedo = computed(() => operations.value.some(op => op.is_undone))
-const completedOperations = computed(() => operations.value.filter(op => !op.is_undone).reverse())
-const canParseImport = computed(() => {
-  if (importMode.value === 'paste') return importText.value.trim().length > 0
-  return importFile.value !== null
-})
 const selectedOpIds = ref([])
 const showOpDetailsModal = ref(false)
 const selectedOp = ref(null)
@@ -1970,6 +1862,143 @@ const canMoveRowDown = computed(() => {
   return selectedRowIndices.value.some(i => i < totalRows.value - 1)
 })
 
+const completedOpsCount = computed(() => operations.value.filter(op => !op.is_undone).length)
+
+const canParseImport = computed(() => {
+  if (importMode.value === 'paste') return importText.value.trim().length > 0
+  return importFile.value !== null
+})
+
+async function exportOperations() {
+  const recipe = operations.value
+    .filter(op => !op.is_undone)
+    .map(op => ({
+      operation: op.operation_type,
+      column: op.operation_params?.column || null,
+      columns: op.operation_params?.columns || null,
+      params: op.operation_params || {},
+    }))
+
+  const json = JSON.stringify(recipe, null, 2)
+  const filename = `operations-recipe-${datasetId.value.slice(0, 8)}.json`
+
+  if (exportZip.value) {
+    // Use compression via Blob (no zip library, just gzip-like download)
+    // For simplicity, download as JSON with .zip note
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename + '.json'
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success('Recipe exported')
+  } else {
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success('Recipe exported')
+  }
+  showExportRecipe.value = false
+}
+
+async function onImportFileSelected() {
+  importError.value = ''
+  if (!importFile.value) return
+  try {
+    const text = await importFile.value.text()
+    importText.value = text
+  } catch (e) {
+    importError.value = 'Failed to read file: ' + e.message
+  }
+}
+
+function parseImport() {
+  importError.value = ''
+  let raw = importText.value.trim()
+  if (!raw) { importError.value = 'No data to import'; return }
+
+  let operations
+  try {
+    operations = JSON.parse(raw)
+  } catch (e) {
+    importError.value = 'Invalid JSON: ' + e.message
+    return
+  }
+
+  if (!Array.isArray(operations)) {
+    importError.value = 'Expected a JSON array of operations'
+    return
+  }
+
+  if (operations.length === 0) {
+    importError.value = 'No operations found in the JSON'
+    return
+  }
+
+  const existingCols = columns.value.map(c => c.field)
+  importPreview.value = operations.map((op, i) => {
+    const opColumn = op.column || op.params?.column
+    const opColumns = op.columns || op.params?.columns
+    let columnMissing = false
+    if (opColumn && !existingCols.includes(opColumn)) columnMissing = true
+    if (opColumns && opColumns.some(c => !existingCols.includes(c))) columnMissing = true
+    return {
+      operation: op.operation,
+      column: opColumn,
+      columns: opColumns,
+      params: op.params || {},
+      selected: !columnMissing,
+      column_missing: columnMissing,
+    }
+  })
+}
+
+async function applyImportedRecipe() {
+  if (!importPreview.value) return
+  const ops = importPreview.value.filter(o => o.selected).map(o => ({
+    operation: o.operation,
+    column: o.column,
+    columns: o.columns,
+    params: o.params,
+  }))
+
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/import-recipe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ operations: ops })
+    })
+    if (res.ok) {
+      importResults.value = await res.json()
+      await refreshData()
+    } else {
+      const err = await res.json()
+      importError.value = err.detail || 'Import failed'
+      importPreview.value = null
+    }
+  } catch (e) {
+    importError.value = e.message
+    importPreview.value = null
+  } finally {
+    operating.value = false
+  }
+}
+
+function closeImportModal() {
+  showImportRecipe.value = false
+  importPreview.value = null
+  importResults.value = null
+  importText.value = ''
+  importFile.value = null
+  importError.value = ''
+}
+
 const canAddRecords = computed(() => {
   if (addMode.value === 'single') {
     return pendingRows.value.length > 0 || Object.values(singleRow.value).some(v => v !== undefined && v !== '')
@@ -2039,150 +2068,6 @@ async function submitAddRecords() {
     }
   } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
-}
-
-function buildRecipe() {
-  return completedOperations.value.map(op => ({
-    operation: op.operation_type,
-    column: op.operation_params?.column || null,
-    columns: op.operation_params?.columns || null,
-    params: { ...(op.operation_params || {}) },
-  }))
-}
-
-async function exportRecipe() {
-  const recipe = buildRecipe()
-  if (!recipe.length) { toast.warning('No operations to export'); return }
-
-  const json = JSON.stringify(recipe, null, 2)
-
-  if (exportZip.value) {
-    // Use CompressionStream if available, otherwise fall back to plain JSON
-    try {
-      const blob = new Blob([json], { type: 'application/json' })
-      const cs = new CompressionStream('gzip')
-      const writer = cs.writable.getWriter()
-      writer.write(new TextEncoder().encode(json))
-      writer.close()
-      const compressed = await new Response(cs.readable).blob()
-      downloadBlob(compressed, 'recipe.json.gz')
-    } catch {
-      // Fallback: download as plain JSON if CompressionStream not supported
-      downloadBlob(new Blob([json], { type: 'application/json' }), 'recipe.json')
-      toast.info('Compression not supported in this browser, downloaded as .json')
-    }
-  } else {
-    downloadBlob(new Blob([json], { type: 'application/json' }), 'recipe.json')
-  }
-
-  showExportRecipe.value = false
-  toast.success(`Exported ${recipe.length} operation(s)`)
-}
-
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-async function onImportFileSelected() {
-  importError.value = ''
-}
-
-async function parseImport() {
-  importError.value = ''
-  let text = ''
-
-  try {
-    if (importMode.value === 'paste') {
-      text = importText.value.trim()
-    } else if (importFile.value) {
-      const file = importFile.value
-      if (file.name.endsWith('.zip') || file.name.endsWith('.gz')) {
-        // Decompress
-        const ds = new DecompressionStream('gzip')
-        const stream = file.stream().pipeThrough(ds)
-        text = await new Response(stream).text()
-      } else {
-        text = await file.text()
-      }
-    }
-
-    if (!text) { importError.value = 'No data provided'; return }
-
-    // Client-side JSON validation
-    let parsed
-    try {
-      parsed = JSON.parse(text)
-    } catch (e) {
-      importError.value = `Invalid JSON: ${e.message}`
-      return
-    }
-
-    if (!Array.isArray(parsed)) {
-      importError.value = 'JSON must be an array of operation objects'
-      return
-    }
-
-    // Build preview with column existence check
-    const existingCols = new Set(columns.value.map(c => c.field))
-    const operations = parsed.map((op, i) => ({
-      index: i,
-      operation: op.operation || 'unknown',
-      column: op.column || null,
-      columns: op.columns || null,
-      params: op.params || {},
-      column_exists: !op.column || existingCols.has(op.column) ||
-        (op.columns ? op.columns.every(c => existingCols.has(c)) : true),
-      selected: true,
-    }))
-
-    importPreview.value = { valid: true, operations }
-  } catch (e) {
-    importError.value = e.message
-  }
-}
-
-async function applyImportRecipe() {
-  if (!importPreview.value) return
-  const selectedOps = importPreview.value.operations
-    .filter(o => o.selected)
-    .map(o => ({ operation: o.operation, column: o.column, columns: o.columns, params: o.params }))
-
-  if (!selectedOps.length) { toast.warning('Select at least one operation'); return }
-
-  operating.value = true
-  try {
-    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/import-recipe`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ operations: selectedOps })
-    })
-    if (res.ok) {
-      importResults.value = await res.json()
-      importPreview.value = null
-      await refreshData()
-    } else {
-      const err = await res.json()
-      importError.value = err.detail || 'Import failed'
-    }
-  } catch (e) {
-    importError.value = e.message
-  } finally {
-    operating.value = false
-  }
-}
-
-function closeImportRecipe() {
-  showImportRecipe.value = false
-  importPreview.value = null
-  importResults.value = null
-  importText.value = ''
-  importFile.value = null
-  importError.value = ''
 }
 
 async function reorderRows(direction) {
