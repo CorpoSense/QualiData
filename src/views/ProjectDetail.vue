@@ -131,58 +131,142 @@
       v-model="showImportModal"
       :has-modal-card="true"
       title="Import Data"
-      ok-title="Import"
-      @ok="handleImport"
+      size="lg"
       no-header-close
     >
       <div class="p-3">
-        <BFormGroup label="Dataset Name">
-          <BFormInput v-model="importForm.name" placeholder="My Dataset"></BFormInput>
-        </BFormGroup>
-        <BFormGroup label="Upload File" class="mt-3">
-          <BFormFile v-model="importForm.file" accept=".csv,.tsv,.txt,.xlsx,.xls" drop-placeholder="Drop file here"></BFormFile>
-          <small class="text-muted">CSV, Excel</small>
-        </BFormGroup>
-        
-        <!-- Import Options -->
-        <div class="mt-3 p-3 border rounded">
-          <div class="fw-bold mb-2">Import Options</div>
-          <div class="mb-2">
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" id="autoMode" :value="true" v-model="importForm.autoDetect">
-              <label class="form-check-label" for="autoMode">Auto (recommended)</label>
+        <!-- Tabs -->
+        <ul class="nav nav-pills mb-3">
+          <li class="nav-item">
+            <button class="nav-link" :class="{ active: importTab === 'file' }" @click="importTab = 'file'">
+              <i class="bi bi-file-earmark-arrow-up me-1"></i> File
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" :class="{ active: importTab === 'database' }" @click="importTab = 'database'">
+              <i class="bi bi-database me-1"></i> Database
+            </button>
+          </li>
+        </ul>
+
+        <!-- File Import -->
+        <div v-if="importTab === 'file'">
+          <BFormGroup label="Dataset Name">
+            <BFormInput v-model="importForm.name" placeholder="My Dataset"></BFormInput>
+          </BFormGroup>
+          <BFormGroup label="Upload File" class="mt-3">
+            <BFormFile v-model="importForm.file" accept=".csv,.tsv,.txt,.xlsx,.xls" drop-placeholder="Drop file here"></BFormFile>
+            <small class="text-muted">CSV, Excel</small>
+          </BFormGroup>
+
+          <!-- Import Options -->
+          <div class="mt-3 p-3 border rounded">
+            <div class="fw-bold mb-2">Import Options</div>
+            <div class="mb-2">
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" id="autoMode" :value="true" v-model="importForm.autoDetect">
+                <label class="form-check-label" for="autoMode">Auto (recommended)</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" id="manualMode" :value="false" v-model="importForm.autoDetect">
+                <label class="form-check-label" for="manualMode">Manual</label>
+              </div>
             </div>
-            <div class="form-check form-check-inline">
-              <input class="form-check-input" type="radio" id="manualMode" :value="false" v-model="importForm.autoDetect">
-              <label class="form-check-label" for="manualMode">Manual</label>
+
+            <div v-if="importForm.autoDetect === false" class="mt-2 ps-2 border-start">
+              <div class="mb-2">
+                <label class="form-label">Has Header:</label>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" id="hasHeaderYes" :value="true" v-model="importForm.hasHeader">
+                  <label class="form-check-label" for="hasHeaderYes">Yes</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" id="hasHeaderNo" :value="false" v-model="importForm.hasHeader">
+                  <label class="form-check-label" for="hasHeaderNo">No</label>
+                </div>
+              </div>
+              <div class="mt-2">
+                <label class="form-label">Delimiter:</label>
+                <select class="form-select" v-model="importForm.delimiter">
+                  <option value=",">Comma (,)</option>
+                  <option value=";">Semicolon (;)</option>
+                  <option value="	">Tab</option>
+                  <option value="|">Pipe (|)</option>
+                </select>
+              </div>
             </div>
           </div>
-          
-          <!-- Manual options -->
-          <div v-if="importForm.autoDetect === false" class="mt-2 ps-2 border-start">
-            <div class="mb-2">
-              <label class="form-label">Has Header:</label>
-              <div class="form-check">
-                <input class="form-check-input" type="radio" id="hasHeaderYes" :value="true" v-model="importForm.hasHeader">
-                <label class="form-check-label" for="hasHeaderYes">Yes</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input" type="radio" id="hasHeaderNo" :value="false" v-model="importForm.hasHeader">
-                <label class="form-check-label" for="hasHeaderNo">No</label>
-              </div>
+          <div class="mt-3 text-end">
+            <BButton variant="primary" :loading="importing" :disabled="!importForm.name || !importForm.file" @click="handleImport">
+              <i class="bi bi-upload me-1"></i> Import
+            </BButton>
+          </div>
+        </div>
+
+        <!-- Database Import -->
+        <div v-if="importTab === 'database'">
+          <BFormGroup label="Dataset Name">
+            <BFormInput v-model="dbImportForm.name" placeholder="My Dataset"></BFormInput>
+          </BFormGroup>
+          <div class="row g-2 mt-1">
+            <div class="col-4">
+              <BFormGroup label="Database Type" label-size="sm">
+                <BFormSelect v-model="dbImportForm.db_type" :options="dbTypeOptions" size="sm"></BFormSelect>
+              </BFormGroup>
             </div>
-            <div class="mt-2">
-              <label class="form-label">Delimiter:</label>
-              <select class="form-select" v-model="importForm.delimiter">
-                <option value=",">Comma (,)</option>
-                <option value=";">Semicolon (;)</option>
-                <option value="	">Tab</option>
-                <option value="|">Pipe (|)</option>
-              </select>
+            <div class="col-5">
+              <BFormGroup label="Host" label-size="sm">
+                <BFormInput v-model="dbImportForm.host" size="sm" placeholder="localhost"></BFormInput>
+              </BFormGroup>
             </div>
+            <div class="col-3">
+              <BFormGroup label="Port" label-size="sm">
+                <BFormInput v-model.number="dbImportForm.port" type="number" size="sm"></BFormInput>
+              </BFormGroup>
+            </div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-6">
+              <BFormGroup label="Database" label-size="sm">
+                <BFormInput v-model="dbImportForm.database" size="sm" placeholder="mydb"></BFormInput>
+              </BFormGroup>
+            </div>
+            <div class="col-6">
+              <BFormGroup label="Username" label-size="sm">
+                <BFormInput v-model="dbImportForm.username" size="sm" placeholder="user"></BFormInput>
+              </BFormGroup>
+            </div>
+          </div>
+          <BFormGroup label="Password" label-size="sm" class="mt-1">
+            <BFormInput v-model="dbImportForm.password" type="password" size="sm"></BFormInput>
+          </BFormGroup>
+
+          <!-- Test Connection -->
+          <div class="d-flex gap-2 mt-2">
+            <BButton size="sm" variant="outline-primary" :loading="dbTesting" @click="testDbConnection">
+              <i class="bi bi-plug me-1"></i> Test Connection
+            </BButton>
+            <span v-if="dbTestResult" :class="dbTestResult.success ? 'text-success' : 'text-danger'" class="small align-self-center">
+              <i class="bi me-1" :class="dbTestResult.success ? 'bi-check-circle' : 'bi-x-circle'"></i>
+              {{ dbTestResult.message }}
+            </span>
+          </div>
+
+          <!-- Table Selection -->
+          <div v-if="dbTables.length" class="mt-3">
+            <BFormGroup label="Select Table" label-size="sm">
+              <BFormSelect v-model="dbImportForm.table" :options="dbTableOptions" size="sm"></BFormSelect>
+            </BFormGroup>
+          </div>
+
+          <div class="mt-3 text-end">
+            <BButton variant="primary" :loading="importing" :disabled="!dbImportForm.name || !dbImportForm.table" @click="handleDbImport">
+              <i class="bi bi-download me-1"></i> Import
+            </BButton>
           </div>
         </div>
       </div>
+      <template #footer><span></span></template>
     </BModal>
 
     <!-- Rename Dataset Modal -->
@@ -271,6 +355,11 @@ watch(showImportModal, (val) => {
   if (!val) {
     importForm.name = ''
     importForm.file = null
+    importTab.value = 'file'
+    dbImportForm.name = ''
+    dbImportForm.table = ''
+    dbTables.value = []
+    dbTestResult.value = null
   }
 })
 const showPreviewModal = ref(false)
@@ -282,8 +371,42 @@ const renameDatasetId = ref(null)
 const renameDatasetName = ref('')
 const renameDatasetDesc = ref('')
 const renamingDataset = ref(false)
-const showAssistantModal = ref(false)
+const importTab = ref('file')
 const importing = ref(false)
+const dbTesting = ref(false)
+const dbTestResult = ref(null)
+const dbTables = ref([])
+
+const dbTypeOptions = [
+  { value: 'postgresql', text: 'PostgreSQL' },
+  { value: 'mysql', text: 'MySQL' },
+  { value: 'sqlite', text: 'SQLite' },
+  { value: 'oracle', text: 'Oracle' },
+]
+
+const dbImportForm = reactive({
+  name: '',
+  db_type: 'postgresql',
+  host: 'localhost',
+  port: 5432,
+  database: '',
+  username: '',
+  password: '',
+  table: '',
+})
+
+const dbTableOptions = computed(() => [
+  { value: '', text: 'Select table…', disabled: true },
+  ...dbTables.value.map(t => ({ value: t, text: t }))
+])
+
+// Update port when db_type changes
+watch(() => dbImportForm.db_type, (type) => {
+  const defaultPorts = { postgresql: 5432, mysql: 3306, sqlite: 0, oracle: 1521 }
+  dbImportForm.port = defaultPorts[type] || 5432
+  if (type === 'sqlite') dbImportForm.host = ''
+})
+const showAssistantModal = ref(false)
 const selectedDataset = ref(null)
 const previewLimit = ref(10)
 const previewData = ref([])
@@ -432,6 +555,71 @@ async function handleImport() {
     }
   } catch (e) {
     console.error(e)
+  } finally {
+    importing.value = false
+  }
+}
+
+async function testDbConnection() {
+  dbTesting.value = true
+  dbTestResult.value = null
+  dbTables.value = []
+  dbImportForm.table = ''
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/import/db/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(dbImportForm)
+    })
+    if (res.ok) {
+      dbTestResult.value = { success: true, message: 'Connected!' }
+      await fetchDbTables()
+    } else {
+      const err = await res.json()
+      dbTestResult.value = { success: false, message: err.detail || 'Connection failed' }
+    }
+  } catch (e) {
+    dbTestResult.value = { success: false, message: e.message }
+  } finally {
+    dbTesting.value = false
+  }
+}
+
+async function fetchDbTables() {
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/import/db/tables`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(dbImportForm)
+    })
+    if (res.ok) {
+      const data = await res.json()
+      dbTables.value = data.tables || []
+    }
+  } catch { /* silent */ }
+}
+
+async function handleDbImport() {
+  if (!dbImportForm.name || !dbImportForm.table) return
+  importing.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/import/db`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ ...dbImportForm, project_id: projectId })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      showImportModal.value = false
+      dbTables.value = []
+      dbTestResult.value = null
+      await fetchDatasets()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Import failed')
+    }
+  } catch (e) {
+    toast.error(e.message)
   } finally {
     importing.value = false
   }

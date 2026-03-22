@@ -547,3 +547,130 @@ async def delete_dataset(
     await session.commit()
 
     return None
+
+
+def _build_db_url(db_type: str, host: str, port: str, database: str, username: str, password: str) -> str:
+    """Build SQLAlchemy connection URL from parameters."""
+    drivers = {
+        "postgresql": "postgresql+psycopg2",
+        "mysql": "mysql+pymysql",
+        "sqlite": "sqlite",
+        "oracle": "oracle+oracledb",
+    }
+    driver = drivers.get(db_type)
+    if not driver:
+        raise HTTPException(status_code=400, detail=f"Unsupported database type: {db_type}")
+    if db_type == "sqlite":
+        return f"sqlite:///{database}"
+    return f"{driver}://{username}:{password}@{host}:{port}/{database}"
+
+
+@router.post("/import/db/test")
+async def test_db_connection(request: dict):
+    """Test a database connection."""
+    from sqlalchemy import create_engine, text
+
+    try:
+        url = _build_db_url(
+            request.get("db_type", "postgresql"),
+            request.get("host", "localhost"),
+            str(request.get("port", 5432)),
+            request.get("database", ""),
+            request.get("username", ""),
+            request.get("password", ""),
+        )
+        engine = create_engine(url, connect_args={"connect_timeout": 5})
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        engine.dispose()
+        return {"status": "success", "message": "Connection successful"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Connection failed: {str(e)}")
+
+
+@router.post("/import/db/tables")
+async def list_db_tables(request: dict):
+    """List tables in a database."""
+    from sqlalchemy import create_engine, inspect
+
+    try:
+        url = _build_db_url(
+            request.get("db_type", "postgresql"),
+            request.get("host", "localhost"),
+            str(request.get("port", 5432)),
+            request.get("database", ""),
+            request.get("username", ""),
+            request.get("password", ""),
+        )
+        engine = create_engine(url, connect_args={"connect_timeout": 5})
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        engine.dispose()
+        return {"status": "success", "tables": tables}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to list tables: {str(e)}")
+
+
+@router.post("/import/db", response_model=dict)
+async def import_from_database(
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Import a database table as a dataset."""
+    from sqlalchemy import create_engine, text
+
+    table_name = request.get("table")
+    if not table_name:
+        raise HTTPException(status_code=400, detail="table is required")
+
+    try:
+        url = _build_db_url(
+            request.get("db_type", "postgresql"),
+            request.get("host", "localhost"),
+            str(request.get("port", 5432)),
+            request.get("database", ""),
+            request.get("username", ""),
+            request.get("password", ""),
+        )
+        engine = create_engine(url, connect_args={"connect_timeout": 10})
+        df = pd.read_sql_table(table_name, engine)
+        engine.dispose()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read table: {str(e)}")
+
+    if df.empty:
+        raise HTTPException(status_code=400, detail="Table is empty")
+
+    # Create dataset
+    project_id = request.get("project_id")
+    if not project_id:
+        raise HTTPException(status_code=400, detail="project_id is required")
+
+    project_result = await session.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
+    )
+    if not project_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    dataset = Dataset(
+        project_id=project_id,
+        name=request.get("name", table_name),
+        description=f"Imported from {request.get('db_type', 'database')} table: {table_name}",
+        file_name=f"{table_name}.csv",
+        file_type="csv",
+        row_count=len(df),
+        columns=detect_columns(df),
+        preview_data=get_preview_data(df),
+    )
+
+    session.add(dataset)
+    await session.commit()
+    await session.refresh(dataset)
+
+    return {
+        "status": "success",
+        "message": f"Imported {len(df)} rows from '{table_name}'",
+        "dataset_id": dataset.id,
+        "row_count": len(df),
+    }
