@@ -374,21 +374,14 @@
     </BModal>
 
     <!-- Preview Modal -->
-    <BModal v-model="showPreviewModal" :has-modal-card="true" size="xl">
-      <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">{{ selectedDataset?.name }} - Preview</h5>
-            <button type="button" class="btn-close" @click="showPreviewModal = false"></button>
-          </div>
-          <div class="modal-body">
-            <BFormGroup label="Rows to Show">
-              <BFormSelect v-model="previewLimit" :options="previewLimitOptions"></BFormSelect>
-            </BFormGroup>
-            <BTable :items="previewData" :fields="previewColumns" :per-page="previewLimit" bordered striped hover></BTable>
-          </div>
-        </div>
-      </div>
+    <BModal v-model="showPreviewModal" :title="(selectedDataset?.name || 'Dataset') + ' - Preview'" size="xl">
+      <BFormGroup label="Rows to Show">
+        <BFormSelect v-model="previewLimit" :options="previewLimitOptions"></BFormSelect>
+      </BFormGroup>
+      <BTable :items="previewData" :fields="previewColumns" :per-page="previewLimit" bordered striped hover></BTable>
+      <template #footer>
+        <BButton variant="primary" @click="showPreviewModal = false">Close</BButton>
+      </template>
     </BModal>
 
     <!-- Operation Details Modal -->
