@@ -55,7 +55,7 @@
                 @change="$emit('row-selected', index)"
               >
             </td>
-            <td v-for="field in fields" :key="field.key" @click="selectable && $emit('row-clicked', { item: row, index })">
+            <td v-for="field in fields" :key="field.key" @click="selectable && $emit('row-clicked', { item: row, index })" @dblclick="$emit('cell-dblclick', { row: index, column: field.key, value: row[field.key] })">
               {{ row[field.key] }}
             </td>
           </tr>
@@ -83,7 +83,7 @@ const props = defineProps({
   multiSort: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['row-clicked', 'head-clicked', 'row-selected', 'toggle-all', 'sort-changed'])
+const emit = defineEmits(['row-clicked', 'head-clicked', 'row-selected', 'toggle-all', 'sort-changed', 'cell-dblclick'])
 
 // Sort state: array of { key, dir } for multi-sort
 const sortKeys = ref([]) // [{ key: 'name', dir: 'asc' }, ...]
@@ -169,6 +169,7 @@ table { margin-bottom: 0; }
 th { user-select: none; }
 th:hover { background-color: var(--bs-table-hover-bg); }
 td { vertical-align: middle; }
+td:hover { background-color: rgba(79, 70, 229, 0.06); cursor: text; }
 .sort-btn { font-size: 0.7rem; line-height: 1; opacity: 0.4; }
 .sort-btn:hover, .sort-btn.active { opacity: 1; }
 .sort-badge {

@@ -782,12 +782,24 @@ async def merge_datasets(
         final_columns = sorted(common_cols)
     elif strategy == "strict":
         ref_cols = set(dfs[0].columns)
+        mismatches = []
         for i, df in enumerate(dfs[1:], 2):
-            if set(df.columns) != ref_cols:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Column mismatch: dataset {i} has {sorted(df.columns)} but expected {sorted(ref_cols)}"
-                )
+            ds_cols = set(df.columns)
+            if ds_cols != ref_cols:
+                missing = ref_cols - ds_cols
+                extra = ds_cols - ref_cols
+                detail = f"Dataset {i}"
+                if missing:
+                    detail += f" is missing: {sorted(missing)}"
+                if extra:
+                    detail += f" has extra: {sorted(extra)}"
+                mismatches.append(detail)
+        if mismatches:
+            return {
+                "status": "failed",
+                "message": f"Column mismatch in strict mode: {'; '.join(mismatches)}",
+                "details": mismatches,
+            }
         final_columns = sorted(ref_cols)
     else:  # union
         final_columns = sorted(all_columns)

@@ -254,6 +254,7 @@
         @head-clicked="onHeadClicked"
         @row-selected="toggleRowSelection"
         @toggle-all="toggleAllRows"
+        @cell-dblclick="openCellEditor"
       />
 
       <!-- Pagination Footer -->
@@ -597,6 +598,20 @@
         <BButton variant="outline-secondary" @click="showSplitModal = false">Cancel</BButton>
         <BButton variant="primary" :loading="operating" :disabled="!splitDelimiter || splitNewColumns.length < 2" @click="applySplit">
           <i class="bi bi-arrows-expand me-1"></i>Split
+        </BButton>
+      </template>
+    </BModal>
+
+    <!-- Cell Edit Modal -->
+    <BModal v-model="showCellEdit" :title="'Edit Cell — ' + cellEdit.column" size="sm">
+      <div class="small text-muted mb-2">
+        Row {{ cellEdit.row + 1 }}, Column <strong>{{ cellEdit.column }}</strong>
+      </div>
+      <BFormTextarea v-model="cellEdit.value" rows="3" autofocus></BFormTextarea>
+      <template #footer>
+        <BButton variant="outline-secondary" @click="showCellEdit = false">Cancel</BButton>
+        <BButton variant="primary" :loading="operating" @click="saveCellEdit">
+          <i class="bi bi-check-lg me-1"></i>Save
         </BButton>
       </template>
     </BModal>
@@ -1105,6 +1120,8 @@ const showRowFilterModal = ref(false)
 const rowFilters = ref({})
 const rowSelectMode = ref(false)
 const showTableSettings = ref(false)
+const showCellEdit = ref(false)
+const cellEdit = ref({ row: 0, column: '', value: '' })
 const showAddRecords = ref(false)
 const addMode = ref('single')
 const singleRow = ref({})
@@ -1116,6 +1133,31 @@ const multiSort = ref(false)
 
 function onRowSelectToggle() {
   if (!rowSelectMode.value) selectedRowIndices.value = []
+}
+
+function openCellEditor({ row, column, value }) {
+  cellEdit.value = { row: (page.value - 1) * limit.value + row, column, value: String(value ?? '') }
+  showCellEdit.value = true
+}
+
+async function saveCellEdit() {
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/update-cell`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ row_index: cellEdit.value.row, column: cellEdit.value.column, value: cellEdit.value.value })
+    })
+    if (res.ok) {
+      toast.success('Cell updated')
+      showCellEdit.value = false
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Update failed')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
 }
 const selectedRowIndices = ref([])
 const filteredMatchingIndices = ref(null)

@@ -295,6 +295,55 @@ class TestMergeDatasets:
         assert result["status"] == "success"
         assert result["column_count"] == 2  # only name, age
 
+    @pytest.mark.asyncio
+    async def test_merge_strict_returns_graceful_error(self):
+        """Strict mode with mismatched columns returns failed status, not exception."""
+        from app.routers.datasets import merge_datasets
+
+        ds1 = MagicMock()
+        ds1.id = "d1"
+        ds1.name = "DS1"
+        ds1.preview_data = [{"name": "Alice", "age": 30}]
+        ds1.columns = [{"name": "name"}, {"name": "age"}]
+        ds1.row_count = 1
+
+        ds2 = MagicMock()
+        ds2.id = "d2"
+        ds2.name = "DS2"
+        ds2.preview_data = [{"name": "Bob", "city": "Paris"}]
+        ds2.columns = [{"name": "name"}, {"name": "city"}]
+        ds2.row_count = 1
+
+        mock_project = MagicMock()
+        mock_project.row_count = 0
+
+        call_count = [0]
+
+        async def mock_execute(query):
+            q_str = str(query)
+            r = MagicMock()
+            if "project" in q_str.lower() and "user" in q_str.lower():
+                r.scalar_one_or_none.return_value = mock_project
+            elif "dataset" in q_str.lower():
+                call_count[0] += 1
+                r.scalar_one_or_none.return_value = ds1 if call_count[0] == 1 else ds2
+            else:
+                r.scalar_one_or_none.return_value = mock_project
+            return r
+
+        mock_session = AsyncMock()
+        mock_session.execute = mock_execute
+
+        result = await merge_datasets(
+            request={"project_id": "p1", "dataset_ids": ["d1", "d2"], "name": "Merged", "strategy": "strict"},
+            current_user=MagicMock(id="user-1"),
+            session=mock_session,
+        )
+
+        assert result["status"] == "failed"
+        assert "Column mismatch" in result["message"]
+        assert "missing" in result["message"].lower() or "extra" in result["message"].lower()
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
