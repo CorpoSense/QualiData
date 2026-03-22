@@ -1024,8 +1024,8 @@
             <input class="form-check-input" type="checkbox" id="select-all-ops" :checked="allOpsSelected" @change="toggleAllOps">
             <label class="form-check-label small" for="select-all-ops">Select all</label>
           </div>
-          <BButton v-if="selectedOpIds.length > 0" size="sm" variant="outline-warning" @click="undoSelectedOps">
-            <i class="bi bi-arrow-counterclockwise me-1"></i>Undo {{ selectedOpIds.length }}
+          <BButton v-if="undoableSelectedCount > 0" size="sm" variant="outline-warning" @click="undoSelectedOps">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Undo {{ undoableSelectedCount }}
           </BButton>
           <BButton v-if="deletableSelectedCount > 0" size="sm" variant="outline-danger" @click="deleteSelectedOps" title="Delete selected undone operations">
             <i class="bi bi-trash me-1"></i>Delete {{ deletableSelectedCount }}
@@ -1208,6 +1208,12 @@ const deletableSelectedCount = computed(() => {
   return selectedOpIds.value.filter(id => {
     const op = operations.value.find(o => o.id === id)
     return op && op.is_undone
+  }).length
+})
+const undoableSelectedCount = computed(() => {
+  return selectedOpIds.value.filter(id => {
+    const op = operations.value.find(o => o.id === id)
+    return op && !op.is_undone
   }).length
 })
 const operating = ref(false)
@@ -2750,13 +2756,22 @@ function toggleAllOps() {
 
 async function undoSelectedOps() {
   if (!selectedOpIds.value.length) return
-  if (!(await showConfirm({ title: 'Undo Operations', message: `Undo ${selectedOpIds.value.length} operation(s)?`, variant: 'warning', confirmText: 'Undo' }))) return
+  // Only undo operations that are not already undone
+  const undoable = selectedOpIds.value.filter(id => {
+    const op = operations.value.find(o => o.id === id)
+    return op && !op.is_undone
+  })
+  if (!undoable.length) {
+    toast.warning('No operations to undo.')
+    return
+  }
+  if (!(await showConfirm({ title: 'Undo Operations', message: `Undo ${undoable.length} operation(s)?`, variant: 'warning', confirmText: 'Undo' }))) return
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/undo-batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ operation_ids: selectedOpIds.value })
+      body: JSON.stringify({ operation_ids: undoable })
     })
     if (res.ok) {
       const data = await res.json()
