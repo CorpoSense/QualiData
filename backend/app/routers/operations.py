@@ -833,10 +833,20 @@ async def datetime_operations(
     # Normalize operation names
     op_map = {
         'parse': 'parse_datetime',
+        'parse-datetime': 'parse_datetime',
+        'parse_datetime': 'parse_datetime',
         'year': 'extract_year',
+        'extract-year': 'extract_year',
+        'extract_year': 'extract_year',
         'month': 'extract_month',
+        'extract-month': 'extract_month',
+        'extract_month': 'extract_month',
         'day': 'extract_day',
+        'extract-day': 'extract_day',
+        'extract_day': 'extract_day',
         'weekday': 'extract_weekday',
+        'extract-weekday': 'extract_weekday',
+        'extract_weekday': 'extract_weekday',
     }
     operation = op_map.get(operation, operation)
 
