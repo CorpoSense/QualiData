@@ -249,3 +249,41 @@ class TestNumericOperationsAcceptsFrontendNames:
             )
 
         assert result["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_standardize(self):
+        from app.routers.operations import numeric_operations
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await numeric_operations(
+                dataset_id="test-ds-id",
+                request={"columns": ["score"], "operation": "standardize"},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_robust_scale(self):
+        from app.routers.operations import numeric_operations
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await numeric_operations(
+                dataset_id="test-ds-id",
+                request={"columns": ["score"], "operation": "robust_scale"},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result["status"] == "success"

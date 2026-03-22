@@ -1695,6 +1695,22 @@ async def numeric_operations(
                 if col_max - col_min != 0:
                     df[col] = (df[col] - col_min) / (col_max - col_min)
 
+            elif operation == 'standardize':
+                # Z-score standardization: (x - mean) / std
+                col_mean = df[col].mean()
+                col_std = df[col].std()
+                if col_std != 0:
+                    df[col] = (df[col] - col_mean) / col_std
+
+            elif operation == 'robust_scale':
+                # Robust scaling using median and IQR
+                col_median = df[col].median()
+                Q1 = df[col].quantile(0.25)
+                Q3 = df[col].quantile(0.75)
+                IQR = Q3 - Q1
+                if IQR != 0:
+                    df[col] = (df[col] - col_median) / IQR
+
             elif operation == 'outliers':
                 # Simple IQR-based outlier detection - replace with median
                 Q1 = df[col].quantile(0.25)

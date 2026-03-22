@@ -105,7 +105,13 @@
               <i class="bi bi-123 me-2"></i>Round numbers
             </BDropdownItem>
             <BDropdownItem @click="showOpConfirmModal('numeric-normalize')">
-              <i class="bi bi-percent me-2"></i>Normalize
+              <i class="bi bi-percent me-2"></i>Normalize (min-max 0–1)
+            </BDropdownItem>
+            <BDropdownItem @click="showOpConfirmModal('numeric-standardize')">
+              <i class="bi bi-graph-up me-2"></i>Standardize (Z-score)
+            </BDropdownItem>
+            <BDropdownItem @click="showOpConfirmModal('numeric-robust')">
+              <i class="bi bi-shield-check me-2"></i>Robust scale
             </BDropdownItem>
             <BDropdownItem @click="showOpConfirmModal('numeric-outliers')">
               <i class="bi bi-exclamation-triangle me-2"></i>Handle outliers
@@ -2066,7 +2072,9 @@ const OP_CONFIGS = {
   'datetime-extract-month': { title: 'Extract Month', description: 'Extracts the month component from datetime values into a new column.', operation: 'datetime-operations', params: { operation: 'extract-month' }, options: [] },
   // Numeric ops
   'numeric-round': { title: 'Round Numbers', description: 'Rounds numeric values to a specified number of decimal places.', operation: 'numeric', params: { operation: 'round' }, options: [{ key: 'decimals', label: 'Decimal places', type: 'range', min: 0, max: 10, step: 1, hint: 'Number of decimal places to round to' }] },
-  'numeric-normalize': { title: 'Normalize', description: 'Scales numeric values to a 0-1 range using min-max normalization.', operation: 'numeric', params: { operation: 'normalize' }, options: [] },
+  'numeric-normalize': { title: 'Normalize (Min-Max)', description: 'Scales numeric values to a 0-1 range. Formula: (x - min) / (max - min). Use when you need bounded values.', operation: 'numeric', params: { operation: 'normalize' }, options: [] },
+  'numeric-standardize': { title: 'Standardize (Z-Score)', description: 'Centers values around 0 with unit variance. Formula: (x - mean) / std. Common for linear regression, SVM, and distance-based algorithms. Values outside -3 to 3 may indicate outliers.', operation: 'numeric', params: { operation: 'standardize' }, options: [] },
+  'numeric-robust': { title: 'Robust Scaling', description: 'Scales using median and IQR instead of mean/std. Formula: (x - median) / IQR. More robust to outliers than Z-score standardization.', operation: 'numeric', params: { operation: 'robust_scale' }, options: [] },
   'numeric-outliers': { title: 'Handle Outliers', description: 'Detects and handles statistical outliers using the IQR method. Outliers are capped to the fence values.', operation: 'numeric', params: { operation: 'outliers' }, options: [] },
   // Dedupe
   'remove-duplicates': { title: 'Remove Duplicates', description: 'Removes duplicate rows from the dataset. By default, considers all columns to determine duplicates.', operation: 'remove-duplicates', params: {}, options: [{ key: 'keep', label: 'Keep', type: 'select', choices: [{ value: 'first', text: 'First occurrence' }, { value: 'last', text: 'Last occurrence' }], hint: 'Which duplicate to keep when multiple exist' }] },
