@@ -276,3 +276,70 @@ class TestAiSuggestCustomPrompts:
         human_msgs = [m for m in captured_messages if isinstance(m, HumanMessage)]
         assert len(human_msgs) == 1
         assert human_msgs[0].content.startswith("Focus on the name column")
+
+
+class TestAiSuggestEndpointValidation:
+    """Test ai-suggest endpoint input validation."""
+
+    @pytest.mark.asyncio
+    async def test_suggest_requires_dataset_id(self):
+        from app.routers.assistant import ai_suggest_operations
+        from fastapi import HTTPException
+
+        mock_session = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await ai_suggest_operations(
+                request={"agent_id": "agent-1"},
+                current_user=_make_mock_user(),
+                session=mock_session,
+            )
+        assert exc_info.value.status_code == 400
+        assert "dataset_id" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_suggest_requires_agent_id(self):
+        from app.routers.assistant import ai_suggest_operations
+        from fastapi import HTTPException
+
+        mock_session = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await ai_suggest_operations(
+                request={"dataset_id": "ds-1"},
+                current_user=_make_mock_user(),
+                session=mock_session,
+            )
+        assert exc_info.value.status_code == 400
+        assert "agent_id" in exc_info.value.detail
+
+
+class TestPreflightReturnsConsistentOps:
+    """Verify preflight available_operations match what AI can suggest."""
+
+    @pytest.mark.asyncio
+    async def test_preflight_ops_match_available_ops(self):
+        """The available_operations in preflight should match what the AI is told about."""
+        from app.routers.assistant import ai_suggest_preflight
+
+        mock_agent = MagicMock()
+        mock_agent.name = "Test Agent"
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_agent
+
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        with patch("app.routers.ai_operations._get_agent_config", new_callable=AsyncMock) as mock_config:
+            mock_config.return_value = {"provider": "openai", "model": "gpt-4o-mini", "temperature": 0.3, "system_prompt": None, "api_key": None, "base_url": None}
+
+            result = await ai_suggest_preflight(
+                request={"agent_id": "agent-1"},
+                current_user=_make_mock_user(),
+                session=mock_session,
+            )
+
+        op_names = {o["operation"] for o in result["available_operations"]}
+        expected = {"fillna", "remove-duplicates", "find-replace", "extract-json", "string-operations"}
+        assert expected == op_names
