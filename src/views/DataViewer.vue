@@ -140,6 +140,9 @@
           <BButton size="sm" :variant="'outline-secondary'" @click="showTableSettings = true">
             <i class="bi bi-gear"></i>
           </BButton>
+          <BButton size="sm" variant="primary" @click="showAddRecords = true">
+            <i class="bi bi-plus-lg me-1"></i>Add
+          </BButton>
           <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowUp" @click="reorderRows('up')" title="Move selected rows one step up">
             <i class="bi bi-arrow-up"></i>
           </BButton>
@@ -542,6 +545,69 @@
       </template>
     </BModal>
 
+    <!-- Add Records Modal -->
+    <BModal v-model="showAddRecords" title="Add Records" size="lg">
+      <ul class="nav nav-pills mb-3">
+        <li class="nav-item">
+          <button class="nav-link" :class="{ active: addMode === 'single' }" @click="addMode = 'single'">
+            <i class="bi bi-plus-circle me-1"></i> Single Row
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" :class="{ active: addMode === 'csv' }" @click="addMode = 'csv'">
+            <i class="bi bi-file-earmark-text me-1"></i> Paste CSV
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" :class="{ active: addMode === 'json' }" @click="addMode = 'json'">
+            <i class="bi bi-braces me-1"></i> Paste JSON
+          </button>
+        </li>
+      </ul>
+
+      <!-- Single Row Mode -->
+      <div v-if="addMode === 'single'">
+        <div class="row g-2">
+          <div v-for="col in columns" :key="col.field" class="col-md-6">
+            <BFormGroup :label="col.label || col.field" :label-for="'add-' + col.field" label-size="sm">
+              <BFormInput :id="'add-' + col.field" v-model="singleRow[col.field]" size="sm" :placeholder="'Enter ' + (col.label || col.field)"></BFormInput>
+            </BFormGroup>
+          </div>
+        </div>
+        <div class="mt-2">
+          <button class="btn btn-sm btn-outline-secondary" @click="addAnotherRow">
+            <i class="bi bi-plus me-1"></i>Add another row
+          </button>
+          <span v-if="pendingRows.length" class="ms-2 text-muted small">{{ pendingRows.length }} row(s) ready</span>
+        </div>
+      </div>
+
+      <!-- CSV Mode -->
+      <div v-if="addMode === 'csv'">
+        <div class="alert alert-info py-2 small mb-2">
+          <i class="bi bi-info-circle me-1"></i>
+          Paste CSV data with headers matching the dataset columns: <strong>{{ columns.map(c => c.field).join(', ') }}</strong>
+        </div>
+        <BFormTextarea v-model="csvText" rows="8" placeholder="name,age,city&#10;Alice,30,Paris&#10;Bob,25,London"></BFormTextarea>
+      </div>
+
+      <!-- JSON Mode -->
+      <div v-if="addMode === 'json'">
+        <div class="alert alert-info py-2 small mb-2">
+          <i class="bi bi-info-circle me-1"></i>
+          Paste a JSON array of objects. Keys should match dataset columns: <strong>{{ columns.map(c => c.field).join(', ') }}</strong>
+        </div>
+        <BFormTextarea v-model="jsonText" rows="8" placeholder='[{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]'></BFormTextarea>
+      </div>
+
+      <template #footer>
+        <BButton variant="outline-secondary" @click="showAddRecords = false">Cancel</BButton>
+        <BButton variant="primary" :loading="operating" :disabled="!canAddRecords" @click="submitAddRecords">
+          <i class="bi bi-plus-lg me-1"></i>Add Records
+        </BButton>
+      </template>
+    </BModal>
+
     <!-- Operation Details Modal -->
     <BModal v-model="showOpDetailsModal" title="Operation Details" size="md">
       <div v-if="selectedOp">
@@ -838,6 +904,12 @@ const showRowFilterModal = ref(false)
 const rowFilters = ref({})
 const rowSelectMode = ref(false)
 const showTableSettings = ref(false)
+const showAddRecords = ref(false)
+const addMode = ref('single')
+const singleRow = ref({})
+const pendingRows = ref([])
+const csvText = ref('')
+const jsonText = ref('')
 const showRowIndex = ref(false)
 const multiSort = ref(false)
 const selectedRowIndices = ref([])
@@ -1667,6 +1739,77 @@ const canMoveRowDown = computed(() => {
   // Can move down if any selected row is not the last row
   return selectedRowIndices.value.some(i => i < totalRows.value - 1)
 })
+
+const canAddRecords = computed(() => {
+  if (addMode.value === 'single') {
+    return pendingRows.value.length > 0 || Object.values(singleRow.value).some(v => v !== undefined && v !== '')
+  }
+  if (addMode.value === 'csv') return csvText.value.trim().length > 0
+  if (addMode.value === 'json') return jsonText.value.trim().length > 0
+  return false
+})
+
+function addAnotherRow() {
+  const row = { ...singleRow.value }
+  // Only add if at least one field has a value
+  if (Object.values(row).some(v => v !== undefined && v !== '')) {
+    pendingRows.value.push(row)
+  }
+  singleRow.value = {}
+}
+
+async function submitAddRecords() {
+  let body = {}
+  if (addMode.value === 'single') {
+    // Collect the current row too
+    const row = { ...singleRow.value }
+    if (Object.values(row).some(v => v !== undefined && v !== '')) {
+      pendingRows.value.push(row)
+    }
+    if (!pendingRows.value.length) {
+      toast.warning('Add at least one row')
+      return
+    }
+    body = { records: pendingRows.value }
+  } else if (addMode.value === 'csv') {
+    if (!csvText.value.trim()) { toast.warning('Paste CSV data'); return }
+    body = { csv_text: csvText.value }
+  } else if (addMode.value === 'json') {
+    if (!jsonText.value.trim()) { toast.warning('Paste JSON data'); return }
+    let records
+    try {
+      records = JSON.parse(jsonText.value)
+    } catch {
+      toast.error('Invalid JSON format')
+      return
+    }
+    if (!Array.isArray(records)) { toast.error('JSON must be an array of objects'); return }
+    body = { records }
+  }
+
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/add-records`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(body)
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || 'Records added')
+      showAddRecords.value = false
+      singleRow.value = {}
+      pendingRows.value = []
+      csvText.value = ''
+      jsonText.value = ''
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed to add records')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
 
 async function reorderRows(direction) {
   if (!selectedRowIndices.value.length) return

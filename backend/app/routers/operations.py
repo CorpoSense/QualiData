@@ -1143,6 +1143,76 @@ async def structural_operations(
     return {"status": "success", "message": msg, "columns": dataset.columns, "results": results}
 
 
+class AddRecordsRequest(BaseModel):
+    records: list[dict] | None = None
+    csv_text: str | None = None
+
+
+@router.post("/datasets/{dataset_id}/operations/add-records", response_model=OperationResponse)
+async def add_records(
+    dataset_id: str,
+    request: AddRecordsRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Add one or more records to a dataset.
+
+    Accepts either:
+    - records: list of dicts (JSON rows)
+    - csv_text: CSV-formatted string to parse
+    """
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+
+    if not request.records and not request.csv_text:
+        raise HTTPException(status_code=400, detail="Provide 'records' or 'csv_text'")
+
+    import io as io_mod
+
+    df = pd.DataFrame(dataset.preview_data)
+
+    if request.csv_text:
+        csv_df = pd.read_csv(io_mod.StringIO(request.csv_text))
+        # Align columns: keep only columns that exist in the dataset, add missing ones as null
+        for col in df.columns:
+            if col not in csv_df.columns:
+                csv_df[col] = None
+        csv_df = csv_df[df.columns]
+        new_rows = csv_df.to_dict("records")
+    else:
+        new_rows = request.records
+        # Normalize keys: keep only dataset columns, fill missing with None
+        new_rows = [
+            {col: row.get(col, None) for col in df.columns}
+            for row in new_rows
+        ]
+
+    if not new_rows:
+        raise HTTPException(status_code=400, detail="No records to add")
+
+    before = {"columns": dataset.columns, "row_count": len(df), "preview_data": dataset.preview_data}
+
+    new_df = pd.DataFrame(new_rows)
+    df = pd.concat([df, new_df], ignore_index=True)
+
+    from app.routers.datasets import detect_columns, get_preview_data
+
+    dataset.columns = detect_columns(df)
+    dataset.row_count = len(df)
+    dataset.preview_data = get_preview_data(df)
+    after = {"columns": dataset.columns, "row_count": dataset.row_count}
+    await save_operation(
+        dataset_id, "add_records", {"count": len(new_rows)}, before, after, session
+    )
+    await session.commit()
+    return OperationResponse(
+        status="success",
+        message=f"Added {len(new_rows)} record(s)",
+        columns=dataset.columns,
+    )
+
+
 @router.post("/datasets/{dataset_id}/operations/delete-rows")
 async def delete_rows(
     dataset_id: str,

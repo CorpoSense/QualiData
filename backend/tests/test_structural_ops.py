@@ -517,6 +517,148 @@ class TestReorderRowsOperation:
         assert exc_info.value.status_code == 400
 
 
+class TestAddRecordsOperation:
+    """Test the add-records operation."""
+
+    @pytest.mark.asyncio
+    async def test_add_single_record(self):
+        """Adding a single record appends it to the dataset."""
+        from app.routers.operations import add_records, AddRecordsRequest
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await add_records(
+                dataset_id="test-ds-id",
+                request=AddRecordsRequest(records=[{"name": "Carol", "age": 35, "city": "Berlin"}]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert "1 record(s)" in result.message
+        assert len(dataset.preview_data) == 3
+        assert dataset.preview_data[2]["name"] == "Carol"
+
+    @pytest.mark.asyncio
+    async def test_add_multiple_records(self):
+        """Adding multiple records at once."""
+        from app.routers.operations import add_records, AddRecordsRequest
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await add_records(
+                dataset_id="test-ds-id",
+                request=AddRecordsRequest(records=[
+                    {"name": "Carol", "age": 35, "city": "Berlin"},
+                    {"name": "David", "age": 28, "city": "Rome"},
+                ]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert "2 record(s)" in result.message
+        assert len(dataset.preview_data) == 4
+
+    @pytest.mark.asyncio
+    async def test_add_record_from_csv(self):
+        """Adding records from CSV text."""
+        from app.routers.operations import add_records, AddRecordsRequest
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        csv_text = "name,age,city\nCarol,35,Berlin\nDavid,28,Rome"
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await add_records(
+                dataset_id="test-ds-id",
+                request=AddRecordsRequest(csv_text=csv_text),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert "2 record(s)" in result.message
+        assert len(dataset.preview_data) == 4
+
+    @pytest.mark.asyncio
+    async def test_add_record_missing_columns_filled_with_none(self):
+        """Records with missing columns get None for those fields."""
+        from app.routers.operations import add_records, AddRecordsRequest
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await add_records(
+                dataset_id="test-ds-id",
+                request=AddRecordsRequest(records=[{"name": "Carol"}]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        row = dataset.preview_data[2]
+        assert row["name"] == "Carol"
+        assert row.get("age") is None
+        assert row.get("city") is None
+
+    @pytest.mark.asyncio
+    async def test_add_record_extra_columns_ignored(self):
+        """Records with extra columns not in dataset are trimmed."""
+        from app.routers.operations import add_records, AddRecordsRequest
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await add_records(
+                dataset_id="test-ds-id",
+                request=AddRecordsRequest(records=[{"name": "Carol", "age": 35, "city": "Berlin", "country": "DE"}]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        row = dataset.preview_data[2]
+        assert "country" not in row
+
+    @pytest.mark.asyncio
+    async def test_add_record_requires_data(self):
+        """Calling with neither records nor csv_text raises 400."""
+        from app.routers.operations import add_records, AddRecordsRequest
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await add_records(
+                    dataset_id="test-ds-id",
+                    request=AddRecordsRequest(),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+        assert exc_info.value.status_code == 400
+
+
 class TestDeleteRowsOperation:
     """Test the delete-rows operation."""
 
