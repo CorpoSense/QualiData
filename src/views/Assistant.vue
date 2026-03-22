@@ -384,7 +384,10 @@ async function onProjectChange() {
     const res = await fetch(`${apiUrl}/api/datasets?project_id=${selectedProject.value}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
-    if (res.ok) datasets.value = await res.json()
+    if (res.ok) {
+      const data = await res.json()
+      datasets.value = data.datasets || data || []
+    }
   } catch { /* silent */ }
 }
 

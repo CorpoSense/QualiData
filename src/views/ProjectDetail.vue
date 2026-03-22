@@ -659,10 +659,11 @@ async function fetchOperations() {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
     if (res.ok) {
-      const datasets = await res.json()
+      const data = await res.json()
+      const datasetsList = data.datasets || data || []
       // Get operations for each dataset
       const allOps = []
-      for (const ds of datasets) {
+      for (const ds of datasetsList) {
         const opsRes = await fetch(`${apiUrl}/api/datasets/${ds.id}/operations`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         })
