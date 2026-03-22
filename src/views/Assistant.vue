@@ -204,7 +204,7 @@
             <div v-if="currentStep === 3">
               <div class="alert alert-success py-2">
                 <i class="bi bi-check-circle me-1"></i>
-                <strong>{{ appliedCount }} operation(s) applied.</strong>
+                <strong>{{ currentAppliedCount }} operation(s) applied.</strong>
               </div>
               <div class="d-grid gap-2">
                 <BButton size="sm" variant="outline-warning" @click="resetAll">
@@ -572,7 +572,9 @@ async function loadData() {
 }
 
 function goToStep(i) {
-  if (i <= currentStep.value || (i === 1 && selectedDataset.value) || (i === 2 && issues.value.length) || (i === 3 && appliedCount.value > 0)) {
+  const canGoToStep2 = selectedDataset.value && (issues.value.length > 0 || aiSuggestions.value.length > 0)
+  const canGoToStep3 = currentAppliedCount.value > 0
+  if (i <= currentStep.value || (i === 1 && selectedDataset.value) || (i === 2 && canGoToStep2) || (i === 3 && canGoToStep3)) {
     currentStep.value = i
   }
 }
