@@ -133,6 +133,10 @@
               <i class="bi bi-arrows-expand me-2"></i>Split column
               <span v-if="selectedColumns.length !== 1" class="text-muted small ms-2">(select 1)</span>
             </BDropdownItem>
+            <BDropdownItem @click="openCloneColumnModal" :disabled="selectedColumns.length !== 1">
+              <i class="bi bi-copy me-2"></i>Clone column
+              <span v-if="selectedColumns.length !== 1" class="text-muted small ms-2">(select 1)</span>
+            </BDropdownItem>
           </BDropdown>
 
           <BDropdown text="Dedupe" size="sm">
@@ -549,6 +553,23 @@
       :loading="operating"
       @apply="onOpConfirmApply"
     />
+
+    <!-- Clone Column Modal -->
+    <BModal v-model="showCloneModal" title="Clone Column" size="sm">
+      <div class="alert alert-info py-2 small mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        Create a copy of <strong>{{ selectedColumns[0] }}</strong> with a new name. Useful before applying transformations to preserve the original.
+      </div>
+      <BFormGroup label="New column name" label-size="sm">
+        <BFormInput v-model="cloneNewName" size="sm" :placeholder="selectedColumns[0] + '_copy'"></BFormInput>
+      </BFormGroup>
+      <template #footer>
+        <BButton variant="outline-secondary" @click="showCloneModal = false">Cancel</BButton>
+        <BButton variant="primary" :loading="operating" :disabled="!cloneNewName" @click="applyCloneColumn">
+          <i class="bi bi-copy me-1"></i>Clone
+        </BButton>
+      </template>
+    </BModal>
 
     <!-- Merge Columns Modal -->
     <BModal v-model="showMergeModal" title="Merge Columns" size="md">
@@ -1399,6 +1420,8 @@ const showSplitModal = ref(false)
 const splitDelimiter = ref('')
 const splitNewColumns = ref([])
 const splitNewColName = ref('')
+const showCloneModal = ref(false)
+const cloneNewName = ref('')
 const findValue = ref('')
 const replaceValue = ref('')
 const findReplaceRegex = ref(false)
@@ -1780,6 +1803,38 @@ async function applySplit() {
     } else {
       const err = await res.json()
       toast.error(err.detail || 'Split failed')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
+// Clone column
+function openCloneColumnModal() {
+  if (selectedColumns.value.length !== 1) {
+    toast.warning('Select exactly 1 column to clone')
+    return
+  }
+  cloneNewName.value = selectedColumns.value[0] + '_copy'
+  showCloneModal.value = true
+}
+
+async function applyCloneColumn() {
+  if (!cloneNewName.value || selectedColumns.value.length !== 1) return
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/duplicate-column`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ source_column: selectedColumns.value[0], new_column: cloneNewName.value })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || 'Column cloned')
+      showCloneModal.value = false
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Clone failed')
     }
   } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
