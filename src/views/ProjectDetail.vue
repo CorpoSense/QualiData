@@ -240,6 +240,20 @@
           <BFormGroup label="Password" label-size="sm" class="mt-1">
             <BFormInput v-model="dbImportForm.password" type="password" size="sm"></BFormInput>
           </BFormGroup>
+          <BFormGroup v-if="dbImportForm.db_type === 'postgresql'" label="SSL Mode" label-size="sm" class="mt-1">
+            <BFormSelect v-model="dbImportForm.sslmode" :options="sslmodeOptions" size="sm"></BFormSelect>
+          </BFormGroup>
+
+          <!-- Saved connections -->
+          <div class="d-flex gap-2 mt-2">
+            <BButton size="sm" variant="outline-success" @click="saveDbConnection" :disabled="!dbImportForm.host || !dbImportForm.database">
+              <i class="bi bi-save me-1"></i> Save
+            </BButton>
+            <BFormSelect v-if="savedConnections.length" v-model="selectedConnection" :options="savedConnectionOptions" size="sm" style="max-width: 200px;" @update:model-value="loadSavedConnection"></BFormSelect>
+            <BButton v-if="selectedConnection" size="sm" variant="outline-danger" @click="deleteSavedConnection">
+              <i class="bi bi-trash"></i>
+            </BButton>
+          </div>
 
           <!-- Test Connection -->
           <div class="d-flex gap-2 mt-2">
@@ -377,11 +391,62 @@ const dbTesting = ref(false)
 const dbTestResult = ref(null)
 const dbTables = ref([])
 
+// Saved connections (localStorage)
+const savedConnections = ref(JSON.parse(localStorage.getItem('dbConnections') || '[]'))
+const selectedConnection = ref(null)
+
+const savedConnectionOptions = computed(() => [
+  { value: null, text: 'Load connection…' },
+  ...savedConnections.value.map((c, i) => ({ value: i, text: `${c.name} (${c.db_type})` }))
+])
+
+function saveDbConnection() {
+  const name = dbImportForm.name || `${dbImportForm.db_type}@${dbImportForm.host}`
+  const conn = {
+    name,
+    db_type: dbImportForm.db_type,
+    host: dbImportForm.host,
+    port: dbImportForm.port,
+    database: dbImportForm.database,
+    username: dbImportForm.username,
+    sslmode: dbImportForm.sslmode,
+  }
+  savedConnections.value.push(conn)
+  localStorage.setItem('dbConnections', JSON.stringify(savedConnections.value))
+  toast.success('Connection saved')
+}
+
+function loadSavedConnection(index) {
+  if (index === null || index === undefined) return
+  const conn = savedConnections.value[index]
+  if (!conn) return
+  Object.assign(dbImportForm, { ...conn, password: '', table: '' })
+  dbTables.value = []
+  dbTestResult.value = null
+}
+
+function deleteSavedConnection() {
+  if (selectedConnection.value === null) return
+  savedConnections.value.splice(selectedConnection.value, 1)
+  localStorage.setItem('dbConnections', JSON.stringify(savedConnections.value))
+  selectedConnection.value = null
+}
+
 const dbTypeOptions = [
   { value: 'postgresql', text: 'PostgreSQL' },
   { value: 'mysql', text: 'MySQL' },
   { value: 'sqlite', text: 'SQLite' },
   { value: 'oracle', text: 'Oracle' },
+]
+
+const sslmodeOptions = [
+  { value: '', text: 'None' },
+  { value: 'disable', text: 'Disable' },
+  { value: 'allow', text: 'Allow' },
+  { value: 'prefer', text: 'Prefer' },
+  { value: 'require', text: 'Require' },
+  { value: 'verify-ca', text: 'Verify CA' },
+  { value: 'verify-full', text: 'Verify Full' },
 ]
 
 const dbImportForm = reactive({
@@ -392,6 +457,7 @@ const dbImportForm = reactive({
   database: '',
   username: '',
   password: '',
+  sslmode: 'require',
   table: '',
 })
 
@@ -721,7 +787,7 @@ function viewDataset(dataset) {
 }
 
 function profileDataset(dataset) {
-  console.log('Profile dataset:', dataset)
+  router.push(`/projects/${projectId}/dataset/${dataset.id}?showProfile=true`)
 }
 
 function formatNumber(num) {

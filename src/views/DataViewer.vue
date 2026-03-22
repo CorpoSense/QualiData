@@ -998,7 +998,11 @@ async function fetchAgents() {
   } catch (e) { /* silent */ }
 }
 
-onMounted(async () => { await refreshData(); await fetchAgents() })
+onMounted(async () => {
+  await refreshData()
+  await fetchAgents()
+  if (route.query.showProfile === 'true') showProfile.value = true
+})
 
 // Watch limit changes - reset to first page and refresh
 watch(limit, (newVal, oldVal) => {

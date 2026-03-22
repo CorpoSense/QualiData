@@ -554,7 +554,7 @@ async def delete_dataset(
     return None
 
 
-def _build_db_url(db_type: str, host: str, port: str, database: str, username: str, password: str) -> str:
+def _build_db_url(db_type: str, host: str, port: str, database: str, username: str, password: str, sslmode: str | None = None) -> str:
     """Build SQLAlchemy connection URL from parameters."""
     drivers = {
         "postgresql": "postgresql+psycopg2",
@@ -567,7 +567,10 @@ def _build_db_url(db_type: str, host: str, port: str, database: str, username: s
         raise HTTPException(status_code=400, detail=f"Unsupported database type: {db_type}")
     if db_type == "sqlite":
         return f"sqlite:///{database}"
-    return f"{driver}://{username}:{password}@{host}:{port}/{database}"
+    url = f"{driver}://{username}:{password}@{host}:{port}/{database}"
+    if db_type == "postgresql" and sslmode:
+        url += f"?sslmode={sslmode}"
+    return url
 
 
 @router.post("/import/db/test")
@@ -583,6 +586,7 @@ async def test_db_connection(request: dict):
             request.get("database", ""),
             request.get("username", ""),
             request.get("password", ""),
+            sslmode=request.get("sslmode"),
         )
         engine = create_engine(url, connect_args={"connect_timeout": 5})
         with engine.connect() as conn:
@@ -606,6 +610,7 @@ async def list_db_tables(request: dict):
             request.get("database", ""),
             request.get("username", ""),
             request.get("password", ""),
+            sslmode=request.get("sslmode"),
         )
         engine = create_engine(url, connect_args={"connect_timeout": 5})
         inspector = inspect(engine)
@@ -637,6 +642,7 @@ async def import_from_database(
             request.get("database", ""),
             request.get("username", ""),
             request.get("password", ""),
+            sslmode=request.get("sslmode"),
         )
         engine = create_engine(url, connect_args={"connect_timeout": 10})
         df = pd.read_sql_table(table_name, engine)
