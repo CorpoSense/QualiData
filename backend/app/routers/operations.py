@@ -1427,6 +1427,31 @@ async def import_recipe(
                                 return v
                         df[op_column] = df[op_column].apply(extract)
 
+            elif op_type in ("encoding_one_hot", "encoding_label", "encoding_map", "encoding_bin", "one_hot", "label", "map", "bin"):
+                # Encoding operations handled via the encoding endpoint
+                # For import-recipe, apply inline
+                if op_column and op_column in df.columns:
+                    sub = op_type.replace("encoding_", "")
+                    if sub == "one_hot":
+                        prefix = op_params.get("prefix", op_column)
+                        dummies = pd.get_dummies(df[op_column], prefix=prefix, dtype=int)
+                        df = pd.concat([df, dummies], axis=1)
+                    elif sub == "label":
+                        unique_vals = df[op_column].dropna().unique()
+                        mapping = {val: i for i, val in enumerate(sorted(unique_vals, key=str))}
+                        df[f"{op_column}_encoded"] = df[op_column].map(mapping).astype("Int64")
+                    elif sub == "map":
+                        mapping = op_params.get("mapping", {})
+                        df[op_column] = df[op_column].map(lambda x: mapping.get(str(x), mapping.get(x, x)))
+                    elif sub == "bin":
+                        n_bins = int(op_params.get("n_bins", 5))
+                        strategy = op_params.get("strategy", "equal_width")
+                        if strategy == "equal_width":
+                            df[f"{op_column}_binned"] = pd.cut(df[op_column], bins=n_bins, duplicates="drop")
+                        else:
+                            df[f"{op_column}_binned"] = pd.qcut(df[op_column], q=n_bins, duplicates="drop")
+                        df[f"{op_column}_binned"] = df[f"{op_column}_binned"].astype(str)
+
             elif op_type == "structural":
                 sub_op = op_params.get("operation", op.get("operation"))
                 if sub_op == "rename":

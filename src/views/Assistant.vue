@@ -885,26 +885,55 @@ async function applyAiOp(index) {
   if (!sug || !sug.accepted) return
 
   const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` }
-  const ops = { 'fillna': 'fillna', 'remove-duplicates': 'remove-duplicates', 'extract-json': 'extract-json', 'find-replace': 'find-replace', 'string-operations': 'string-operations' }
-  const endpoint = `${apiUrl}/api/datasets/${selectedDataset.value}/operations/${ops[sug.operation] || sug.operation}`
+  const ops = {
+    'fillna': 'fillna',
+    'remove-duplicates': 'remove-duplicates',
+    'extract-json': 'extract-json',
+    'find-replace': 'find-replace',
+    'string-operations': 'string-operations',
+    'one-hot-encoding': 'encoding',
+    'label-encoding': 'encoding',
+    'value-mapping': 'encoding',
+    'binning': 'encoding',
+  }
+  const opTypeMap = {
+    'one-hot-encoding': 'one_hot',
+    'label-encoding': 'label',
+    'value-mapping': 'map',
+    'binning': 'bin',
+  }
+
+  const endpointOp = ops[sug.operation] || sug.operation
+  const endpoint = `${apiUrl}/api/datasets/${selectedDataset.value}/operations/${endpointOp}`
 
   let body = { ...sug.params }
   if (sug.column) body.column = sug.column
   if (sug.operation === 'fillna' && sug.column) body.columns = [sug.column]
   if (sug.operation === 'find-replace' && sug.column) body.columns = [sug.column]
 
+  // Encoding operations need the sub-operation type
+  if (opTypeMap[sug.operation]) {
+    body.operation = opTypeMap[sug.operation]
+  }
+
   try {
     const res = await fetch(endpoint, { method: 'POST', headers: auth, body: JSON.stringify(body) })
     if (res.ok) {
-      sug.applied = true
-      activeOpIndex.value = null
-      toast.success(`Applied: ${sug.operation}`)
-      await loadData()
+      const data = await res.json()
+      if (data.status === 'failed') {
+        toast.error(`${sug.operation}: ${data.message || 'Operation failed'}`)
+      } else {
+        sug.applied = true
+        activeOpIndex.value = null
+        toast.success(`Applied: ${sug.operation}`)
+        await loadData()
+      }
     } else {
-      const err = await res.json()
-      toast.error(err.detail || 'Failed')
+      const err = await res.json().catch(() => ({}))
+      const msg = err.detail || `Failed (${res.status})`
+      toast.error(`${sug.operation}: ${msg}`)
     }
-  } catch (e) { toast.error(e.message) }
+  } catch (e) { toast.error(`${sug.operation}: ${e.message}`) }
 }
 
 async function undoAiOp(index) {
