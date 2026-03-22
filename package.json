@@ -12,7 +12,8 @@
     "test:backend:coverage": "cd backend && . .venv/bin/activate && pytest --cov=app --cov-report=term-missing --cov-report=html",
     "test:e2e": "cypress run",
     "test:frontend": "vitest run",
-    "test": "pnpm test:backend",
+    "test": "vue-tsc --noEmit && vite build && pnpm test:backend",
+    "check": "vue-tsc --noEmit && vite build && pnpm test:backend",
     "clean": "rm -rf ./dist",
     "clean:all": "rm -rf ./dist && rm -rf ./node_modules && rm -rf ./backend/.venv"
   },
