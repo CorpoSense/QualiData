@@ -726,7 +726,7 @@
           <BButton v-if="selectedOpIds.length > 0" size="sm" variant="outline-warning" @click="undoSelectedOps">
             <i class="bi bi-arrow-counterclockwise me-1"></i>Undo {{ selectedOpIds.length }}
           </BButton>
-          <BButton v-if="selectedOpIds.length > 0" size="sm" variant="outline-danger" @click="deleteSelectedOps" :disabled="deletableSelectedCount === 0" title="Delete selected completed operations">
+          <BButton v-if="deletableSelectedCount > 0" size="sm" variant="outline-danger" @click="deleteSelectedOps" title="Delete selected undone operations">
             <i class="bi bi-trash me-1"></i>Delete {{ deletableSelectedCount }}
           </BButton>
         </div>
@@ -873,7 +873,7 @@ const allOpsSelected = computed(() => {
 const deletableSelectedCount = computed(() => {
   return selectedOpIds.value.filter(id => {
     const op = operations.value.find(o => o.id === id)
-    return op && !op.is_undone
+    return op && op.is_undone
   }).length
 })
 const operating = ref(false)
@@ -2030,16 +2030,16 @@ async function undoSelectedOps() {
 
 async function deleteSelectedOps() {
   if (!selectedOpIds.value.length) return
-  // Only completed (non-undone) operations can be deleted
+  // Only undone operations can be deleted (backend enforces this)
   const deletable = selectedOpIds.value.filter(id => {
     const op = operations.value.find(o => o.id === id)
-    return op && !op.is_undone
+    return op && op.is_undone
   })
   if (!deletable.length) {
-    toast.warning('No completed operations to delete. Undone operations cannot be deleted.')
+    toast.warning('No undone operations to delete.')
     return
   }
-  if (!(await showConfirm({ title: 'Delete Operations', message: `Permanently delete ${deletable.length} completed operation record(s)?`, variant: 'danger', confirmText: 'Delete' }))) return
+  if (!(await showConfirm({ title: 'Delete Operations', message: `Permanently delete ${deletable.length} undone operation record(s)?`, variant: 'danger', confirmText: 'Delete' }))) return
   operating.value = true
   let deleted = 0
   try {
