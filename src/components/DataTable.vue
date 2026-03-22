@@ -5,6 +5,7 @@
       <table class="table table-hover table-striped table-sm">
         <thead>
           <tr>
+            <th v-if="showIndex" style="width: 50px;" class="text-center text-muted">#</th>
             <th v-if="selectable" style="width: 40px;" class="text-center">
               <input
                 class="form-check-input"
@@ -25,13 +26,15 @@
                 {{ field.label }}
                 <button
                   class="btn btn-sm btn-outline-secondary border-0 py-0 px-1 sort-btn"
-                  :class="{ active: sortKey === field.key }"
+                  :class="{ active: getSortIndex(field.key) >= 0 }"
                   @click.stop="toggleSort(field.key)"
                   :title="sortTitle(field.key)"
                 >
-                  <i v-if="sortKey !== field.key" class="bi bi-arrow-down-up text-muted"></i>
-                  <i v-else-if="sortDir === 'asc'" class="bi bi-arrow-up"></i>
-                  <i v-else class="bi bi-arrow-down"></i>
+                  <template v-if="getSortIndex(field.key) >= 0">
+                    <i :class="getSortDir(field.key) === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                    <small v-if="multiSort && sortKeys.length > 1" class="ms-0 sort-badge">{{ getSortIndex(field.key) + 1 }}</small>
+                  </template>
+                  <i v-else class="bi bi-arrow-down-up text-muted"></i>
                 </button>
               </span>
             </th>
@@ -43,6 +46,7 @@
             :key="index"
             @click="!selectable && $emit('row-clicked', { item: row, index })"
           >
+            <td v-if="showIndex" class="text-center text-muted small">{{ index + 1 }}</td>
             <td v-if="selectable" class="text-center" @click.stop>
               <input
                 class="form-check-input"
@@ -56,7 +60,7 @@
             </td>
           </tr>
           <tr v-if="sortedItems.length === 0">
-            <td :colspan="fields.length + (selectable ? 1 : 0)" class="text-center text-muted py-4">
+            <td :colspan="fields.length + (selectable ? 1 : 0) + (showIndex ? 1 : 0)" class="text-center text-muted py-4">
               No data to display
             </td>
           </tr>
@@ -75,53 +79,80 @@ const props = defineProps({
   selectedColumns: { type: Array, default: () => [] },
   selectable: { type: Boolean, default: false },
   selectedRows: { type: Array, default: () => [] },
+  showIndex: { type: Boolean, default: false },
+  multiSort: { type: Boolean, default: false },
 })
 
-defineEmits(['row-clicked', 'head-clicked', 'row-selected', 'toggle-all'])
+const emit = defineEmits(['row-clicked', 'head-clicked', 'row-selected', 'toggle-all', 'sort-changed'])
 
-const sortKey = ref(null)
-const sortDir = ref('asc')
+// Sort state: array of { key, dir } for multi-sort
+const sortKeys = ref([]) // [{ key: 'name', dir: 'asc' }, ...]
 
 const allSelected = computed(() =>
   props.items.length > 0 && props.selectedRows.length === props.items.length
 )
 const someSelected = computed(() => props.selectedRows.length > 0)
 
+function getSortIndex(key) {
+  return sortKeys.value.findIndex(s => s.key === key)
+}
+
+function getSortDir(key) {
+  const entry = sortKeys.value.find(s => s.key === key)
+  return entry ? entry.dir : null
+}
+
 function toggleSort(key) {
-  if (sortKey.value === key) {
-    if (sortDir.value === 'asc') {
-      sortDir.value = 'desc'
+  const idx = getSortIndex(key)
+  if (idx >= 0) {
+    const current = sortKeys.value[idx]
+    if (current.dir === 'asc') {
+      // asc → desc
+      sortKeys.value[idx] = { key, dir: 'desc' }
     } else {
-      // Reset
-      sortKey.value = null
-      sortDir.value = 'asc'
+      // desc → remove
+      sortKeys.value.splice(idx, 1)
     }
   } else {
-    sortKey.value = key
-    sortDir.value = 'asc'
+    // Add new sort
+    if (props.multiSort) {
+      sortKeys.value.push({ key, dir: 'asc' })
+    } else {
+      sortKeys.value = [{ key, dir: 'asc' }]
+    }
   }
+  sortKeys.value = [...sortKeys.value] // trigger reactivity
+  emit('sort-changed', sortKeys.value)
 }
 
 function sortTitle(key) {
-  if (sortKey.value !== key) return 'Sort'
-  return sortDir.value === 'asc' ? 'Sorted ascending' : 'Sorted descending'
+  const idx = getSortIndex(key)
+  if (idx < 0) return 'Sort'
+  const dir = getSortDir(key)
+  const suffix = props.multiSort && sortKeys.value.length > 1 ? ` (${idx + 1})` : ''
+  return dir === 'asc' ? `Sorted ascending${suffix}` : `Sorted descending${suffix}`
 }
 
 const sortedItems = computed(() => {
-  if (!sortKey.value) return props.items
-  const key = sortKey.value
-  const dir = sortDir.value === 'asc' ? 1 : -1
+  if (!sortKeys.value.length) return props.items
   return [...props.items].sort((a, b) => {
-    const va = a[key]
-    const vb = b[key]
-    if (va == null && vb == null) return 0
-    if (va == null) return dir
-    if (vb == null) return -dir
-    // Numeric comparison if both are numbers
-    const na = Number(va)
-    const nb = Number(vb)
-    if (!isNaN(na) && !isNaN(nb)) return (na - nb) * dir
-    return String(va).localeCompare(String(vb)) * dir
+    for (const { key, dir } of sortKeys.value) {
+      const multiplier = dir === 'asc' ? 1 : -1
+      const va = a[key]
+      const vb = b[key]
+      if (va == null && vb == null) continue
+      if (va == null) return multiplier
+      if (vb == null) return -multiplier
+      const na = Number(va)
+      const nb = Number(vb)
+      if (!isNaN(na) && !isNaN(nb)) {
+        if (na !== nb) return (na - nb) * multiplier
+      } else {
+        const cmp = String(va).localeCompare(String(vb))
+        if (cmp !== 0) return cmp * multiplier
+      }
+    }
+    return 0
   })
 })
 
@@ -140,4 +171,9 @@ th:hover { background-color: var(--bs-table-hover-bg); }
 td { vertical-align: middle; }
 .sort-btn { font-size: 0.7rem; line-height: 1; opacity: 0.4; }
 .sort-btn:hover, .sort-btn.active { opacity: 1; }
+.sort-badge {
+  font-size: 0.55rem;
+  vertical-align: super;
+  margin-left: 1px;
+}
 </style>

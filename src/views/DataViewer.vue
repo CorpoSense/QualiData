@@ -137,14 +137,17 @@
             </BDropdownItem>
           </BDropdown>
 
-          <BButton size="sm" :variant="rowSelectMode ? 'warning' : 'outline-secondary'" @click="rowSelectMode = !rowSelectMode; if (!rowSelectMode) selectedRowIndices = []">
-            <i class="bi bi-check2-square me-1"></i>{{ rowSelectMode ? 'Cancel Select' : 'Select Rows' }}
+          <BButton size="sm" :variant="'outline-secondary'" @click="showTableSettings = true">
+            <i class="bi bi-gear"></i>
           </BButton>
           <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowUp" @click="reorderRows('up')" title="Move selected rows one step up">
             <i class="bi bi-arrow-up"></i>
           </BButton>
           <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowDown" @click="reorderRows('down')" title="Move selected rows one step down">
             <i class="bi bi-arrow-down"></i>
+          </BButton>
+          <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-danger" @click="deleteSelectedRows">
+            <i class="bi bi-trash me-1"></i>Delete {{ selectedRowIndices.length }}
           </BButton>
           <BDropdown text="Rows" size="sm">
             <BDropdownItem @click="showRowFilterModal = true">
@@ -235,6 +238,8 @@
         :selected-columns="selectedColumns"
         :selectable="rowSelectMode"
         :selected-rows="selectedRowIndices"
+        :show-index="showRowIndex"
+        :multi-sort="multiSort"
         @row-clicked="onRowClicked"
         @head-clicked="onHeadClicked"
         @row-selected="toggleRowSelection"
@@ -504,6 +509,36 @@
           <i class="bi bi-hourglass-split me-1"></i>Processing…
         </BButton>
         <BButton v-if="!operating && batchProgress && (batchProgress.status === 'done' || batchProgress.status === 'error')" variant="primary" @click="closeDataAiModal">Close</BButton>
+      </template>
+    </BModal>
+
+    <!-- Table Settings Modal -->
+    <BModal v-model="showTableSettings" title="Table Settings" size="sm">
+      <div class="d-flex flex-column gap-3">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" v-model="showRowIndex" id="setting-index">
+          <label class="form-check-label" for="setting-index">
+            <strong>Show row index</strong>
+            <small class="d-block text-muted">Display sequential numbers (1, 2, 3…) in the first column</small>
+          </label>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" v-model="rowSelectMode" id="setting-select" @change="if (!rowSelectMode) selectedRowIndices = []">
+          <label class="form-check-label" for="setting-select">
+            <strong>Row selection mode</strong>
+            <small class="d-block text-muted">Enable checkboxes to select and reorder rows</small>
+          </label>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" v-model="multiSort" id="setting-multisort">
+          <label class="form-check-label" for="setting-multisort">
+            <strong>Multi-column sorting</strong>
+            <small class="d-block text-muted">Sort by multiple columns by clicking headers sequentially</small>
+          </label>
+        </div>
+      </div>
+      <template #footer>
+        <BButton variant="primary" size="sm" @click="showTableSettings = false">Done</BButton>
       </template>
     </BModal>
 
@@ -802,6 +837,9 @@ const searchQuery = ref('')
 const showRowFilterModal = ref(false)
 const rowFilters = ref({})
 const rowSelectMode = ref(false)
+const showTableSettings = ref(false)
+const showRowIndex = ref(false)
+const multiSort = ref(false)
 const selectedRowIndices = ref([])
 const filteredMatchingIndices = ref(null)
 const filteredTotalMatching = ref(null)
