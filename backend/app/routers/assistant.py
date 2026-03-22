@@ -4,10 +4,11 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
-from app.db.models import Dataset, Project, User
+from app.db.models import Agent, Dataset, Project, User
 from app.routers.auth import get_current_active_user
 
 router = APIRouter(tags=["assistant"])
@@ -249,6 +250,8 @@ async def ai_suggest_preflight(
     if not agent_id:
         raise HTTPException(status_code=400, detail="agent_id required")
 
+    from app.routers.ai_operations import _get_agent_config
+
     agent_config = await _get_agent_config(agent_id, current_user.id, session)
 
     # Get agent name
@@ -397,7 +400,7 @@ Suggest only operations that would meaningfully improve data quality. Be specifi
             user_content = custom_user_prompt + "\n\n" + user_content
         response = await llm.ainvoke([
             SystemMessage(content=sys),
-            HumanMessage(content=context + AVAILABLE_OPS),
+            HumanMessage(content=user_content),
         ])
 
         raw = response.content.strip()

@@ -225,7 +225,12 @@
           <div class="spinner-border text-primary"></div>
           <p class="text-muted mt-2">Loading agent configuration…</p>
         </div>
-        <div v-else-if="preflight">
+        <div v-else-if="!preflight" class="text-center py-4 text-danger">
+          <i class="bi bi-exclamation-triangle fs-1 d-block mb-2"></i>
+          <p>Failed to load agent configuration. Please try again.</p>
+          <BButton size="sm" variant="outline-primary" @click="openAiPreflight">Retry</BButton>
+        </div>
+        <div v-else>
           <!-- Agent Info -->
           <div class="alert alert-info py-2 mb-3">
             <div class="d-flex align-items-center gap-2">
@@ -502,12 +507,11 @@ async function openAiPreflight() {
       preflight.value = await res.json()
       preflightSystemPrompt.value = preflight.value.system_prompt
     } else {
-      toast.error('Failed to load agent configuration')
-      showAiPreflight.value = false
+      const err = await res.json().catch(() => ({}))
+      toast.error(err.detail || `Failed to load agent configuration (${res.status})`)
     }
   } catch (e) {
     toast.error(e.message)
-    showAiPreflight.value = false
   } finally {
     preflightLoading.value = false
   }
