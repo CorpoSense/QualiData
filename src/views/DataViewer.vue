@@ -726,6 +726,9 @@
           <BButton v-if="selectedOpIds.length > 0" size="sm" variant="outline-warning" @click="undoSelectedOps">
             <i class="bi bi-arrow-counterclockwise me-1"></i>Undo {{ selectedOpIds.length }}
           </BButton>
+          <BButton v-if="selectedOpIds.length > 0" size="sm" variant="outline-danger" @click="deleteSelectedOps" title="Delete selected undone operations">
+            <i class="bi bi-trash"></i>
+          </BButton>
         </div>
         <div v-for="op in operations" :key="op.id" class="card mb-2">
           <div class="card-body py-2 px-3">
@@ -2016,6 +2019,38 @@ async function undoSelectedOps() {
       const err = await res.json()
       toast.error(err.detail || 'Failed to undo')
     }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    operating.value = false
+  }
+}
+
+async function deleteSelectedOps() {
+  if (!selectedOpIds.value.length) return
+  // Only undone operations can be deleted
+  const deletable = selectedOpIds.value.filter(id => {
+    const op = operations.value.find(o => o.id === id)
+    return op && op.is_undone
+  })
+  if (!deletable.length) {
+    toast.warning('No undone operations selected. Undo operations first to delete them.')
+    return
+  }
+  if (!(await showConfirm({ title: 'Delete Operations', message: `Permanently delete ${deletable.length} operation record(s)?`, variant: 'danger', confirmText: 'Delete' }))) return
+  operating.value = true
+  let deleted = 0
+  try {
+    for (const opId of deletable) {
+      const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/${opId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      })
+      if (res.ok) deleted++
+    }
+    if (deleted > 0) toast.success(`${deleted} operation record(s) deleted`)
+    selectedOpIds.value = []
+    await fetchOperations()
   } catch (e) {
     toast.error(e.message)
   } finally {
