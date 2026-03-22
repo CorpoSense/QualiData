@@ -96,27 +96,22 @@ async def _fetch_models_from_api(provider: str, api_key: str | None = None) -> l
                 resp = await client.get(
                     f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
                 )
-            elif provider == "huggingface":
-                # Huggingface: list popular models via Hub API
-                resp = await client.get(
-                    "https://huggingface.co/api/models?sort=downloads&direction=-1&limit=50&filter=text-generation",
-                    headers={"Authorization": f"Bearer {key}"},
-                )
             else:
-                # OpenAI-compatible: OpenAI, Groq, DeepSeek, OpenRouter
+                # OpenAI-compatible: OpenAI, Groq, DeepSeek, OpenRouter, Huggingface
                 base_urls = {
                     "openai": "https://api.openai.com/v1",
                     "groq": "https://api.groq.com/openai/v1",
                     "deepseek": "https://api.deepseek.com",
                     "openrouter": "https://openrouter.ai/api/v1",
+                    "huggingface": "https://router.huggingface.co/v1",
                 }
                 base = base_urls.get(provider)
                 if not base:
                     return []
-                resp = await client.get(
-                    f"{base}/models",
-                    headers={"Authorization": f"Bearer {key}"},
-                )
+                headers = {}
+                if key:
+                    headers["Authorization"] = f"Bearer {key}"
+                resp = await client.get(f"{base}/models", headers=headers)
 
             resp.raise_for_status()
             data = resp.json()
@@ -128,9 +123,6 @@ async def _fetch_models_from_api(provider: str, api_key: str | None = None) -> l
                     for m in data.get("models", [])
                     if "generateContent" in m.get("supportedGenerationMethods", [])
                 ]
-            elif provider == "huggingface":
-                # Huggingface returns array of {id, ...}
-                models = [m["id"] for m in data if isinstance(m, dict) and "id" in m]
             else:
                 models = [m["id"] for m in data.get("data", [])]
 
