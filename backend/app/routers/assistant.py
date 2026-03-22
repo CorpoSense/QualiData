@@ -267,6 +267,10 @@ async def ai_suggest_preflight(
         {"operation": "find-replace", "label": "Find & Replace", "description": "Find and replace text patterns (with regex support)"},
         {"operation": "extract-json", "label": "Extract JSON", "description": "Extract values from JSON-formatted strings"},
         {"operation": "string-operations", "label": "String Operations", "description": "Transform text (uppercase, lowercase, trim, title case, capitalize)"},
+        {"operation": "one-hot-encoding", "label": "One-Hot Encoding", "description": "Create binary columns for each unique category"},
+        {"operation": "label-encoding", "label": "Label Encoding", "description": "Map categories to integers"},
+        {"operation": "value-mapping", "label": "Value Mapping", "description": "Replace values using a custom dictionary"},
+        {"operation": "binning", "label": "Binning", "description": "Group continuous values into discrete bins"},
     ]
 
     prompt_presets = [
@@ -373,6 +377,10 @@ Available operations:
 - find-replace: {operation: "find-replace", column: "col", params: {find: "old", replace: "new", regex: false, case_sensitive: true}}
 - extract-json: {operation: "extract-json", column: "col", params: {key: "field"}}
 - string-operations: {operation: "string-operations", column: "col", params: {operation: "upper|lower|trim|title|capitalize"}}
+- one-hot-encoding: {operation: "one-hot-encoding", column: "col", params: {prefix: "col"}}
+- label-encoding: {operation: "label-encoding", column: "col", params: {}}
+- value-mapping: {operation: "value-mapping", column: "col", params: {mapping: {"old1": "new1", "old2": "new2"}}}
+- binning: {operation: "binning", column: "col", params: {n_bins: 5, strategy: "equal_width|equal_freq"}}
 
 Respond with JSON only: {"suggestions": [{"operation": "...", "column": "...", "params": {...}, "reasoning": "..."}, ...]}
 Suggest only operations that would meaningfully improve data quality. Be specific about which columns to target and why."""

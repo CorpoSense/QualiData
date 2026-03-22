@@ -1046,6 +1046,82 @@ async def sort_operations(
     return {"status": "success", "message": f"Sorted by {column}", "columns": dataset.columns}
 
 
+# ML / Feature Engineering operations
+@router.post("/datasets/{dataset_id}/operations/encoding")
+async def encoding_operations(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Encoding operations: one-hot, label, value mapping, binning.
+
+    Body: { column, operation: "one_hot"|"label"|"map"|"bin", ...params }
+    """
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+
+    df = pd.DataFrame(dataset.preview_data)
+    column = request.get("column")
+    operation = request.get("operation")
+
+    if not column or column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
+
+    from app.routers.datasets import detect_columns, get_preview_data
+    before = {"columns": dataset.columns, "row_count": len(df), "preview_data": dataset.preview_data}
+
+    try:
+        if operation == "one_hot":
+            prefix = request.get("prefix", column)
+            dummies = pd.get_dummies(df[column], prefix=prefix, dtype=int)
+            df = pd.concat([df, dummies], axis=1)
+            msg = f"One-hot encoded '{column}' → {len(dummies.columns)} new columns"
+
+        elif operation == "label":
+            unique_vals = df[column].dropna().unique()
+            mapping = {val: i for i, val in enumerate(sorted(unique_vals, key=str))}
+            df[f"{column}_encoded"] = df[column].map(mapping).astype("Int64")
+            msg = f"Label encoded '{column}' → '{column}_encoded' ({len(mapping)} categories)"
+
+        elif operation == "map":
+            mapping = request.get("mapping", {})
+            if not mapping:
+                raise HTTPException(status_code=400, detail="Mapping dictionary required")
+            df[column] = df[column].map(lambda x: mapping.get(str(x), mapping.get(x, x)))
+            msg = f"Mapped values in '{column}'"
+
+        elif operation == "bin":
+            n_bins = int(request.get("n_bins", 5))
+            strategy = request.get("strategy", "equal_width")
+            labels = request.get("labels")
+            if strategy == "equal_width":
+                df[f"{column}_binned"] = pd.cut(df[column], bins=n_bins, labels=labels, duplicates="drop")
+            elif strategy == "equal_freq":
+                df[f"{column}_binned"] = pd.qcut(df[column], q=n_bins, labels=labels, duplicates="drop")
+            else:
+                raise HTTPException(status_code=400, detail=f"Unknown binning strategy: {strategy}")
+            df[f"{column}_binned"] = df[f"{column}_binned"].astype(str)
+            msg = f"Binned '{column}' into {n_bins} bins ({strategy})"
+
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown encoding operation: {operation}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    dataset.columns = detect_columns(df)
+    dataset.row_count = len(df)
+    dataset.preview_data = get_preview_data(df)
+    after = {"columns": dataset.columns, "row_count": dataset.row_count}
+    await save_operation(dataset_id, f"encoding_{operation}", request, before, after, session)
+    await session.commit()
+    return OperationResponse(status="success", message=msg, columns=dataset.columns)
+
+
 # Structural operations (rename, drop column, change type)
 @router.post("/datasets/{dataset_id}/operations/structural")
 async def structural_operations(

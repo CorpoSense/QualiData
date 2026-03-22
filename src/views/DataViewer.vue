@@ -144,6 +144,21 @@
             </BDropdownItem>
           </BDropdown>
 
+          <BDropdown text="ML Encode" size="sm">
+            <BDropdownItem @click="openEncodingModal('one_hot')">
+              <i class="bi bi-grid-3x3-gap me-2"></i>One-Hot Encoding
+            </BDropdownItem>
+            <BDropdownItem @click="openEncodingModal('label')">
+              <i class="bi bi-123 me-2"></i>Label Encoding
+            </BDropdownItem>
+            <BDropdownItem @click="openEncodingModal('map')">
+              <i class="bi bi-arrow-left-right me-2"></i>Map Values
+            </BDropdownItem>
+            <BDropdownItem @click="openEncodingModal('bin')">
+              <i class="bi bi-bar-chart-steps me-2"></i>Binning
+            </BDropdownItem>
+          </BDropdown>
+
           <BButton size="sm" variant="primary" @click="showAddRecords = true">
             <i class="bi bi-plus-lg me-1"></i>Add
           </BButton>
@@ -598,6 +613,73 @@
         <BButton variant="outline-secondary" @click="showSplitModal = false">Cancel</BButton>
         <BButton variant="primary" :loading="operating" :disabled="!splitDelimiter || splitNewColumns.length < 2" @click="applySplit">
           <i class="bi bi-arrows-expand me-1"></i>Split
+        </BButton>
+      </template>
+    </BModal>
+
+    <!-- ML Encoding Modal -->
+    <BModal v-model="showEncodingModal" :title="encodingConfig.title" size="md" no-close-on-backdrop>
+      <div class="alert alert-info py-2 small mb-3">
+        <i class="bi bi-info-circle me-1"></i>{{ encodingConfig.description }}
+      </div>
+      <div class="mb-2 small text-muted">
+        Column: <strong>{{ selectedColumns[0] || 'none selected' }}</strong>
+      </div>
+
+      <!-- One-Hot options -->
+      <div v-if="encodingOp === 'one_hot'">
+        <BFormGroup label="Column prefix" label-size="sm">
+          <BFormInput v-model="encodingParams.prefix" size="sm" :placeholder="selectedColumns[0] || 'prefix'"></BFormInput>
+        </BFormGroup>
+        <div v-if="encodingPreview.length" class="mt-2 p-2 bg-light rounded small">
+          <strong>Preview (first row):</strong>
+          <div v-for="(val, key) in encodingPreview[0]" :key="key" class="d-flex gap-2">
+            <span class="text-muted">{{ key }}:</span> <span>{{ val }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Label options -->
+      <div v-if="encodingOp === 'label'">
+        <div v-if="encodingPreview.length" class="mt-2 p-2 bg-light rounded small">
+          <strong>Category mapping:</strong>
+          <div v-for="item in encodingPreview" :key="item.value" class="d-flex gap-2">
+            <span class="badge bg-light text-dark">{{ item.value }}</span> → <span class="badge bg-primary">{{ item.label }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map options -->
+      <div v-if="encodingOp === 'map'">
+        <BFormGroup label="Mapping (JSON object)" label-size="sm">
+          <BFormTextarea v-model="encodingParams.mappingJson" rows="4" size="sm" placeholder='{"Y": "Yes", "N": "No"}'></BFormTextarea>
+        </BFormGroup>
+        <small class="text-muted">Enter a JSON object: {"original": "new", ...}</small>
+      </div>
+
+      <!-- Binning options -->
+      <div v-if="encodingOp === 'bin'">
+        <BFormGroup label="Number of bins" label-size="sm">
+          <BFormInput v-model.number="encodingParams.n_bins" type="number" min="2" max="20" size="sm"></BFormInput>
+        </BFormGroup>
+        <BFormGroup label="Strategy" label-size="sm" class="mt-2">
+          <BFormSelect v-model="encodingParams.strategy" size="sm" :options="[
+            { value: 'equal_width', text: 'Equal width (uniform intervals)' },
+            { value: 'equal_freq', text: 'Equal frequency (same count per bin)' },
+          ]"></BFormSelect>
+        </BFormGroup>
+        <div v-if="encodingPreview.length" class="mt-2 p-2 bg-light rounded small">
+          <strong>Preview (first rows):</strong>
+          <div v-for="(item, i) in encodingPreview.slice(0, 5)" :key="i" class="d-flex gap-2">
+            <span>{{ item.original }}</span> → <span class="badge bg-primary">{{ item.binned }}</span>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <BButton variant="outline-secondary" @click="showEncodingModal = false">Cancel</BButton>
+        <BButton variant="primary" :loading="operating" :disabled="!selectedColumns.length" @click="applyEncoding">
+          <i class="bi bi-play-fill me-1"></i>Apply
         </BButton>
       </template>
     </BModal>
@@ -1122,6 +1204,11 @@ const rowSelectMode = ref(false)
 const showTableSettings = ref(false)
 const showCellEdit = ref(false)
 const cellEdit = ref({ row: 0, column: '', value: '' })
+const showEncodingModal = ref(false)
+const encodingOp = ref('')
+const encodingParams = ref({ prefix: '', mappingJson: '{}', n_bins: 5, strategy: 'equal_width' })
+const encodingPreview = ref([])
+const encodingConfig = ref({ title: '', description: '' })
 const showAddRecords = ref(false)
 const addMode = ref('single')
 const singleRow = ref({})
@@ -1133,6 +1220,79 @@ const multiSort = ref(false)
 
 function onRowSelectToggle() {
   if (!rowSelectMode.value) selectedRowIndices.value = []
+}
+
+const ENCODING_CONFIGS = {
+  one_hot: { title: 'One-Hot Encoding', description: 'Creates binary (0/1) columns for each unique value in the selected column. Useful for categorical features in ML models.', defaults: { prefix: '' } },
+  label: { title: 'Label Encoding', description: 'Maps each unique category to an integer (0, 1, 2…). Sorted alphabetically. Useful for ordinal data or tree-based models.', defaults: {} },
+  map: { title: 'Map Values', description: 'Replace values using a custom dictionary. Useful for standardizing categories or recoding values.', defaults: { mappingJson: '{}' } },
+  bin: { title: 'Binning / Discretization', description: 'Group continuous numeric values into discrete bins. Equal-width creates uniform intervals; equal-frequency puts roughly the same count in each bin.', defaults: { n_bins: 5, strategy: 'equal_width' } },
+}
+
+function openEncodingModal(op) {
+  if (!selectedColumns.value.length) {
+    toast.warning('Select a column first')
+    return
+  }
+  encodingOp.value = op
+  const config = ENCODING_CONFIGS[op]
+  encodingConfig.value = { title: config.title, description: config.description }
+  encodingParams.value = { ...config.defaults }
+  encodingPreview.value = []
+  showEncodingModal.value = true
+  // Generate preview from current data
+  if (op === 'one_hot') {
+    encodingParams.value.prefix = selectedColumns.value[0]
+    const col = selectedColumns.value[0]
+    const unique = [...new Set(data.value.map(r => r[col]).filter(v => v != null))]
+    encodingPreview.value = [{ ...Object.fromEntries(unique.map(v => [`${encodingParams.value.prefix}_${v}`, 1])) }]
+  } else if (op === 'label') {
+    const col = selectedColumns.value[0]
+    const unique = [...new Set(data.value.map(r => r[col]).filter(v => v != null))].sort()
+    encodingPreview.value = unique.map((v, i) => ({ value: v, label: i }))
+  } else if (op === 'bin') {
+    const col = selectedColumns.value[0]
+    encodingPreview.value = data.value.slice(0, 5).map(r => ({ original: r[col], binned: '...' }))
+  }
+}
+
+async function applyEncoding() {
+  if (!selectedColumns.value.length) return
+  const op = encodingOp.value
+  const body = { column: selectedColumns.value[0], operation: op }
+
+  if (op === 'one_hot') {
+    body.prefix = encodingParams.value.prefix || selectedColumns.value[0]
+  } else if (op === 'map') {
+    try {
+      body.mapping = JSON.parse(encodingParams.value.mappingJson)
+    } catch {
+      toast.error('Invalid JSON in mapping')
+      return
+    }
+  } else if (op === 'bin') {
+    body.n_bins = encodingParams.value.n_bins || 5
+    body.strategy = encodingParams.value.strategy || 'equal_width'
+  }
+
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/encoding`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(body)
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || 'Encoding applied')
+      showEncodingModal.value = false
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Encoding failed')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
 }
 
 function openCellEditor({ row, column, value }) {

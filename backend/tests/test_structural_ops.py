@@ -1024,6 +1024,130 @@ class TestFuzzyDedupeRequiresColumn:
         assert exc_info.value.status_code == 400
 
 
+class TestEncodingOperations:
+    """Test ML/feature engineering encoding operations."""
+
+    @pytest.mark.asyncio
+    async def test_one_hot_encoding(self):
+        from app.routers.operations import encoding_operations
+
+        dataset = _make_mock_dataset([
+            {"name": "Alice", "color": "red"},
+            {"name": "Bob", "color": "blue"},
+            {"name": "Carol", "color": "red"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await encoding_operations(
+                dataset_id="test-ds-id",
+                request={"column": "color", "operation": "one_hot"},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert "color_blue" in dataset.preview_data[0]
+        assert "color_red" in dataset.preview_data[0]
+        assert dataset.preview_data[0]["color_red"] == 1
+
+    @pytest.mark.asyncio
+    async def test_label_encoding(self):
+        from app.routers.operations import encoding_operations
+
+        dataset = _make_mock_dataset([
+            {"name": "Alice", "grade": "A"},
+            {"name": "Bob", "grade": "C"},
+            {"name": "Carol", "grade": "B"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await encoding_operations(
+                dataset_id="test-ds-id",
+                request={"column": "grade", "operation": "label"},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert "grade_encoded" in dataset.preview_data[0]
+        # A=0, B=1, C=2 (sorted)
+        assert dataset.preview_data[0]["grade_encoded"] == 0  # A
+        assert dataset.preview_data[1]["grade_encoded"] == 2  # C
+
+    @pytest.mark.asyncio
+    async def test_value_mapping(self):
+        from app.routers.operations import encoding_operations
+
+        dataset = _make_mock_dataset([
+            {"name": "Alice", "status": "Y"},
+            {"name": "Bob", "status": "N"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await encoding_operations(
+                dataset_id="test-ds-id",
+                request={"column": "status", "operation": "map", "mapping": {"Y": "Yes", "N": "No"}},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert dataset.preview_data[0]["status"] == "Yes"
+        assert dataset.preview_data[1]["status"] == "No"
+
+    @pytest.mark.asyncio
+    async def test_binning(self):
+        from app.routers.operations import encoding_operations
+
+        dataset = _make_mock_dataset([
+            {"name": "A", "score": 10},
+            {"name": "B", "score": 50},
+            {"name": "C", "score": 90},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await encoding_operations(
+                dataset_id="test-ds-id",
+                request={"column": "score", "operation": "bin", "n_bins": 3, "strategy": "equal_width"},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert "score_binned" in dataset.preview_data[0]
+
+    @pytest.mark.asyncio
+    async def test_encoding_missing_column_raises(self):
+        from app.routers.operations import encoding_operations
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset([{"name": "Alice"}])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await encoding_operations(
+                    dataset_id="test-ds-id",
+                    request={"column": "nonexistent", "operation": "label"},
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+        assert exc_info.value.status_code == 400
+
+
 class TestDeleteRowsOperation:
     """Test the delete-rows operation."""
 
