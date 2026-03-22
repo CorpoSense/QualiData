@@ -503,7 +503,28 @@ function downloadExport() {
   if (!selectedDataset.value) return
   const params = new URLSearchParams({ format: exportFormat.value })
   if (exportLimit.value > 0) params.set('limit', exportLimit.value)
-  window.open(`${apiUrl}/api/datasets/${selectedDataset.value.id}/export?${params}`, '_blank')
+
+  // Use fetch with auth header instead of window.open (which doesn't send auth)
+  fetch(`${apiUrl}/api/datasets/${selectedDataset.value.id}/export?${params}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+  })
+    .then(res => {
+      if (!res.ok) throw new Error(`Export failed (${res.status})`)
+      const disposition = res.headers.get('Content-Disposition') || ''
+      const match = disposition.match(/filename="(.+?)"/)
+      const filename = match ? match[1] : `export.${exportFormat.value}`
+      return res.blob().then(blob => ({ blob, filename }))
+    })
+    .then(({ blob, filename }) => {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+    })
+    .catch(e => { toast.error(e.message) })
+
   showExportModal.value = false
 }
 
