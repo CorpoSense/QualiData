@@ -69,7 +69,16 @@ async def profile_columns(
     for col in df.columns:
         col_data = df[col]
         null_count = int(col_data.isna().sum())
-        unique_count = int(col_data.nunique())
+
+        # unique_count: handle unhashable types (lists, dicts)
+        try:
+            unique_count = int(col_data.nunique())
+        except TypeError:
+            # Column contains unhashable types — convert to strings first
+            try:
+                unique_count = int(col_data.astype(str).nunique())
+            except Exception:
+                unique_count = 0
 
         # Calculate quality score (0-100)
         null_percent = (null_count / total_rows) * 100 if total_rows > 0 else 0
@@ -120,9 +129,13 @@ async def profile_columns(
 
         # String stats
         if col_data.dtype == "object":
-            stats["avg_length"] = float(col_data.astype(str).str.len().mean())
-            stats["min_length"] = int(col_data.astype(str).str.len().min())
-            stats["max_length"] = int(col_data.astype(str).str.len().max())
+            str_lengths = col_data.astype(str).str.len()
+            avg_len = str_lengths.mean()
+            min_len = str_lengths.min()
+            max_len = str_lengths.max()
+            stats["avg_length"] = float(avg_len) if not pd.isna(avg_len) else 0
+            stats["min_length"] = int(min_len) if not pd.isna(min_len) else 0
+            stats["max_length"] = int(max_len) if not pd.isna(max_len) else 0
 
         # Detect potential issues
         issues = []
