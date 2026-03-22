@@ -110,12 +110,23 @@ async def _get_agent_config(agent_id: str | None, user_id: str, session: AsyncSe
                 status_code=404,
                 detail="Agent not found or does not belong to you",
             )
+        from app.utils.crypto import decrypt_value
+        from app.config import get_settings
+
+        api_key = agent.api_key
+        if api_key:
+            try:
+                api_key = decrypt_value(api_key, get_settings().secret_key)
+            except Exception:
+                # Key may be stored in plain text (legacy) — use as-is
+                pass
+
         return {
             "provider": agent.provider,
             "model": agent.model,
             "temperature": agent.temperature,
             "system_prompt": agent.system_prompt,
-            "api_key": agent.api_key,
+            "api_key": api_key,
             "base_url": agent.base_url,
         }
     # No agent selected — use defaults

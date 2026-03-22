@@ -8,6 +8,8 @@ from typing import List
 from app.db.database import get_async_session
 from app.db.models import Agent, User
 from app.routers.auth import get_current_active_user
+from app.config import get_settings
+from app.utils.crypto import encrypt_value
 from pydantic import BaseModel, Field
 from datetime import datetime
 
@@ -101,6 +103,8 @@ async def create_agent(
     session: AsyncSession = Depends(get_async_session),
 ):
     data = agent_in.dict()
+    if data.get("api_key"):
+        data["api_key"] = encrypt_value(data["api_key"], get_settings().secret_key)
     agent = Agent(user_id=current_user.id, **data)
     session.add(agent)
     await session.commit()
@@ -133,6 +137,8 @@ async def update_agent(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
     for field, value in agent_in.dict(exclude_unset=True).items():
+        if field == "api_key" and value:
+            value = encrypt_value(value, get_settings().secret_key)
         setattr(agent, field, value)
     agent.updated_at = datetime.utcnow()
     await session.commit()
