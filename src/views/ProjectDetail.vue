@@ -127,6 +127,9 @@
                   </div>
                   <BBadge v-if="op.is_undone" variant="secondary">Undone</BBadge>
                   <BBadge v-else variant="success">Done</BBadge>
+                  <button class="btn btn-sm btn-outline-secondary border-0 py-0 px-1" @click="showOpDetails(op)" title="View details">
+                    <i class="bi bi-info-circle"></i>
+                  </button>
                 </div>
               </div>
             </div>
@@ -387,6 +390,34 @@
         </div>
       </div>
     </BModal>
+
+    <!-- Operation Details Modal -->
+    <BModal v-model="showOpDetailsModal" title="Operation Details" size="md">
+      <div v-if="selectedOp">
+        <div class="mb-3">
+          <span class="badge" :class="selectedOp.is_undone ? 'bg-secondary' : 'bg-primary'">
+            {{ selectedOp.operation_type }}
+          </span>
+          <span v-if="selectedOp.is_undone" class="badge bg-warning text-dark ms-1">Undone</span>
+          <span v-if="selectedOp.dataset_name" class="badge bg-light text-dark ms-1">{{ selectedOp.dataset_name }}</span>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">Date</small>
+          <div>{{ formatDate(selectedOp.created_at) }}</div>
+        </div>
+        <div class="mb-2">
+          <small class="text-muted">ID</small>
+          <div><code class="small">{{ selectedOp.id }}</code></div>
+        </div>
+        <div v-if="selectedOp.operation_params">
+          <small class="text-muted">Parameters</small>
+          <pre class="bg-light p-2 rounded small mb-0" style="max-height: 200px; overflow-y: auto;">{{ formatOpParamsPretty(selectedOp.operation_params) }}</pre>
+        </div>
+      </div>
+      <template #footer>
+        <BButton variant="primary" @click="showOpDetailsModal = false">Close</BButton>
+      </template>
+    </BModal>
   </div>
 </template>
 
@@ -428,6 +459,8 @@ const exportLimit = ref(0)
 const showProfileModal = ref(false)
 const profileData = ref(null)
 const profileLoading = ref(false)
+const showOpDetailsModal = ref(false)
+const selectedOp = ref(null)
 const renameDatasetId = ref(null)
 const renameDatasetName = ref('')
 const renameDatasetDesc = ref('')
@@ -920,6 +953,18 @@ function getOperationIcon(opType) {
 function formatOperationType(opType) {
   if (!opType) return 'Unknown'
   return opType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+}
+
+function showOpDetails(op) {
+  selectedOp.value = op
+  showOpDetailsModal.value = true
+}
+
+function formatOpParamsPretty(params) {
+  if (!params) return ''
+  try {
+    return JSON.stringify(params, null, 2)
+  } catch { return String(params) }
 }
 </script>
 
