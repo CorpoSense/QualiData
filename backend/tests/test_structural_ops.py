@@ -273,6 +273,250 @@ class TestReorderColumnsOperation:
         assert "mismatch" in exc_info.value.detail.lower()
 
 
+class TestReorderRowsOperation:
+    """Test the reorder-rows operation."""
+
+    @pytest.mark.asyncio
+    async def test_move_single_row_up(self):
+        """Moving one row up swaps it with the row above."""
+        from app.routers.operations import reorder_rows, ReorderRowsRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await reorder_rows(
+                dataset_id="test-ds-id",
+                request=ReorderRowsRequest(indices=[2], direction="up"),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        names = [r["name"] for r in dataset.preview_data]
+        assert names == ["A", "C", "B", "D"]
+
+    @pytest.mark.asyncio
+    async def test_move_single_row_down(self):
+        """Moving one row down swaps it with the row below."""
+        from app.routers.operations import reorder_rows, ReorderRowsRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await reorder_rows(
+                dataset_id="test-ds-id",
+                request=ReorderRowsRequest(indices=[1], direction="down"),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        names = [r["name"] for r in dataset.preview_data]
+        assert names == ["A", "C", "B", "D"]
+
+    @pytest.mark.asyncio
+    async def test_move_multiple_rows_up(self):
+        """Moving non-adjacent rows up shifts each by one step."""
+        from app.routers.operations import reorder_rows, ReorderRowsRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}, {"name": "E"}
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            # Select rows at indices 2 and 4 (C and E), move up
+            result = await reorder_rows(
+                dataset_id="test-ds-id",
+                request=ReorderRowsRequest(indices=[2, 4], direction="up"),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        names = [r["name"] for r in dataset.preview_data]
+        assert names == ["A", "C", "B", "E", "D"]
+
+    @pytest.mark.asyncio
+    async def test_move_multiple_rows_down(self):
+        """Moving non-adjacent rows down shifts each by one step."""
+        from app.routers.operations import reorder_rows, ReorderRowsRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}, {"name": "E"}
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            # Select rows at indices 0 and 2 (A and C), move down
+            result = await reorder_rows(
+                dataset_id="test-ds-id",
+                request=ReorderRowsRequest(indices=[0, 2], direction="down"),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        names = [r["name"] for r in dataset.preview_data]
+        assert names == ["B", "A", "D", "C", "E"]
+
+    @pytest.mark.asyncio
+    async def test_move_first_row_up_is_noop(self):
+        """Moving the first row up is a no-op (row stays in place)."""
+        from app.routers.operations import reorder_rows, ReorderRowsRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "A"}, {"name": "B"}, {"name": "C"}
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await reorder_rows(
+                dataset_id="test-ds-id",
+                request=ReorderRowsRequest(indices=[0], direction="up"),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        names = [r["name"] for r in dataset.preview_data]
+        assert names == ["A", "B", "C"]
+
+    @pytest.mark.asyncio
+    async def test_move_last_row_down_is_noop(self):
+        """Moving the last row down is a no-op (row stays in place)."""
+        from app.routers.operations import reorder_rows, ReorderRowsRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "A"}, {"name": "B"}, {"name": "C"}
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await reorder_rows(
+                dataset_id="test-ds-id",
+                request=ReorderRowsRequest(indices=[2], direction="down"),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        names = [r["name"] for r in dataset.preview_data]
+        assert names == ["A", "B", "C"]
+
+    @pytest.mark.asyncio
+    async def test_move_adjacent_selected_rows_up(self):
+        """Adjacent selected rows move as a block up."""
+        from app.routers.operations import reorder_rows, ReorderRowsRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "A"}, {"name": "B"}, {"name": "C"}, {"name": "D"}
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            # Select rows 1,2 (B,C) — adjacent. Move up.
+            result = await reorder_rows(
+                dataset_id="test-ds-id",
+                request=ReorderRowsRequest(indices=[1, 2], direction="up"),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        names = [r["name"] for r in dataset.preview_data]
+        assert names == ["B", "C", "A", "D"]
+
+    @pytest.mark.asyncio
+    async def test_reorder_preserves_row_data(self):
+        """Reordering rows does not corrupt cell data."""
+        from app.routers.operations import reorder_rows, ReorderRowsRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "Alice", "age": 30},
+            {"name": "Bob", "age": 25},
+            {"name": "Carol", "age": 35},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await reorder_rows(
+                dataset_id="test-ds-id",
+                request=ReorderRowsRequest(indices=[2], direction="up"),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        row = dataset.preview_data[1]
+        assert row["name"] == "Carol"
+        assert row["age"] == 35
+
+    @pytest.mark.asyncio
+    async def test_reorder_invalid_index_rejected(self):
+        """Out-of-range index raises 400."""
+        from app.routers.operations import reorder_rows, ReorderRowsRequest
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset([{"name": "A"}, {"name": "B"}])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await reorder_rows(
+                    dataset_id="test-ds-id",
+                    request=ReorderRowsRequest(indices=[5], direction="up"),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_reorder_invalid_direction_rejected(self):
+        """Invalid direction raises 400."""
+        from app.routers.operations import reorder_rows, ReorderRowsRequest
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset([{"name": "A"}, {"name": "B"}])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await reorder_rows(
+                    dataset_id="test-ds-id",
+                    request=ReorderRowsRequest(indices=[0], direction="left"),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+
+        assert exc_info.value.status_code == 400
+
+
 class TestDeleteRowsOperation:
     """Test the delete-rows operation."""
 

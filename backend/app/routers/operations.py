@@ -318,6 +318,90 @@ async def reorder_columns(
     )
 
 
+class ReorderRowsRequest(BaseModel):
+    indices: list[int]
+    direction: str  # "up" or "down"
+
+
+@router.post(
+    "/datasets/{dataset_id}/operations/reorder-rows",
+    response_model=OperationResponse,
+)
+async def reorder_rows(
+    dataset_id: str,
+    request: ReorderRowsRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Move selected rows one step up or down."""
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+
+    total = len(dataset.preview_data)
+    indices = sorted(request.indices)
+
+    if not indices:
+        raise HTTPException(status_code=400, detail="No indices provided")
+    if any(i < 0 or i >= total for i in indices):
+        raise HTTPException(status_code=400, detail="Index out of range")
+
+    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
+
+    rows = list(dataset.preview_data)
+
+    # Group adjacent indices into contiguous blocks
+    indices_set = set(indices)
+    blocks = []
+    block = []
+    for i in sorted(indices):
+        if block and i != block[-1] + 1:
+            blocks.append(block)
+            block = []
+        block.append(i)
+    if block:
+        blocks.append(block)
+
+    if request.direction == "up":
+        # Move each block up by one (process blocks left to right)
+        for b in blocks:
+            if b[0] > 0 and (b[0] - 1) not in indices_set:
+                # Swap: the row above goes to the bottom of the block
+                above = b[0] - 1
+                displaced = rows[above]
+                rows[above] = rows[b[0]]
+                for j in range(1, len(b)):
+                    rows[b[j - 1]] = rows[b[j]]
+                rows[b[-1]] = displaced
+    elif request.direction == "down":
+        # Move each block down by one (process blocks right to left)
+        for b in reversed(blocks):
+            if b[-1] < total - 1 and (b[-1] + 1) not in indices_set:
+                # Swap: the row below goes to the top of the block
+                below = b[-1] + 1
+                displaced = rows[below]
+                rows[below] = rows[b[-1]]
+                for j in range(len(b) - 2, -1, -1):
+                    rows[b[j + 1]] = rows[b[j]]
+                rows[b[0]] = displaced
+    else:
+        raise HTTPException(status_code=400, detail="Direction must be 'up' or 'down'")
+
+    from app.routers.datasets import detect_columns, get_preview_data
+
+    df = pd.DataFrame(rows)
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    after = {"columns": dataset.columns}
+    await save_operation(
+        dataset_id, "reorder_rows", request.dict(), before, after, session
+    )
+    await session.commit()
+    return OperationResponse(
+        status="success", message="Rows reordered", columns=dataset.columns
+    )
+
+
 @router.get("/datasets/{dataset_id}/operations")
 async def list_operations(
     dataset_id: str,

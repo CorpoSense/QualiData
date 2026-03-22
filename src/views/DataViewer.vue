@@ -140,6 +140,12 @@
           <BButton size="sm" :variant="rowSelectMode ? 'warning' : 'outline-secondary'" @click="rowSelectMode = !rowSelectMode; if (!rowSelectMode) selectedRowIndices = []">
             <i class="bi bi-check2-square me-1"></i>{{ rowSelectMode ? 'Cancel Select' : 'Select Rows' }}
           </BButton>
+          <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowUp" @click="reorderRows('up')" title="Move selected rows one step up">
+            <i class="bi bi-arrow-up"></i>
+          </BButton>
+          <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowDown" @click="reorderRows('down')" title="Move selected rows one step down">
+            <i class="bi bi-arrow-down"></i>
+          </BButton>
           <BDropdown text="Rows" size="sm">
             <BDropdownItem @click="showRowFilterModal = true">
               <i class="bi bi-funnel me-2"></i>Filter rows
@@ -1595,6 +1601,41 @@ async function reorderColumns(direction) {
     if (res.ok) {
       toast.success('Columns reordered')
       selectedColumns.value = []
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Reorder failed')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
+const canMoveRowUp = computed(() => {
+  if (!selectedRowIndices.value.length) return false
+  const allIndices = selectedRowIndices.value
+  const currentPageOffset = (page.value - 1) * limit.value
+  // Can move up if any selected row is not the first row of the dataset
+  return allIndices.some(i => i > 0)
+})
+
+const canMoveRowDown = computed(() => {
+  if (!selectedRowIndices.value.length) return false
+  // Can move down if any selected row is not the last row
+  return selectedRowIndices.value.some(i => i < totalRows.value - 1)
+})
+
+async function reorderRows(direction) {
+  if (!selectedRowIndices.value.length) return
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/reorder-rows`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ indices: selectedRowIndices.value, direction })
+    })
+    if (res.ok) {
+      toast.success('Rows reordered')
+      selectedRowIndices.value = []
       await refreshData()
     } else {
       const err = await res.json()
