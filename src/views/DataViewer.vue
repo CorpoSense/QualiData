@@ -526,7 +526,7 @@
           </label>
         </div>
         <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" v-model="rowSelectMode" id="setting-select" @change="if (!rowSelectMode) selectedRowIndices = []">
+          <input class="form-check-input" type="checkbox" v-model="rowSelectMode" id="setting-select" @change="onRowSelectToggle">
           <label class="form-check-label" for="setting-select">
             <strong>Row selection mode</strong>
             <small class="d-block text-muted">Enable checkboxes to select and reorder rows</small>
@@ -912,6 +912,10 @@ const csvText = ref('')
 const jsonText = ref('')
 const showRowIndex = ref(false)
 const multiSort = ref(false)
+
+function onRowSelectToggle() {
+  if (!rowSelectMode.value) selectedRowIndices.value = []
+}
 const selectedRowIndices = ref([])
 const filteredMatchingIndices = ref(null)
 const filteredTotalMatching = ref(null)
