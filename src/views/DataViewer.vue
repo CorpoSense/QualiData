@@ -1065,7 +1065,11 @@ async function refreshData() {
     }
 
     const opsRes = await opsPromise
-    if (opsRes.ok) { operations.value = await opsRes.json(); selectedOpIds.value = [] }
+    if (opsRes.ok) {
+      const opsData = await opsRes.json()
+      operations.value = opsData.operations || opsData || []
+      selectedOpIds.value = []
+    }
     
     const profileRes = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/profile`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }

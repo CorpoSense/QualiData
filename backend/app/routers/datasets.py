@@ -425,30 +425,54 @@ async def export_dataset(
         raise HTTPException(status_code=400, detail="Unsupported format. Use csv, json, tsv, or excel.")
 
 
-@router.get("", response_model=list[DatasetResponse])
+@router.get("")
 async def list_datasets(
     project_id: str,
+    page: int = 1,
+    page_size: int = 20,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """List all datasets for a project."""
-    # Verify project ownership
+    """List datasets for a project with pagination."""
     result = await session.execute(
         select(Project).where(
             Project.id == project_id, Project.user_id == current_user.id
         )
     )
     if not result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-        )
+        raise HTTPException(status_code=404, detail="Project not found")
 
+    # Count total
+    from sqlalchemy import func
+    count_result = await session.execute(
+        select(func.count(Dataset.id)).where(Dataset.project_id == project_id)
+    )
+    total = count_result.scalar() or 0
+
+    # Fetch page
+    offset = (page - 1) * page_size
     datasets_result = await session.execute(
-        select(Dataset).where(Dataset.project_id == project_id)
+        select(Dataset)
+        .where(Dataset.project_id == project_id)
+        .order_by(Dataset.name)
+        .offset(offset)
+        .limit(page_size)
     )
     datasets = datasets_result.scalars().all()
 
-    return datasets
+    return {
+        "datasets": [
+            {
+                "id": d.id, "name": d.name, "description": d.description,
+                "file_name": d.file_name, "file_type": d.file_type,
+                "row_count": d.row_count, "project_id": d.project_id,
+            }
+            for d in datasets
+        ],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 @router.get("/{dataset_id}", response_model=DatasetResponse)

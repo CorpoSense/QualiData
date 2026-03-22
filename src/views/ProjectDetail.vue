@@ -89,6 +89,15 @@
             </DatasetCard>
           </div>
         </div>
+        <!-- Datasets pagination -->
+        <div v-if="datasetTotal > datasetPageSize" class="d-flex justify-content-center mt-3">
+          <BPagination
+            v-model="datasetPage"
+            :total-rows="datasetTotal"
+            :per-page="datasetPageSize"
+            @update:model-value="fetchDatasets"
+          ></BPagination>
+        </div>
       </BTab>
 
       <BTab title="Operations">
@@ -398,7 +407,6 @@ const projectId = route.params.id
 const loading = ref(true)
 const activeTab = ref(0)
 const project = ref(null)
-const datasets = ref([])
 const operations = ref([])
 const showImportModal = ref(false)
 watch(showImportModal, (val) => {
@@ -586,13 +594,20 @@ async function fetchProject() {
   }
 }
 
+const datasets = ref([])
+const datasetTotal = ref(0)
+const datasetPage = ref(1)
+const datasetPageSize = ref(12)
+
 async function fetchDatasets() {
   try {
-    const res = await fetch(`${apiUrl}/api/datasets?project_id=${projectId}`, {
+    const res = await fetch(`${apiUrl}/api/datasets?project_id=${projectId}&page=${datasetPage.value}&page_size=${datasetPageSize.value}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
     if (res.ok) {
-      datasets.value = await res.json()
+      const data = await res.json()
+      datasets.value = data.datasets || data || []
+      datasetTotal.value = data.total || datasets.value.length
     }
   } catch (e) {
     console.error(e)

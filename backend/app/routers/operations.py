@@ -321,27 +321,47 @@ async def reorder_columns(
 @router.get("/datasets/{dataset_id}/operations")
 async def list_operations(
     dataset_id: str,
+    limit: int = 50,
+    offset: int = 0,
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """List all operations for a dataset."""
+    """List operations for a dataset with pagination."""
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+
+    # Count total
+    from sqlalchemy import func
+    count_result = await session.execute(
+        select(func.count(OperationHistory.id)).where(
+            cast(OperationHistory.dataset_id, String) == dataset_id
+        )
+    )
+    total = count_result.scalar() or 0
+
     result = await session.execute(
         select(OperationHistory)
         .where(cast(OperationHistory.dataset_id, String) == dataset_id)
         .order_by(OperationHistory.created_at.desc())
+        .offset(offset)
+        .limit(limit)
     )
     operations = result.scalars().all()
-    return [
-        {
-            "id": op.id,
-            "operation_type": op.operation_type,
-            "operation_params": op.operation_params,
-            "created_at": op.created_at.isoformat() if op.created_at else None,
-            "is_undone": op.is_undone,
-        }
-        for op in operations
-    ]
+
+    return {
+        "operations": [
+            {
+                "id": op.id,
+                "operation_type": op.operation_type,
+                "operation_params": op.operation_params,
+                "created_at": op.created_at.isoformat() if op.created_at else None,
+                "is_undone": op.is_undone,
+            }
+            for op in operations
+        ],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/operations/recent")
