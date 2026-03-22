@@ -199,6 +199,34 @@
       </template>
     </BModal>
 
+    <!-- Export Modal -->
+    <BModal v-model="showExportModal" title="Export Dataset">
+      <BFormGroup label="Format" label-for="export-format">
+        <BFormSelect id="export-format" v-model="exportFormat" :options="[
+          { value: 'csv', text: 'CSV (.csv)' },
+          { value: 'json', text: 'JSON (.json)' },
+          { value: 'tsv', text: 'TSV (.tsv)' },
+          { value: 'excel', text: 'Excel (.xlsx)' },
+        ]"></BFormSelect>
+      </BFormGroup>
+      <BFormGroup label="Rows" label-for="export-limit" class="mt-2">
+        <BFormSelect id="export-limit" v-model="exportLimit" :options="[
+          { value: 0, text: 'All rows' },
+          { value: 10, text: 'First 10' },
+          { value: 50, text: 'First 50' },
+          { value: 100, text: 'First 100' },
+          { value: 500, text: 'First 500' },
+          { value: 1000, text: 'First 1000' },
+        ]"></BFormSelect>
+      </BFormGroup>
+      <template #footer>
+        <BButton @click="showExportModal = false">Cancel</BButton>
+        <BButton variant="primary" @click="downloadExport">
+          <i class="bi bi-download me-1"></i> Download
+        </BButton>
+      </template>
+    </BModal>
+
     <!-- Preview Modal -->
     <BModal v-model="showPreviewModal" :has-modal-card="true" size="xl">
       <div class="modal-dialog modal-xl">
@@ -247,6 +275,9 @@ watch(showImportModal, (val) => {
 })
 const showPreviewModal = ref(false)
 const showRenameModal = ref(false)
+const showExportModal = ref(false)
+const exportFormat = ref('csv')
+const exportLimit = ref(0)
 const renameDatasetId = ref(null)
 const renameDatasetName = ref('')
 const renameDatasetDesc = ref('')
@@ -462,7 +493,18 @@ async function deleteDataset(dataset) {
 }
 
 function exportDataset(dataset) {
-  window.open(`${apiUrl}/api/datasets/${dataset.id}/export?format=csv`, '_blank')
+  selectedDataset.value = dataset
+  exportFormat.value = 'csv'
+  exportLimit.value = 0
+  showExportModal.value = true
+}
+
+function downloadExport() {
+  if (!selectedDataset.value) return
+  const params = new URLSearchParams({ format: exportFormat.value })
+  if (exportLimit.value > 0) params.set('limit', exportLimit.value)
+  window.open(`${apiUrl}/api/datasets/${selectedDataset.value.id}/export?${params}`, '_blank')
+  showExportModal.value = false
 }
 
 function viewDataset(dataset) {

@@ -344,65 +344,80 @@ async def filtered_dataset_post(
 async def export_dataset(
     dataset_id: str,
     format: str = "csv",
+    columns: str | None = None,  # comma-separated column names
+    limit: int = 0,  # 0 = all rows
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Export dataset to CSV, Excel, or JSON."""
+    """Export dataset to CSV, JSON, or Excel. Returns a file download."""
+    from fastapi.responses import StreamingResponse
+
     result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
 
     if not dataset:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
-        )
+        raise HTTPException(status_code=404, detail="Dataset not found")
 
-    # Verify ownership
     project_result = await session.execute(
         select(Project).where(
             Project.id == dataset.project_id, Project.user_id == current_user.id
         )
     )
     if not project_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
-        )
+        raise HTTPException(status_code=403, detail="Access denied")
 
-    # Reconstruct DataFrame from preview (simplified - in production, store full data)
     if not dataset.preview_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="No data to export"
-        )
+        raise HTTPException(status_code=400, detail="No data to export")
 
     df = pd.DataFrame(dataset.preview_data)
 
-    # Export to requested format
+    # Filter columns if specified
+    if columns:
+        col_list = [c.strip() for c in columns.split(",") if c.strip()]
+        valid_cols = [c for c in col_list if c in df.columns]
+        if valid_cols:
+            df = df[valid_cols]
+
+    # Limit rows if specified
+    if limit > 0:
+        df = df.head(limit)
+
+    safe_name = "".join(c if c.isalnum() or c in "-_ " else "_" for c in (dataset.name or "export"))
+
     if format == "csv":
         output = io.StringIO()
         df.to_csv(output, index=False)
-        return {
-            "content": output.getvalue(),
-            "content_type": "text/csv",
-            "filename": f"{dataset.name}.csv",
-        }
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{safe_name}.csv"'},
+        )
     elif format == "json":
-        return {
-            "content": df.to_json(orient="records", indent=2),
-            "content_type": "application/json",
-            "filename": f"{dataset.name}.json",
-        }
+        content = df.to_json(orient="records", indent=2)
+        return StreamingResponse(
+            iter([content]),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{safe_name}.json"'},
+        )
+    elif format == "tsv":
+        output = io.StringIO()
+        df.to_csv(output, index=False, sep="\t")
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/tab-separated-values",
+            headers={"Content-Disposition": f'attachment; filename="{safe_name}.tsv"'},
+        )
     elif format == "excel":
         output = io.BytesIO()
         df.to_excel(output, index=False)
-        return {
-            "content": output.getvalue().decode("latin-1"),
-            "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "filename": f"{dataset.name}.xlsx",
-        }
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported format. Use csv, json, or excel.",
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{safe_name}.xlsx"'},
         )
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported format. Use csv, json, tsv, or excel.")
 
 
 @router.get("", response_model=list[DatasetResponse])
