@@ -545,6 +545,107 @@
       </template>
     </BModal>
 
+    <!-- Export Recipe Modal -->
+    <BModal v-model="showExportRecipe" title="Export Operations Recipe" size="md">
+      <p class="text-muted small mb-3">Export completed operations as a JSON recipe that can be imported into another dataset.</p>
+      <div class="mb-3">
+        <strong class="small">{{ completedOpsCount }} operation(s)</strong> will be exported.
+      </div>
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" v-model="exportZip" id="export-zip">
+        <label class="form-check-label" for="export-zip">
+          <i class="bi bi-file-zip me-1"></i>Download as ZIP <small class="text-muted">(for large histories)</small>
+        </label>
+      </div>
+      <template #footer>
+        <BButton variant="outline-secondary" @click="showExportRecipe = false">Cancel</BButton>
+        <BButton variant="success" :disabled="completedOpsCount === 0" @click="exportOperations">
+          <i class="bi bi-download me-1"></i>Export
+        </BButton>
+      </template>
+    </BModal>
+
+    <!-- Import Recipe Modal -->
+    <BModal v-model="showImportRecipe" title="Import Operations Recipe" size="lg" no-close-on-backdrop>
+      <!-- Step 1: Input -->
+      <div v-if="!importPreview && !importResults">
+        <ul class="nav nav-pills mb-3">
+          <li class="nav-item">
+            <button class="nav-link" :class="{ active: importMode === 'paste' }" @click="importMode = 'paste'">
+              <i class="bi bi-clipboard me-1"></i> Paste JSON
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" :class="{ active: importMode === 'file' }" @click="importMode = 'file'">
+              <i class="bi bi-file-earmark-arrow-up me-1"></i> Upload File
+            </button>
+          </li>
+        </ul>
+
+        <div v-if="importMode === 'paste'">
+          <BFormTextarea v-model="importText" rows="8" placeholder='[{"operation": "fillna", "column": "email", "params": {"method": "constant", "fill_value": "N/A"}}]'></BFormTextarea>
+          <div v-if="importError" class="alert alert-danger py-2 mt-2 small">{{ importError }}</div>
+        </div>
+
+        <div v-if="importMode === 'file'">
+          <BFormFile v-model="importFile" accept=".json,.zip" @update:model-value="onImportFileSelected"></BFormFile>
+          <div v-if="importError" class="alert alert-danger py-2 mt-2 small">{{ importError }}</div>
+        </div>
+      </div>
+
+      <!-- Step 2: Preview -->
+      <div v-if="importPreview">
+        <div class="alert alert-info py-2 small mb-3">
+          <i class="bi bi-info-circle me-1"></i>
+          Review operations before applying. Uncheck any you want to skip.
+        </div>
+        <div v-for="(op, i) in importPreview" :key="i" class="d-flex align-items-start gap-2 mb-2 p-2 rounded" :class="op.column_missing ? 'bg-warning bg-opacity-10' : 'bg-light'">
+          <input class="form-check-input mt-1" type="checkbox" v-model="op.selected" :disabled="op.column_missing">
+          <div class="flex-grow-1">
+            <div class="d-flex align-items-center gap-1">
+              <span class="badge" :class="op.column_missing ? 'bg-warning' : 'bg-primary'">{{ op.operation }}</span>
+              <small v-if="op.column" class="text-muted">{{ op.column }}</small>
+              <small v-if="op.columns" class="text-muted">{{ op.columns?.join(', ') }}</small>
+            </div>
+            <small class="text-muted d-block">{{ formatOpParamsPretty(op.params) }}</small>
+            <small v-if="op.column_missing" class="text-warning d-block">
+              <i class="bi bi-exclamation-triangle me-1"></i>Column(s) not found — will be skipped
+            </small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Results -->
+      <div v-if="importResults">
+        <div class="alert" :class="importResults.status === 'success' ? 'alert-success' : importResults.status === 'partial' ? 'alert-warning' : 'alert-danger'" py-2>
+          <i class="bi me-1" :class="importResults.status === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle'"></i>
+          <strong>{{ importResults.message }}</strong>
+        </div>
+        <div v-for="(r, i) in importResults.results" :key="i" class="d-flex align-items-center gap-2 mb-1 small">
+          <i class="bi" :class="r.status === 'success' ? 'bi-check-circle text-success' : r.status === 'skipped' ? 'bi-skip-circle text-warning' : 'bi-x-circle text-danger'"></i>
+          <span class="badge bg-light text-dark">{{ r.operation }}</span>
+          <span v-if="r.column" class="text-muted">{{ r.column }}</span>
+          <span class="text-muted">{{ r.message }}</span>
+        </div>
+      </div>
+
+      <template #footer>
+        <BButton v-if="importResults" variant="primary" @click="closeImportModal">Done</BButton>
+        <template v-else-if="importPreview">
+          <BButton variant="outline-secondary" @click="importPreview = null">Back</BButton>
+          <BButton variant="primary" :loading="operating" :disabled="!importPreview.some(o => o.selected)" @click="applyImportedRecipe">
+            <i class="bi bi-play me-1"></i>Apply {{ importPreview.filter(o => o.selected).length }} Operation(s)
+          </BButton>
+        </template>
+        <template v-else>
+          <BButton variant="outline-secondary" @click="showImportRecipe = false">Cancel</BButton>
+          <BButton variant="primary" :disabled="!canParseImport" @click="parseImport">
+            <i class="bi bi-arrow-right me-1"></i>Next: Preview
+          </BButton>
+        </template>
+      </template>
+    </BModal>
+
     <!-- Add Records Modal -->
     <BModal v-model="showAddRecords" title="Add Records" size="lg">
       <ul class="nav nav-pills mb-3">
@@ -1938,6 +2039,150 @@ async function submitAddRecords() {
     }
   } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
+}
+
+function buildRecipe() {
+  return completedOperations.value.map(op => ({
+    operation: op.operation_type,
+    column: op.operation_params?.column || null,
+    columns: op.operation_params?.columns || null,
+    params: { ...(op.operation_params || {}) },
+  }))
+}
+
+async function exportRecipe() {
+  const recipe = buildRecipe()
+  if (!recipe.length) { toast.warning('No operations to export'); return }
+
+  const json = JSON.stringify(recipe, null, 2)
+
+  if (exportZip.value) {
+    // Use CompressionStream if available, otherwise fall back to plain JSON
+    try {
+      const blob = new Blob([json], { type: 'application/json' })
+      const cs = new CompressionStream('gzip')
+      const writer = cs.writable.getWriter()
+      writer.write(new TextEncoder().encode(json))
+      writer.close()
+      const compressed = await new Response(cs.readable).blob()
+      downloadBlob(compressed, 'recipe.json.gz')
+    } catch {
+      // Fallback: download as plain JSON if CompressionStream not supported
+      downloadBlob(new Blob([json], { type: 'application/json' }), 'recipe.json')
+      toast.info('Compression not supported in this browser, downloaded as .json')
+    }
+  } else {
+    downloadBlob(new Blob([json], { type: 'application/json' }), 'recipe.json')
+  }
+
+  showExportRecipe.value = false
+  toast.success(`Exported ${recipe.length} operation(s)`)
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+async function onImportFileSelected() {
+  importError.value = ''
+}
+
+async function parseImport() {
+  importError.value = ''
+  let text = ''
+
+  try {
+    if (importMode.value === 'paste') {
+      text = importText.value.trim()
+    } else if (importFile.value) {
+      const file = importFile.value
+      if (file.name.endsWith('.zip') || file.name.endsWith('.gz')) {
+        // Decompress
+        const ds = new DecompressionStream('gzip')
+        const stream = file.stream().pipeThrough(ds)
+        text = await new Response(stream).text()
+      } else {
+        text = await file.text()
+      }
+    }
+
+    if (!text) { importError.value = 'No data provided'; return }
+
+    // Client-side JSON validation
+    let parsed
+    try {
+      parsed = JSON.parse(text)
+    } catch (e) {
+      importError.value = `Invalid JSON: ${e.message}`
+      return
+    }
+
+    if (!Array.isArray(parsed)) {
+      importError.value = 'JSON must be an array of operation objects'
+      return
+    }
+
+    // Build preview with column existence check
+    const existingCols = new Set(columns.value.map(c => c.field))
+    const operations = parsed.map((op, i) => ({
+      index: i,
+      operation: op.operation || 'unknown',
+      column: op.column || null,
+      columns: op.columns || null,
+      params: op.params || {},
+      column_exists: !op.column || existingCols.has(op.column) ||
+        (op.columns ? op.columns.every(c => existingCols.has(c)) : true),
+      selected: true,
+    }))
+
+    importPreview.value = { valid: true, operations }
+  } catch (e) {
+    importError.value = e.message
+  }
+}
+
+async function applyImportRecipe() {
+  if (!importPreview.value) return
+  const selectedOps = importPreview.value.operations
+    .filter(o => o.selected)
+    .map(o => ({ operation: o.operation, column: o.column, columns: o.columns, params: o.params }))
+
+  if (!selectedOps.length) { toast.warning('Select at least one operation'); return }
+
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/import-recipe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ operations: selectedOps })
+    })
+    if (res.ok) {
+      importResults.value = await res.json()
+      importPreview.value = null
+      await refreshData()
+    } else {
+      const err = await res.json()
+      importError.value = err.detail || 'Import failed'
+    }
+  } catch (e) {
+    importError.value = e.message
+  } finally {
+    operating.value = false
+  }
+}
+
+function closeImportRecipe() {
+  showImportRecipe.value = false
+  importPreview.value = null
+  importResults.value = null
+  importText.value = ''
+  importFile.value = null
+  importError.value = ''
 }
 
 async function reorderRows(direction) {
