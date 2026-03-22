@@ -1213,6 +1213,199 @@ async def add_records(
     )
 
 
+class ImportRecipeRequest(BaseModel):
+    operations: list[dict]
+
+
+@router.post("/datasets/{dataset_id}/operations/import-recipe")
+async def import_recipe(
+    dataset_id: str,
+    request: ImportRecipeRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Import and apply a sequence of operations from a recipe (JSON list).
+
+    Each operation in the recipe: {operation: "...", column: "...", params: {...}}
+    Returns per-operation results: [{index, operation, status, message}, ...]
+    """
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+
+    if not request.operations:
+        raise HTTPException(status_code=400, detail="No operations provided")
+
+    df = pd.DataFrame(dataset.preview_data)
+    existing_columns = set(df.columns)
+    results = []
+
+    from app.routers.datasets import detect_columns, get_preview_data
+
+    for i, op in enumerate(request.operations):
+        op_type = op.get("operation", "")
+        op_column = op.get("column")
+        op_columns = op.get("columns")
+        op_params = op.get("params", {})
+
+        # Validate column existence
+        if op_column and op_column not in existing_columns:
+            results.append({"index": i, "operation": op_type, "column": op_column, "status": "skipped", "message": f"Column '{op_column}' not found"})
+            continue
+        if op_columns:
+            missing = [c for c in op_columns if c not in existing_columns]
+            if missing:
+                results.append({"index": i, "operation": op_type, "columns": op_columns, "status": "skipped", "message": f"Columns not found: {', '.join(missing)}"})
+                continue
+
+        try:
+            before_snapshot = {"columns": list(df.columns), "row_count": len(df)}
+
+            if op_type == "fillna":
+                method = op_params.get("method", "constant")
+                cols = op_columns or ([op_column] if op_column else None)
+                if cols:
+                    for c in cols:
+                        if method == "drop":
+                            df = df.dropna(subset=[c])
+                        elif method == "forward":
+                            df[c] = df[c].ffill()
+                        elif method == "backward":
+                            df[c] = df[c].bfill()
+                        elif method == "mean" and pd.api.types.is_numeric_dtype(df[c]):
+                            df[c] = df[c].fillna(df[c].mean())
+                        elif method == "median" and pd.api.types.is_numeric_dtype(df[c]):
+                            df[c] = df[c].fillna(df[c].median())
+                        elif method == "mode":
+                            mode_val = df[c].mode()
+                            if len(mode_val) > 0:
+                                df[c] = df[c].fillna(mode_val.iloc[0])
+                        else:
+                            df[c] = df[c].fillna(op_params.get("fill_value", ""))
+                else:
+                    if method == "drop":
+                        df = df.dropna()
+                    elif method == "forward":
+                        df = df.ffill()
+                    elif method == "backward":
+                        df = df.bfill()
+                df = df.reset_index(drop=True)
+
+            elif op_type == "remove-duplicates":
+                before_count = len(df)
+                df = df.drop_duplicates().reset_index(drop=True)
+
+            elif op_type == "string-operations":
+                if op_column and op_column in df.columns:
+                    str_op = op_params.get("operation", "strip")
+                    if str_op == "strip":
+                        df[op_column] = df[op_column].astype(str).str.strip()
+                    elif str_op == "lower":
+                        df[op_column] = df[op_column].astype(str).str.lower()
+                    elif str_op == "upper":
+                        df[op_column] = df[op_column].astype(str).str.upper()
+                    elif str_op == "title":
+                        df[op_column] = df[op_column].astype(str).str.title()
+                    elif str_op == "capitalize":
+                        df[op_column] = df[op_column].astype(str).str.capitalize()
+
+            elif op_type == "find-replace":
+                cols = op_columns or ([op_column] if op_column else [])
+                find_val = op_params.get("find", "")
+                replace_val = op_params.get("replace", "")
+                use_regex = op_params.get("regex", False)
+                case_sensitive = op_params.get("case_sensitive", True)
+                for c in cols:
+                    if c in df.columns:
+                        if use_regex:
+                            df[c] = df[c].astype(str).str.replace(find_val, replace_val, regex=True, case=case_sensitive)
+                        else:
+                            if case_sensitive:
+                                df[c] = df[c].astype(str).str.replace(find_val, replace_val, regex=False)
+                            else:
+                                df[c] = df[c].astype(str).str.replace(find_val, replace_val, case=False, regex=False)
+
+            elif op_type == "extract-json":
+                if op_column and op_column in df.columns:
+                    key = op_params.get("key", "")
+                    if key:
+                        import json as json_mod
+                        def extract(v):
+                            try:
+                                obj = json_mod.loads(str(v))
+                                keys = key.split(".")
+                                for k in keys:
+                                    obj = obj[k]
+                                return obj
+                            except (json.JSONDecodeError, TypeError, KeyError):
+                                return v
+                        df[op_column] = df[op_column].apply(extract)
+
+            elif op_type == "structural":
+                sub_op = op_params.get("operation", op.get("operation"))
+                if sub_op == "rename":
+                    new_name = op_params.get("new_name", "")
+                    if op_column and new_name and op_column in df.columns:
+                        df = df.rename(columns={op_column: new_name})
+                elif sub_op == "drop":
+                    cols_to_drop = op_columns or ([op_column] if op_column else [])
+                    df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
+                elif sub_op == "add_column":
+                    new_name = op_params.get("new_name", "")
+                    if new_name and new_name not in df.columns:
+                        df[new_name] = op_params.get("default_value", "")
+                elif sub_op == "astype":
+                    dtype = op_params.get("dtype", "str")
+                    cols = op_columns or ([op_column] if op_column else [])
+                    for c in cols:
+                        if c in df.columns:
+                            try:
+                                df[c] = df[c].astype(dtype)
+                            except (ValueError, TypeError):
+                                pass
+
+            elif op_type == "reorder_columns":
+                new_order = op_params.get("columns", op.get("columns", []))
+                if new_order and set(new_order) == set(df.columns):
+                    df = df[new_order]
+
+            else:
+                results.append({"index": i, "operation": op_type, "status": "skipped", "message": f"Unsupported operation type: {op_type}"})
+                continue
+
+            # Update existing columns set
+            existing_columns = set(df.columns)
+
+            # Save operation history
+            after_snapshot = {"columns": list(df.columns), "row_count": len(df)}
+            await save_operation(
+                dataset_id, op_type, {**op_params, "column": op_column, "columns": op_columns},
+                before_snapshot, after_snapshot, session
+            )
+
+            results.append({"index": i, "operation": op_type, "column": op_column, "status": "success", "message": "Applied"})
+
+        except Exception as e:
+            results.append({"index": i, "operation": op_type, "column": op_column, "status": "failed", "message": str(e)})
+
+    # Update dataset
+    dataset.columns = detect_columns(df)
+    dataset.row_count = len(df)
+    dataset.preview_data = get_preview_data(df)
+    await session.commit()
+
+    applied = sum(1 for r in results if r["status"] == "success")
+    skipped = sum(1 for r in results if r["status"] == "skipped")
+    failed = sum(1 for r in results if r["status"] == "failed")
+
+    return {
+        "status": "success" if failed == 0 else "partial" if applied > 0 else "failed",
+        "message": f"{applied} applied, {skipped} skipped, {failed} failed",
+        "results": results,
+        "columns": dataset.columns,
+    }
+
+
 @router.post("/datasets/{dataset_id}/operations/delete-rows")
 async def delete_rows(
     dataset_id: str,

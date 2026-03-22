@@ -137,9 +137,6 @@
             </BDropdownItem>
           </BDropdown>
 
-          <BButton size="sm" :variant="'outline-secondary'" @click="showTableSettings = true">
-            <i class="bi bi-gear"></i>
-          </BButton>
           <BButton size="sm" variant="primary" @click="showAddRecords = true">
             <i class="bi bi-plus-lg me-1"></i>Add
           </BButton>
@@ -151,6 +148,9 @@
           </BButton>
           <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-danger" @click="deleteSelectedRows">
             <i class="bi bi-trash me-1"></i>Delete {{ selectedRowIndices.length }}
+          </BButton>
+          <BButton size="sm" :variant="'outline-secondary'" @click="showTableSettings = true">
+            <i class="bi bi-gear"></i>
           </BButton>
           <BDropdown text="Rows" size="sm">
             <BDropdownItem @click="showRowFilterModal = true">
@@ -608,6 +608,109 @@
       </template>
     </BModal>
 
+    <!-- Export Recipe Modal -->
+    <BModal v-model="showExportRecipe" title="Export Operations Recipe" size="sm">
+      <p class="text-muted small">Export completed operations as a reusable JSON recipe.</p>
+      <div class="mb-3">
+        <strong class="small d-block mb-1">{{ completedOperations.length }} operation(s) to export</strong>
+        <div v-for="op in completedOperations.slice(0, 5)" :key="op.id" class="small text-muted">
+          <span class="badge bg-light text-dark me-1">{{ op.operation_type }}</span>
+        </div>
+        <small v-if="completedOperations.length > 5" class="text-muted">…and {{ completedOperations.length - 5 }} more</small>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" v-model="exportZip" id="export-zip">
+        <label class="form-check-label small" for="export-zip">Download as .zip (for large histories)</label>
+      </div>
+      <template #footer>
+        <BButton variant="outline-secondary" @click="showExportRecipe = false">Cancel</BButton>
+        <BButton variant="success" :disabled="!completedOperations.length" @click="exportRecipe">
+          <i class="bi bi-download me-1"></i>Export
+        </BButton>
+      </template>
+    </BModal>
+
+    <!-- Import Recipe Modal -->
+    <BModal v-model="showImportRecipe" title="Import Operations Recipe" size="lg" no-close-on-backdrop>
+      <div v-if="!importPreview && !importResults">
+        <ul class="nav nav-pills mb-3">
+          <li class="nav-item">
+            <button class="nav-link" :class="{ active: importMode === 'paste' }" @click="importMode = 'paste'">
+              <i class="bi bi-clipboard me-1"></i> Paste JSON
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" :class="{ active: importMode === 'file' }" @click="importMode = 'file'">
+              <i class="bi bi-file-earmark-arrow-up me-1"></i> Upload File
+            </button>
+          </li>
+        </ul>
+
+        <div v-if="importMode === 'paste'">
+          <BFormTextarea v-model="importText" rows="8" placeholder='[{"operation": "fillna", "column": "email", "params": {"method": "constant", "fill_value": "N/A"}}]'></BFormTextarea>
+          <small v-if="importError" class="text-danger d-block mt-1">{{ importError }}</small>
+        </div>
+
+        <div v-if="importMode === 'file'">
+          <BFormFile v-model="importFile" accept=".json,.zip" @update:model-value="onImportFileSelected"></BFormFile>
+          <small class="text-muted">Accepts .json or .zip files</small>
+          <small v-if="importError" class="text-danger d-block mt-1">{{ importError }}</small>
+        </div>
+
+        <div class="mt-3 text-end">
+          <BButton variant="primary" :disabled="!canParseImport" @click="parseImport">
+            <i class="bi bi-search me-1"></i>Preview
+          </BButton>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div v-if="importPreview">
+        <div class="alert" :class="importPreview.valid ? 'alert-info' : 'alert-warning'" py-2>
+          <i class="bi me-1" :class="importPreview.valid ? 'bi-check-circle' : 'bi-exclamation-triangle'"></i>
+          {{ importPreview.operations.length }} operation(s) parsed
+        </div>
+        <div class="list-group mb-3" style="max-height: 300px; overflow-y: auto;">
+          <div v-for="(op, i) in importPreview.operations" :key="i" class="list-group-item py-2 px-3 d-flex align-items-center gap-2">
+            <input class="form-check-input" type="checkbox" v-model="op.selected">
+            <span class="badge" :class="op.column_exists ? 'bg-success' : 'bg-warning'">
+              {{ op.operation }}
+            </span>
+            <small class="text-muted flex-grow-1">{{ op.column || op.columns?.join(', ') || '' }}</small>
+            <small v-if="!op.column_exists" class="text-warning">
+              <i class="bi bi-exclamation-triangle"></i> column missing
+            </small>
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          <BButton size="sm" variant="outline-secondary" @click="importPreview = null; importResults = null">← Back</BButton>
+          <BButton size="sm" variant="primary" :disabled="!importPreview.operations.some(o => o.selected && o.column_exists)" @click="applyImportRecipe">
+            <i class="bi bi-play-fill me-1"></i>Apply {{ importPreview.operations.filter(o => o.selected && o.column_exists).length }} operation(s)
+          </BButton>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div v-if="importResults">
+        <div class="alert" :class="importResults.status === 'success' ? 'alert-success' : importResults.status === 'partial' ? 'alert-warning' : 'alert-danger'" py-2>
+          <strong>{{ importResults.message }}</strong>
+        </div>
+        <div class="list-group mb-3" style="max-height: 200px; overflow-y: auto;">
+          <div v-for="r in importResults.results" :key="r.index" class="list-group-item py-2 px-3 d-flex align-items-center gap-2">
+            <i class="bi" :class="r.status === 'success' ? 'bi-check-circle text-success' : r.status === 'skipped' ? 'bi-skip-forward text-warning' : 'bi-x-circle text-danger'"></i>
+            <span class="badge bg-light text-dark">{{ r.operation }}</span>
+            <small class="text-muted flex-grow-1">{{ r.column || '' }}</small>
+            <small :class="r.status === 'success' ? 'text-success' : r.status === 'skipped' ? 'text-warning' : 'text-danger'">{{ r.message }}</small>
+          </div>
+        </div>
+        <BButton size="sm" variant="primary" @click="closeImportRecipe">Done</BButton>
+      </div>
+
+      <template #footer v-if="!importPreview && !importResults">
+        <BButton variant="outline-secondary" @click="showImportRecipe = false">Cancel</BButton>
+      </template>
+    </BModal>
+
     <!-- Operation Details Modal -->
     <BModal v-model="showOpDetailsModal" title="Operation Details" size="md">
       <div v-if="selectedOp">
@@ -808,9 +911,17 @@
     <div v-if="showHistory" class="history-sidebar">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Operation History</h6>
-        <BButton size="sm" variant="outline-secondary" @click="showHistory = false">
-          <i class="bi bi-x-lg"></i>
-        </BButton>
+        <div class="d-flex gap-1">
+          <BButton size="sm" variant="outline-success" @click="showExportRecipe = true" title="Export operations">
+            <i class="bi bi-download"></i>
+          </BButton>
+          <BButton size="sm" variant="outline-primary" @click="showImportRecipe = true" title="Import operations">
+            <i class="bi bi-upload"></i>
+          </BButton>
+          <BButton size="sm" variant="outline-secondary" @click="showHistory = false">
+            <i class="bi bi-x-lg"></i>
+          </BButton>
+        </div>
       </div>
       
       <div v-if="operations.length === 0" class="text-muted text-center py-4">
@@ -926,6 +1037,15 @@ let confirmResolve = null
 const showProfile = ref(false)
 const showCompare = ref(false)
 const showHistory = ref(false)
+const showExportRecipe = ref(false)
+const showImportRecipe = ref(false)
+const exportZip = ref(false)
+const importText = ref('')
+const importFile = ref(null)
+const importPreview = ref(null)
+const importResults = ref(null)
+const importMode = ref('paste')
+const importError = ref('')
 const showClipboardImport = ref(false)
 const showFillnaModal = ref(false)
 const showStructuralAiModal = ref(false)
@@ -978,6 +1098,11 @@ const findReplaceRegex = ref(false)
 const findReplaceCaseSensitive = ref(true)
 const canUndo = computed(() => operations.value.some(op => !op.is_undone))
 const canRedo = computed(() => operations.value.some(op => op.is_undone))
+const completedOperations = computed(() => operations.value.filter(op => !op.is_undone).reverse())
+const canParseImport = computed(() => {
+  if (importMode.value === 'paste') return importText.value.trim().length > 0
+  return importFile.value !== null
+})
 const selectedOpIds = ref([])
 const showOpDetailsModal = ref(false)
 const selectedOp = ref(null)

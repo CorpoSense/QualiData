@@ -659,6 +659,152 @@ class TestAddRecordsOperation:
         assert exc_info.value.status_code == 400
 
 
+class TestImportRecipeOperation:
+    """Test the import-recipe endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_import_fillna_recipe(self):
+        from app.routers.operations import import_recipe, ImportRecipeRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "Alice", "age": 30},
+            {"name": None, "age": 25},
+            {"name": "Carol", "age": None},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await import_recipe(
+                dataset_id="test-ds-id",
+                request=ImportRecipeRequest(operations=[
+                    {"operation": "fillna", "column": "name", "params": {"method": "constant", "fill_value": "Unknown"}},
+                    {"operation": "fillna", "column": "age", "params": {"method": "constant", "fill_value": 0}},
+                ]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result["status"] == "success"
+        assert result["results"][0]["status"] == "success"
+        assert result["results"][1]["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_import_skips_missing_columns(self):
+        from app.routers.operations import import_recipe, ImportRecipeRequest
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await import_recipe(
+                dataset_id="test-ds-id",
+                request=ImportRecipeRequest(operations=[
+                    {"operation": "fillna", "column": "nonexistent", "params": {"method": "constant", "fill_value": "X"}},
+                ]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result["results"][0]["status"] == "skipped"
+        assert "not found" in result["results"][0]["message"]
+
+    @pytest.mark.asyncio
+    async def test_import_string_operations(self):
+        from app.routers.operations import import_recipe, ImportRecipeRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "alice", "city": "paris"},
+            {"name": "bob", "city": "london"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await import_recipe(
+                dataset_id="test-ds-id",
+                request=ImportRecipeRequest(operations=[
+                    {"operation": "string-operations", "column": "name", "params": {"operation": "title"}},
+                ]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result["status"] == "success"
+        assert result["results"][0]["status"] == "success"
+        assert dataset.preview_data[0]["name"] == "Alice"
+
+    @pytest.mark.asyncio
+    async def test_import_unsupported_operation_skipped(self):
+        from app.routers.operations import import_recipe, ImportRecipeRequest
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await import_recipe(
+                dataset_id="test-ds-id",
+                request=ImportRecipeRequest(operations=[
+                    {"operation": "unknown_op", "params": {}},
+                ]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result["results"][0]["status"] == "skipped"
+        assert "Unsupported" in result["results"][0]["message"]
+
+    @pytest.mark.asyncio
+    async def test_import_empty_list_rejected(self):
+        from app.routers.operations import import_recipe, ImportRecipeRequest
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await import_recipe(
+                    dataset_id="test-ds-id",
+                    request=ImportRecipeRequest(operations=[]),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_import_continues_after_failure(self):
+        """A failed operation doesn't stop subsequent ones."""
+        from app.routers.operations import import_recipe, ImportRecipeRequest
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await import_recipe(
+                dataset_id="test-ds-id",
+                request=ImportRecipeRequest(operations=[
+                    {"operation": "fillna", "column": "nonexistent", "params": {"method": "constant", "fill_value": "X"}},
+                    {"operation": "string-operations", "column": "name", "params": {"operation": "upper"}},
+                ]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result["results"][0]["status"] == "skipped"
+        assert result["results"][1]["status"] == "success"
+        assert dataset.preview_data[0]["name"] == "ALICE"
+
+
 class TestDeleteRowsOperation:
     """Test the delete-rows operation."""
 
