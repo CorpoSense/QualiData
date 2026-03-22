@@ -134,5 +134,28 @@ class TestAuthRoutes:
         assert "/api/auth/me" in routes
 
 
+class TestPreviewColumnNormalization:
+    """Test that preview endpoint handles legacy string-format columns."""
+
+    def test_normalize_columns_from_strings(self):
+        from app.routers.datasets import _normalize_columns
+        result = _normalize_columns(["age", "name", "city"])
+        assert len(result) == 3
+        assert all(isinstance(c, dict) for c in result)
+        assert result[0] == {"name": "age", "dtype": "string"}
+        assert result[1] == {"name": "name", "dtype": "string"}
+
+    def test_normalize_columns_from_dicts(self):
+        from app.routers.datasets import _normalize_columns
+        input_cols = [{"name": "age", "dtype": "integer"}, {"name": "name", "dtype": "string"}]
+        result = _normalize_columns(input_cols)
+        assert result == input_cols
+
+    def test_normalize_columns_empty(self):
+        from app.routers.datasets import _normalize_columns
+        assert _normalize_columns([]) == []
+        assert _normalize_columns(None) == []
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -90,6 +90,15 @@ def detect_columns(df: pd.DataFrame) -> list[dict]:
     return columns
 
 
+def _normalize_columns(columns):
+    """Normalize columns to list of dicts, handling legacy string format."""
+    if not columns:
+        return []
+    if columns and isinstance(columns[0], str):
+        return [{"name": c, "dtype": "string"} for c in columns]
+    return columns
+
+
 def get_preview_data(df: pd.DataFrame, max_rows: int = 500, offset: int = 0) -> list[dict]:
     """Get preview data from DataFrame."""
     # Convert datetime columns FIRST (before NaN replacement, since NaT != NaN)
@@ -269,8 +278,11 @@ async def preview_dataset(
     end_idx = start_idx + limit
     preview_data = preview_list[start_idx:end_idx]
 
+    # Normalize columns: handle both dict format and legacy string format
+    columns = _normalize_columns(dataset.columns)
+
     return {
-        "columns": dataset.columns or [],
+        "columns": columns,
         "preview_data": preview_data,
         "row_count": dataset.row_count,
         "page": page,
@@ -308,7 +320,7 @@ async def filtered_dataset_post(
 
     preview_list = dataset.preview_data or []
     if not preview_list:
-        return {"columns": dataset.columns or [], "preview_data": [], "row_count": 0, "total_matching": 0, "page": page, "limit": limit}
+        return {"columns": _normalize_columns(dataset.columns), "preview_data": [], "row_count": 0, "total_matching": 0, "page": page, "limit": limit}
 
     # Build active filters (non-empty values only)
     active_filters = {k: str(v).strip().lower() for k, v in filters.items() if v and str(v).strip()}
@@ -335,7 +347,7 @@ async def filtered_dataset_post(
     preview_data = [preview_list[i] for i in page_indices]
 
     return {
-        "columns": dataset.columns or [],
+        "columns": _normalize_columns(dataset.columns),
         "preview_data": preview_data,
         "row_count": dataset.row_count,
         "total_matching": total_matching,
