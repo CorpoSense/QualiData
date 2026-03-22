@@ -726,8 +726,8 @@
           <BButton v-if="selectedOpIds.length > 0" size="sm" variant="outline-warning" @click="undoSelectedOps">
             <i class="bi bi-arrow-counterclockwise me-1"></i>Undo {{ selectedOpIds.length }}
           </BButton>
-          <BButton v-if="selectedOpIds.length > 0" size="sm" variant="outline-danger" @click="deleteSelectedOps" title="Delete selected undone operations">
-            <i class="bi bi-trash"></i>
+          <BButton v-if="selectedOpIds.length > 0" size="sm" variant="outline-danger" @click="deleteSelectedOps" :disabled="deletableSelectedCount === 0" title="Delete selected completed operations">
+            <i class="bi bi-trash me-1"></i>Delete {{ deletableSelectedCount }}
           </BButton>
         </div>
         <div v-for="op in operations" :key="op.id" class="card mb-2">
@@ -735,13 +735,11 @@
             <div class="d-flex justify-content-between align-items-start">
               <div class="d-flex align-items-start gap-2">
                 <input
-                  v-if="!op.is_undone"
                   class="form-check-input mt-1"
                   type="checkbox"
                   :checked="selectedOpIds.includes(op.id)"
                   @change="toggleOpSelection(op.id)"
                 >
-                <span v-else style="width: 16px;"></span>
                 <div>
                   <div class="d-flex align-items-center gap-1">
                     <span class="badge" :class="op.is_undone ? 'bg-secondary' : 'bg-primary'">
@@ -870,8 +868,13 @@ const selectedOpIds = ref([])
 const showOpDetailsModal = ref(false)
 const selectedOp = ref(null)
 const allOpsSelected = computed(() => {
-  const undoable = operations.value.filter(op => !op.is_undone)
-  return undoable.length > 0 && undoable.every(op => selectedOpIds.value.includes(op.id))
+  return operations.value.length > 0 && operations.value.every(op => selectedOpIds.value.includes(op.id))
+})
+const deletableSelectedCount = computed(() => {
+  return selectedOpIds.value.filter(id => {
+    const op = operations.value.find(o => o.id === id)
+    return op && !op.is_undone
+  }).length
 })
 const operating = ref(false)
 const aiInstruction = ref('')
@@ -1992,11 +1995,10 @@ function toggleOpSelection(opId) {
 }
 
 function toggleAllOps() {
-  const undoable = operations.value.filter(op => !op.is_undone)
   if (allOpsSelected.value) {
     selectedOpIds.value = []
   } else {
-    selectedOpIds.value = undoable.map(op => op.id)
+    selectedOpIds.value = operations.value.map(op => op.id)
   }
 }
 
@@ -2028,16 +2030,16 @@ async function undoSelectedOps() {
 
 async function deleteSelectedOps() {
   if (!selectedOpIds.value.length) return
-  // Only undone operations can be deleted
+  // Only completed (non-undone) operations can be deleted
   const deletable = selectedOpIds.value.filter(id => {
     const op = operations.value.find(o => o.id === id)
-    return op && op.is_undone
+    return op && !op.is_undone
   })
   if (!deletable.length) {
-    toast.warning('No undone operations selected. Undo operations first to delete them.')
+    toast.warning('No completed operations to delete. Undone operations cannot be deleted.')
     return
   }
-  if (!(await showConfirm({ title: 'Delete Operations', message: `Permanently delete ${deletable.length} operation record(s)?`, variant: 'danger', confirmText: 'Delete' }))) return
+  if (!(await showConfirm({ title: 'Delete Operations', message: `Permanently delete ${deletable.length} completed operation record(s)?`, variant: 'danger', confirmText: 'Delete' }))) return
   operating.value = true
   let deleted = 0
   try {
