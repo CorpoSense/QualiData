@@ -476,6 +476,7 @@ const dbTypeOptions = [
   { value: 'mysql', text: 'MySQL' },
   { value: 'sqlite', text: 'SQLite' },
   { value: 'oracle', text: 'Oracle' },
+  { value: 'mssql', text: 'SQL Server' },
 ]
 
 const sslmodeOptions = [
@@ -507,7 +508,7 @@ const dbTableOptions = computed(() => [
 
 // Update port when db_type changes
 watch(() => dbImportForm.db_type, (type) => {
-  const defaultPorts = { postgresql: 5432, mysql: 3306, sqlite: 0, oracle: 1521 }
+  const defaultPorts = { postgresql: 5432, mysql: 3306, sqlite: 0, oracle: 1521, mssql: 1433 }
   dbImportForm.port = defaultPorts[type] || 5432
   if (type === 'sqlite') dbImportForm.host = ''
 })

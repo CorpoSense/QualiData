@@ -67,3 +67,39 @@ class TestDbImportDatetime:
         result = json.dumps({"preview_data": preview, "columns": columns})
         assert "2024-01-01" in result
         assert isinstance(preview[0]["created_at"], str)
+
+
+class TestDbUrlBuilding:
+    """Test _build_db_url for different database types."""
+
+    def test_postgresql_url(self):
+        from app.routers.datasets import _build_db_url
+        url = _build_db_url("postgresql", "localhost", "5432", "mydb", "user", "pass")
+        assert url == "postgresql+psycopg2://user:pass@localhost:5432/mydb"
+
+    def test_postgresql_with_sslmode(self):
+        from app.routers.datasets import _build_db_url
+        url = _build_db_url("postgresql", "localhost", "5432", "mydb", "user", "pass", sslmode="require")
+        assert "sslmode=require" in url
+
+    def test_mysql_url(self):
+        from app.routers.datasets import _build_db_url
+        url = _build_db_url("mysql", "localhost", "3306", "mydb", "user", "pass")
+        assert url == "mysql+pymysql://user:pass@localhost:3306/mydb"
+
+    def test_sqlite_url(self):
+        from app.routers.datasets import _build_db_url
+        url = _build_db_url("sqlite", "", "", "/tmp/test.db", "", "")
+        assert url == "sqlite:////tmp/test.db"
+
+    def test_mssql_url(self):
+        from app.routers.datasets import _build_db_url
+        url = _build_db_url("mssql", "localhost", "1433", "mydb", "user", "pass")
+        assert url == "mssql+pymssql://user:pass@localhost:1433/mydb"
+
+    def test_unsupported_type_raises(self):
+        from fastapi import HTTPException
+        from app.routers.datasets import _build_db_url
+        import pytest
+        with pytest.raises(HTTPException):
+            _build_db_url("nosql", "localhost", "27017", "db", "user", "pass")

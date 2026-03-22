@@ -561,6 +561,7 @@ def _build_db_url(db_type: str, host: str, port: str, database: str, username: s
         "mysql": "mysql+pymysql",
         "sqlite": "sqlite",
         "oracle": "oracle+oracledb",
+        "mssql": "mssql+pymssql",
     }
     driver = drivers.get(db_type)
     if not driver:
