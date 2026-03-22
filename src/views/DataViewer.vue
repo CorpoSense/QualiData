@@ -1149,9 +1149,14 @@ async function saveCellEdit() {
       body: JSON.stringify({ row_index: cellEdit.value.row, column: cellEdit.value.column, value: cellEdit.value.value })
     })
     if (res.ok) {
-      toast.success('Cell updated')
-      showCellEdit.value = false
-      await refreshData()
+      const data = await res.json()
+      if (data.status === 'failed') {
+        toast.error(data.message || 'Update failed — check the value format')
+      } else {
+        toast.success('Cell updated')
+        showCellEdit.value = false
+        await refreshData()
+      }
     } else {
       const err = await res.json()
       toast.error(err.detail || 'Update failed')
