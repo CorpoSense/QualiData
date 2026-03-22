@@ -668,8 +668,9 @@ async function fetchOperations() {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         })
         if (opsRes.ok) {
-          const ops = await opsRes.json()
-          allOps.push(...ops.map(op => ({ ...op, dataset_name: ds.name })))
+          const opsData = await opsRes.json()
+          const opsList = opsData.operations || opsData || []
+          allOps.push(...opsList.map(op => ({ ...op, dataset_name: ds.name })))
         }
       }
       // Sort by date descending

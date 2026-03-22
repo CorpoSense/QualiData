@@ -2028,7 +2028,7 @@ async function fetchOperations() {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
-    if (res.ok) { operations.value = await res.json(); selectedOpIds.value = [] }
+    if (res.ok) { const d = await res.json(); operations.value = d.operations || d || []; selectedOpIds.value = [] }
   } catch { /* silent */ }
 }
 </script>
