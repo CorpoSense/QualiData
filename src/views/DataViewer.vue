@@ -126,6 +126,13 @@
             <BDropdownItem @click="applyStructuralOp('astype')">
               <i class="bi bi-arrow-left-right me-2"></i>Change type
             </BDropdownItem>
+            <BDropdownItem @click="openMergeColumnsModal">
+              <i class="bi bi-arrows-collapse me-2"></i>Merge columns
+            </BDropdownItem>
+            <BDropdownItem @click="openSplitColumnModal" :disabled="selectedColumns.length !== 1">
+              <i class="bi bi-arrows-expand me-2"></i>Split column
+              <span v-if="selectedColumns.length !== 1" class="text-muted small ms-2">(select 1)</span>
+            </BDropdownItem>
           </BDropdown>
 
           <BDropdown text="Dedupe" size="sm">
@@ -526,6 +533,73 @@
       :loading="operating"
       @apply="onOpConfirmApply"
     />
+
+    <!-- Merge Columns Modal -->
+    <BModal v-model="showMergeModal" title="Merge Columns" size="md">
+      <div class="alert alert-info py-2 small mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        Combine values from multiple columns into a single new column using a delimiter.
+      </div>
+      <BFormGroup label="Select columns to merge" label-size="sm">
+        <div class="d-flex flex-wrap gap-2">
+          <div v-for="col in columns" :key="col.field" class="form-check">
+            <input class="form-check-input" type="checkbox" :value="col.field" v-model="mergeColumns" :id="'merge-' + col.field">
+            <label class="form-check-label small" :for="'merge-' + col.field">{{ col.label || col.field }}</label>
+          </div>
+        </div>
+      </BFormGroup>
+      <BFormGroup label="New column name" label-size="sm" class="mt-2">
+        <BFormInput v-model="mergeNewColumn" size="sm" placeholder="e.g. full_name"></BFormInput>
+      </BFormGroup>
+      <BFormGroup label="Delimiter" label-size="sm" class="mt-2">
+        <BFormInput v-model="mergeDelimiter" size="sm" placeholder="e.g. space, comma, dash"></BFormInput>
+        <small class="text-muted">Character(s) between merged values. Leave empty for concatenation.</small>
+      </BFormGroup>
+      <div v-if="mergeColumns.length >= 2" class="mt-2 p-2 bg-light rounded small">
+        <strong>Preview:</strong> {{ mergeColumns.map(c => data[0]?.[c] ?? '…').join(mergeDelimiter || '') }}
+      </div>
+      <template #footer>
+        <BButton variant="outline-secondary" @click="showMergeModal = false">Cancel</BButton>
+        <BButton variant="primary" :loading="operating" :disabled="mergeColumns.length < 2 || !mergeNewColumn" @click="applyMerge">
+          <i class="bi bi-arrows-collapse me-1"></i>Merge
+        </BButton>
+      </template>
+    </BModal>
+
+    <!-- Split Column Modal -->
+    <BModal v-model="showSplitModal" title="Split Column" size="md">
+      <div class="alert alert-info py-2 small mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        Split <strong>{{ selectedColumns[0] || 'selected column' }}</strong> into multiple columns using a delimiter.
+      </div>
+      <BFormGroup label="Delimiter" label-size="sm">
+        <BFormInput v-model="splitDelimiter" size="sm" placeholder="e.g. space, comma, -"></BFormInput>
+        <small class="text-muted">Character(s) to split on.</small>
+      </BFormGroup>
+      <BFormGroup label="New column names" label-size="sm" class="mt-2">
+        <div class="d-flex gap-2 align-items-center mb-2">
+          <BFormInput v-model="splitNewColName" size="sm" placeholder="Column name" style="max-width: 200px;"></BFormInput>
+          <BButton size="sm" variant="outline-primary" @click="addSplitColumn" :disabled="!splitNewColName">
+            <i class="bi bi-plus"></i>
+          </BButton>
+        </div>
+        <div class="d-flex flex-wrap gap-1">
+          <span v-for="(name, i) in splitNewColumns" :key="i" class="badge bg-light text-dark d-flex align-items-center gap-1">
+            {{ name }}
+            <button class="btn-close btn-close-sm" style="font-size: 0.6rem;" @click="splitNewColumns.splice(i, 1)"></button>
+          </span>
+        </div>
+      </BFormGroup>
+      <div v-if="splitDelimiter && selectedColumns.length === 1" class="mt-2 p-2 bg-light rounded small">
+        <strong>Preview:</strong> {{ (data[0]?.[selectedColumns[0]] || '').toString().split(splitDelimiter).join(' | ') }}
+      </div>
+      <template #footer>
+        <BButton variant="outline-secondary" @click="showSplitModal = false">Cancel</BButton>
+        <BButton variant="primary" :loading="operating" :disabled="!splitDelimiter || splitNewColumns.length < 2" @click="applySplit">
+          <i class="bi bi-arrows-expand me-1"></i>Split
+        </BButton>
+      </template>
+    </BModal>
 
     <!-- Table Settings Modal -->
     <BModal v-model="showTableSettings" title="Table Settings" size="sm">
@@ -1110,6 +1184,14 @@ const extractJsonSuggestedKeys = ref([])
 const showFindReplaceModal = ref(false)
 const showOpConfirm = ref(false)
 const opConfirmConfig = ref({ title: '', description: '', operation: '', params: {}, options: [], handler: null })
+const showMergeModal = ref(false)
+const mergeColumns = ref([])
+const mergeNewColumn = ref('')
+const mergeDelimiter = ref(' ')
+const showSplitModal = ref(false)
+const splitDelimiter = ref('')
+const splitNewColumns = ref([])
+const splitNewColName = ref('')
 const findValue = ref('')
 const replaceValue = ref('')
 const findReplaceRegex = ref(false)
@@ -1415,6 +1497,77 @@ async function applyStringOp(operation) {
       await refreshData() 
     }
     else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
+// Merge columns
+function openMergeColumnsModal() {
+  mergeColumns.value = selectedColumns.value.length >= 2 ? [...selectedColumns.value] : []
+  mergeNewColumn.value = ''
+  mergeDelimiter.value = ' '
+  showMergeModal.value = true
+}
+
+async function applyMerge() {
+  if (mergeColumns.value.length < 2 || !mergeNewColumn.value) return
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/merge-columns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ columns: mergeColumns.value, new_column: mergeNewColumn.value, delimiter: mergeDelimiter.value })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || 'Columns merged')
+      showMergeModal.value = false
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Merge failed')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
+// Split column
+function openSplitColumnModal() {
+  if (selectedColumns.value.length !== 1) {
+    toast.warning('Select exactly 1 column to split')
+    return
+  }
+  splitDelimiter.value = ''
+  splitNewColumns.value = []
+  splitNewColName.value = ''
+  showSplitModal.value = true
+}
+
+function addSplitColumn() {
+  if (splitNewColName.value.trim()) {
+    splitNewColumns.value.push(splitNewColName.value.trim())
+    splitNewColName.value = ''
+  }
+}
+
+async function applySplit() {
+  if (!splitDelimiter.value || splitNewColumns.value.length < 2) return
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/split-column`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ column: selectedColumns.value[0], delimiter: splitDelimiter.value, new_columns: splitNewColumns.value })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || 'Column split')
+      showSplitModal.value = false
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Split failed')
+    }
   } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
 }

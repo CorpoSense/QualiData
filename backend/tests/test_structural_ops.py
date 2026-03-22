@@ -805,6 +805,149 @@ class TestImportRecipeOperation:
         assert dataset.preview_data[0]["name"] == "ALICE"
 
 
+class TestMergeColumnsOperation:
+    """Test the merge-columns operation."""
+
+    @pytest.mark.asyncio
+    async def test_merge_columns_with_delimiter(self):
+        from app.routers.operations import merge_columns, MergeColumnsRequest
+
+        dataset = _make_mock_dataset([
+            {"first": "John", "last": "Doe"},
+            {"first": "Jane", "last": "Smith"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await merge_columns(
+                dataset_id="test-ds-id",
+                request=MergeColumnsRequest(columns=["first", "last"], new_column="full_name", delimiter=" "),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert "full_name" in dataset.preview_data[0]
+        assert dataset.preview_data[0]["full_name"] == "John Doe"
+        assert dataset.preview_data[1]["full_name"] == "Jane Smith"
+
+    @pytest.mark.asyncio
+    async def test_merge_columns_no_delimiter(self):
+        from app.routers.operations import merge_columns, MergeColumnsRequest
+
+        dataset = _make_mock_dataset([
+            {"area": "555", "number": "1234"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await merge_columns(
+                dataset_id="test-ds-id",
+                request=MergeColumnsRequest(columns=["area", "number"], new_column="phone", delimiter=""),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert dataset.preview_data[0]["phone"] == "5551234"
+
+    @pytest.mark.asyncio
+    async def test_merge_columns_missing_raises(self):
+        from app.routers.operations import merge_columns, MergeColumnsRequest
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await merge_columns(
+                    dataset_id="test-ds-id",
+                    request=MergeColumnsRequest(columns=["name", "missing_col"], new_column="merged", delimiter=" "),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+        assert exc_info.value.status_code == 400
+
+
+class TestSplitColumnOperation:
+    """Test the split-column operation."""
+
+    @pytest.mark.asyncio
+    async def test_split_column_by_delimiter(self):
+        from app.routers.operations import split_column, SplitColumnRequest
+
+        dataset = _make_mock_dataset([
+            {"full_name": "John Doe"},
+            {"full_name": "Jane Smith"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await split_column(
+                dataset_id="test-ds-id",
+                request=SplitColumnRequest(column="full_name", delimiter=" ", new_columns=["first", "last"]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert dataset.preview_data[0]["first"] == "John"
+        assert dataset.preview_data[0]["last"] == "Doe"
+        assert dataset.preview_data[1]["first"] == "Jane"
+        assert dataset.preview_data[1]["last"] == "Smith"
+
+    @pytest.mark.asyncio
+    async def test_split_column_missing_raises(self):
+        from app.routers.operations import split_column, SplitColumnRequest
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await split_column(
+                    dataset_id="test-ds-id",
+                    request=SplitColumnRequest(column="nonexistent", delimiter=" ", new_columns=["a", "b"]),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_split_column_extra_parts_fill_null(self):
+        """When split produces fewer parts than new columns, extras get None."""
+        from app.routers.operations import split_column, SplitColumnRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "John"},  # No delimiter, only 1 part
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await split_column(
+                dataset_id="test-ds-id",
+                request=SplitColumnRequest(column="name", delimiter=" ", new_columns=["first", "last"]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result.status == "success"
+        assert dataset.preview_data[0]["first"] == "John"
+        assert dataset.preview_data[0]["last"] is None
+
+
 class TestDeleteRowsOperation:
     """Test the delete-rows operation."""
 
