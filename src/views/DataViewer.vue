@@ -41,43 +41,43 @@
         <!-- Operation Buttons -->
         <div class="d-flex flex-wrap gap-2 align-items-center">
           <BDropdown text="Missing Values" size="sm">
-            <BDropdownItem @click="applyOperation('fillna', { method: 'drop' })">
+            <BDropdownItem @click="showOpConfirmModal('fillna-drop')">
               <i class="bi bi-trash me-2"></i>Drop rows with nulls
             </BDropdownItem>
             <BDropdownItem @click="showFillnaModal = true">
               <i class="bi bi-pencil me-2"></i>Fill with value…
             </BDropdownItem>
-            <BDropdownItem @click="applyFillnaStat('mean')">
+            <BDropdownItem @click="showOpConfirmModal('fillna-mean')">
               <i class="bi bi-calculator me-2"></i>Fill with mean (numeric)
             </BDropdownItem>
-            <BDropdownItem @click="applyFillnaStat('median')">
+            <BDropdownItem @click="showOpConfirmModal('fillna-median')">
               <i class="bi bi-calculator me-2"></i>Fill with median (numeric)
             </BDropdownItem>
-            <BDropdownItem @click="applyFillnaStat('mode')">
+            <BDropdownItem @click="showOpConfirmModal('fillna-mode')">
               <i class="bi bi-bar-chart me-2"></i>Fill with mode
             </BDropdownItem>
-            <BDropdownItem @click="applyOperation('fillna', { method: 'forward' })">
+            <BDropdownItem @click="showOpConfirmModal('fillna-forward')">
               <i class="bi bi-arrow-down me-2"></i>Forward fill
             </BDropdownItem>
-            <BDropdownItem @click="applyOperation('fillna', { method: 'backward' })">
+            <BDropdownItem @click="showOpConfirmModal('fillna-backward')">
               <i class="bi bi-arrow-up me-2"></i>Backward fill
             </BDropdownItem>
           </BDropdown>
 
           <BDropdown text="String Ops" size="sm">
-            <BDropdownItem @click="applyStringOp('strip')">
+            <BDropdownItem @click="showOpConfirmModal('string-strip')">
               <i class="bi bi-type me-2"></i>Trim whitespace
             </BDropdownItem>
-            <BDropdownItem @click="applyStringOp('lower')">
+            <BDropdownItem @click="showOpConfirmModal('string-lower')">
               <i class="bi bi-type me-2"></i>Lowercase
             </BDropdownItem>
-            <BDropdownItem @click="applyStringOp('upper')">
+            <BDropdownItem @click="showOpConfirmModal('string-upper')">
               <i class="bi bi-type me-2"></i>Uppercase
             </BDropdownItem>
-            <BDropdownItem @click="applyStringOp('title')">
+            <BDropdownItem @click="showOpConfirmModal('string-title')">
               <i class="bi bi-type me-2"></i>Title case
             </BDropdownItem>
-            <BDropdownItem @click="applyStringOp('capitalize')">
+            <BDropdownItem @click="showOpConfirmModal('string-capitalize')">
               <i class="bi bi-type me-2"></i>Capitalize
             </BDropdownItem>
             <BDropdownItem @click="openExtractJsonModal">
@@ -89,25 +89,25 @@
           </BDropdown>
 
           <BDropdown text="Date Ops" size="sm">
-            <BDropdownItem @click="applyDatetimeOp('parse-datetime')">
+            <BDropdownItem @click="showOpConfirmModal('datetime-parse-datetime')">
               <i class="bi bi-calendar me-2"></i>Parse datetime
             </BDropdownItem>
-            <BDropdownItem @click="applyDatetimeOp('extract-year')">
+            <BDropdownItem @click="showOpConfirmModal('datetime-extract-year')">
               <i class="bi bi-calendar3 me-2"></i>Extract year
             </BDropdownItem>
-            <BDropdownItem @click="applyDatetimeOp('extract-month')">
+            <BDropdownItem @click="showOpConfirmModal('datetime-extract-month')">
               <i class="bi bi-calendar3 me-2"></i>Extract month
             </BDropdownItem>
           </BDropdown>
 
           <BDropdown text="Numeric Ops" size="sm">
-            <BDropdownItem @click="applyNumericOp('round')">
+            <BDropdownItem @click="showOpConfirmModal('numeric-round')">
               <i class="bi bi-123 me-2"></i>Round numbers
             </BDropdownItem>
-            <BDropdownItem @click="applyNumericOp('normalize')">
+            <BDropdownItem @click="showOpConfirmModal('numeric-normalize')">
               <i class="bi bi-percent me-2"></i>Normalize
             </BDropdownItem>
-            <BDropdownItem @click="applyNumericOp('outliers')">
+            <BDropdownItem @click="showOpConfirmModal('numeric-outliers')">
               <i class="bi bi-exclamation-triangle me-2"></i>Handle outliers
             </BDropdownItem>
           </BDropdown>
@@ -129,10 +129,10 @@
           </BDropdown>
 
           <BDropdown text="Dedupe" size="sm">
-            <BDropdownItem @click="applyDedup('duplicates')">
+            <BDropdownItem @click="showOpConfirmModal('remove-duplicates')">
               <i class="bi bi-copy me-2"></i>Remove duplicates
             </BDropdownItem>
-            <BDropdownItem @click="applyDedup('fuzzy')">
+            <BDropdownItem @click="showOpConfirmModal('fuzzy-dedupe')">
               <i class="bi bi-search me-2"></i>Fuzzy match
             </BDropdownItem>
           </BDropdown>
@@ -514,6 +514,18 @@
         <BButton v-if="!operating && batchProgress && (batchProgress.status === 'done' || batchProgress.status === 'error')" variant="primary" @click="closeDataAiModal">Close</BButton>
       </template>
     </BModal>
+
+    <!-- Operation Confirm Modal -->
+    <OperationConfirmModal
+      v-model="showOpConfirm"
+      :title="opConfirmConfig.title"
+      :description="opConfirmConfig.description"
+      :options="opConfirmConfig.options"
+      :defaults="opConfirmConfig.params"
+      :selected-columns="selectedColumns"
+      :loading="operating"
+      @apply="onOpConfirmApply"
+    />
 
     <!-- Table Settings Modal -->
     <BModal v-model="showTableSettings" title="Table Settings" size="sm">
@@ -992,6 +1004,7 @@ import { useRoute } from 'vue-router'
 import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormFile, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem } from 'bootstrap-vue-next'
 import DataTable from '../components/DataTable.vue'
 import PromptModal from '../components/PromptModal.vue'
+import OperationConfirmModal from '../components/OperationConfirmModal.vue'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
@@ -1095,6 +1108,8 @@ const extractJsonKey = ref('')
 const extractJsonSamples = ref([])
 const extractJsonSuggestedKeys = ref([])
 const showFindReplaceModal = ref(false)
+const showOpConfirm = ref(false)
+const opConfirmConfig = ref({ title: '', description: '', operation: '', params: {}, options: [], handler: null })
 const findValue = ref('')
 const replaceValue = ref('')
 const findReplaceRegex = ref(false)
@@ -1610,7 +1625,107 @@ async function applyFillnaStat(method) {
   finally { operating.value = false }
 }
 
-async function applyDedup(type) { await applyOperation(type === 'duplicates' ? 'remove-duplicates' : 'fuzzy-dedupe', {}) }
+const OP_CONFIGS = {
+  // Fillna
+  'fillna-drop': { title: 'Drop Rows with Nulls', description: 'Removes all rows that contain any null/missing values. This cannot be undone easily for large datasets.', operation: 'fillna', params: { method: 'drop' }, options: [] },
+  'fillna-mean': { title: 'Fill with Mean', description: 'Replaces null values in numeric columns with the column mean (average). Only affects numeric columns.', operation: 'fillna', params: { method: 'mean' }, options: [] },
+  'fillna-median': { title: 'Fill with Median', description: 'Replaces null values in numeric columns with the column median. More robust to outliers than mean.', operation: 'fillna', params: { method: 'median' }, options: [] },
+  'fillna-mode': { title: 'Fill with Mode', description: 'Replaces null values with the most frequent value in each column.', operation: 'fillna', params: { method: 'mode' }, options: [] },
+  'fillna-forward': { title: 'Forward Fill', description: 'Propagates the last valid observation forward to fill null values.', operation: 'fillna', params: { method: 'forward' }, options: [] },
+  'fillna-backward': { title: 'Backward Fill', description: 'Propagates the next valid observation backward to fill null values.', operation: 'fillna', params: { method: 'backward' }, options: [] },
+  // String ops
+  'string-strip': { title: 'Trim Whitespace', description: 'Removes leading and trailing whitespace from text values.', operation: 'string-operations', params: { operation: 'strip' }, options: [] },
+  'string-lower': { title: 'Lowercase', description: 'Converts all text to lowercase.', operation: 'string-operations', params: { operation: 'lower' }, options: [] },
+  'string-upper': { title: 'Uppercase', description: 'Converts all text to UPPERCASE.', operation: 'string-operations', params: { operation: 'upper' }, options: [] },
+  'string-title': { title: 'Title Case', description: 'Capitalizes The First Letter Of Each Word.', operation: 'string-operations', params: { operation: 'title' }, options: [] },
+  'string-capitalize': { title: 'Capitalize', description: 'Capitalizes only the first letter of each value.', operation: 'string-operations', params: { operation: 'capitalize' }, options: [] },
+  // Date ops
+  'datetime-parse-datetime': { title: 'Parse Datetime', description: 'Attempts to parse text values into datetime format.', operation: 'datetime-operations', params: { operation: 'parse-datetime' }, options: [] },
+  'datetime-extract-year': { title: 'Extract Year', description: 'Extracts the year component from datetime values into a new column.', operation: 'datetime-operations', params: { operation: 'extract-year' }, options: [] },
+  'datetime-extract-month': { title: 'Extract Month', description: 'Extracts the month component from datetime values into a new column.', operation: 'datetime-operations', params: { operation: 'extract-month' }, options: [] },
+  // Numeric ops
+  'numeric-round': { title: 'Round Numbers', description: 'Rounds numeric values to a specified number of decimal places.', operation: 'numeric', params: { operation: 'round' }, options: [{ key: 'decimals', label: 'Decimal places', type: 'range', min: 0, max: 10, step: 1, hint: 'Number of decimal places to round to' }] },
+  'numeric-normalize': { title: 'Normalize', description: 'Scales numeric values to a 0-1 range using min-max normalization.', operation: 'numeric', params: { operation: 'normalize' }, options: [] },
+  'numeric-outliers': { title: 'Handle Outliers', description: 'Detects and handles statistical outliers using the IQR method. Outliers are capped to the fence values.', operation: 'numeric', params: { operation: 'outliers' }, options: [] },
+  // Dedupe
+  'remove-duplicates': { title: 'Remove Duplicates', description: 'Removes duplicate rows from the dataset. By default, considers all columns to determine duplicates.', operation: 'remove-duplicates', params: {}, options: [{ key: 'keep', label: 'Keep', type: 'select', choices: [{ value: 'first', text: 'First occurrence' }, { value: 'last', text: 'Last occurrence' }], hint: 'Which duplicate to keep when multiple exist' }] },
+  'fuzzy-dedupe': { title: 'Fuzzy Match — Deduplication', description: 'Finds and removes approximate duplicate rows using string similarity. Useful for catching near-duplicates with typos or formatting differences.', operation: 'fuzzy-dedupe', params: { threshold: 85 }, options: [{ key: 'threshold', label: 'Similarity threshold (%)', type: 'range', min: 50, max: 100, step: 5, hint: 'Higher = stricter matching. 100 = exact match only. Recommended: 80-90.' }] },
+}
+
+function showOpConfirmModal(opId) {
+  const config = OP_CONFIGS[opId]
+  if (!config) {
+    toast.warning(`Unknown operation: ${opId}`)
+    return
+  }
+  if (!selectedColumns.value.length && !['remove-duplicates', 'fuzzy-dedupe', 'fillna-drop'].includes(config.operation)) {
+    toast.warning('Select column(s) first')
+    return
+  }
+  opConfirmConfig.value = {
+    title: config.title,
+    description: config.description,
+    operation: config.operation,
+    params: { ...config.params },
+    options: config.options,
+    handler: opId,
+  }
+  showOpConfirm.value = true
+}
+
+async function onOpConfirmApply(params) {
+  const config = opConfirmConfig.value
+  const opId = config.handler
+  showOpConfirm.value = false
+  operating.value = true
+
+  try {
+    // Build the request based on operation type
+    let endpoint, body
+    const mergedParams = { ...OP_CONFIGS[opId]?.params, ...params }
+
+    if (config.operation === 'fillna') {
+      endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/fillna`
+      body = { columns: selectedColumns.value.length ? selectedColumns.value : undefined, ...mergedParams }
+    } else if (config.operation === 'remove-duplicates') {
+      endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/remove-duplicates`
+      body = mergedParams
+    } else if (config.operation === 'fuzzy-dedupe') {
+      endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/fuzzy-dedupe`
+      body = mergedParams
+    } else if (config.operation === 'string-operations') {
+      endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/string-operations`
+      body = { columns: selectedColumns.value, ...mergedParams }
+    } else if (config.operation === 'datetime-operations') {
+      endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/datetime-operations`
+      body = { columns: selectedColumns.value, ...mergedParams }
+    } else if (config.operation === 'numeric') {
+      endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/numeric`
+      body = { columns: selectedColumns.value, ...mergedParams }
+    } else {
+      toast.warning(`Unknown operation: ${config.operation}`)
+      return
+    }
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(body)
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || 'Operation applied')
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Operation failed')
+    }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    operating.value = false
+  }
+}
 
 async function applyRowFilter() {
   showRowFilterModal.value = false
