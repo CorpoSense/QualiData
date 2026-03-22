@@ -92,6 +92,11 @@ def detect_columns(df: pd.DataFrame) -> list[dict]:
 
 def get_preview_data(df: pd.DataFrame, max_rows: int = 500, offset: int = 0) -> list[dict]:
     """Get preview data from DataFrame."""
+    # Convert datetime columns FIRST (before NaN replacement, since NaT != NaN)
+    for col in df.columns:
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            df[col] = df[col].astype(str)
+            df[col] = df[col].replace("NaT", None)
     # Replace NaN/inf with None for JSON compatibility
     df = df.replace([np.inf, -np.inf], np.nan).replace({np.nan: None})
     return df.iloc[offset:offset + max_rows].to_dict(orient="records")
@@ -636,6 +641,12 @@ async def import_from_database(
         engine = create_engine(url, connect_args={"connect_timeout": 10})
         df = pd.read_sql_table(table_name, engine)
         engine.dispose()
+
+        # Convert datetime columns to ISO strings for JSON serialization
+        for col in df.columns:
+            if pd.api.types.is_datetime64_any_dtype(df[col]):
+                df[col] = df[col].astype(str)
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read table: {str(e)}")
 
