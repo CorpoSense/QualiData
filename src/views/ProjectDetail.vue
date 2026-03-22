@@ -297,6 +297,42 @@
       </template>
     </BModal>
 
+    <!-- Profile Modal -->
+    <BModal v-model="showProfileModal" title="Data Profile" size="lg">
+      <div v-if="profileLoading" class="text-center py-4">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="text-muted mt-2">Loading profile…</p>
+      </div>
+      <div v-else-if="profileData">
+        <div class="row g-3">
+          <div v-for="col in profileData.columns" :key="col.name" class="col-md-6">
+            <div class="card h-100">
+              <div class="card-body py-2 px-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <strong class="small">{{ col.name }}</strong>
+                  <span class="badge bg-light text-dark">{{ col.dtype }}</span>
+                </div>
+                <div class="small text-muted">
+                  <span v-if="col.null_count > 0" class="text-danger me-2">
+                    {{ col.null_count }} nulls ({{ col.null_percent }}%)
+                  </span>
+                  <span>{{ col.unique_count }} unique</span>
+                  <span class="ms-2">Quality: {{ col.quality_score }}%</span>
+                </div>
+                <div v-if="col.stats?.top_values?.length" class="mt-1">
+                  <small class="text-muted">Top: </small>
+                  <small v-for="(v, i) in col.stats.top_values.slice(0, 3)" :key="i" class="badge bg-light text-dark me-1">{{ v.value }} ({{ v.count }})</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <BButton variant="primary" @click="showProfileModal = false">Close</BButton>
+      </template>
+    </BModal>
+
     <!-- Export Modal -->
     <BModal v-model="showExportModal" title="Export Dataset">
       <BFormGroup label="Format" label-for="export-format">
@@ -381,6 +417,9 @@ const showRenameModal = ref(false)
 const showExportModal = ref(false)
 const exportFormat = ref('csv')
 const exportLimit = ref(0)
+const showProfileModal = ref(false)
+const profileData = ref(null)
+const profileLoading = ref(false)
 const renameDatasetId = ref(null)
 const renameDatasetName = ref('')
 const renameDatasetDesc = ref('')
@@ -787,7 +826,26 @@ function viewDataset(dataset) {
 }
 
 function profileDataset(dataset) {
-  router.push(`/projects/${projectId}/dataset/${dataset.id}?showProfile=true`)
+  selectedDataset.value = dataset
+  fetchDatasetProfile(dataset.id)
+}
+
+async function fetchDatasetProfile(dsId) {
+  profileLoading.value = true
+  profileData.value = null
+  showProfileModal.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${dsId}/profile`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) {
+      profileData.value = await res.json()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed to load profile')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { profileLoading.value = false }
 }
 
 function formatNumber(num) {
