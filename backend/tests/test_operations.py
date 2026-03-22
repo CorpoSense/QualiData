@@ -176,3 +176,70 @@ class TestDeleteOperationHistory:
 
         assert exc_info.value.status_code == 400
         assert "Undo it first" in exc_info.value.detail
+
+
+class TestOperationStats:
+    """Test GET /operations/stats endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_stats_returns_correct_structure(self):
+        from app.routers.operations import get_operation_stats
+
+        mock_session = AsyncMock()
+        call_count = [0]
+
+        async def mock_execute(stmt):
+            call_count[0] += 1
+            mock_r = MagicMock()
+            s = str(stmt).lower()
+            if "projects" in s and "operation_history" not in s:
+                mock_r.fetchall.return_value = [("proj-1",)]
+            elif "datasets" in s and "operation_history" not in s:
+                mock_r.fetchall.return_value = [("ds-1",)]
+            elif "count" in s and "operation_history" in s and "is_undone" in s:
+                mock_r.scalar.return_value = 2  # undone count
+            elif "count" in s and "operation_history" in s and "ai_" in s:
+                mock_r.scalar.return_value = 5  # AI ops
+            elif "count" in s and "operation_history" in s:
+                mock_r.scalar.return_value = 10  # total
+            elif "group_by" in s:
+                mock_r.fetchall.return_value = [("fillna", 3), ("string-operations", 2)]
+            else:
+                mock_r.scalar.return_value = 0
+            return mock_r
+
+        mock_session.execute = mock_execute
+
+        result = await get_operation_stats(
+            current_user=MagicMock(id="u1"),
+            session=mock_session,
+        )
+
+        assert "total" in result
+        assert "ai_operations" in result
+        assert "manual_operations" in result
+        assert "active" in result
+        assert "undone" in result
+        assert "top_types" in result
+
+    @pytest.mark.asyncio
+    async def test_stats_empty_user(self):
+        from app.routers.operations import get_operation_stats
+
+        mock_session = AsyncMock()
+
+        async def mock_execute(stmt):
+            mock_r = MagicMock()
+            mock_r.fetchall.return_value = []
+            mock_r.scalar.return_value = 0
+            return mock_r
+
+        mock_session.execute = mock_execute
+
+        result = await get_operation_stats(
+            current_user=MagicMock(id="u1"),
+            session=mock_session,
+        )
+
+        assert result["total"] == 0
+        assert result["top_types"] == []

@@ -78,8 +78,40 @@
     <div class="row g-4">
       <div class="col-lg-4">
         <div class="api-card h-100">
-          <h2 class="h5 fw-bold mb-4">API Usage</h2>
-          <RateLimitStatus />
+          <h2 class="h5 fw-bold mb-4">Operation Stats</h2>
+          <div v-if="opStats" class="row g-2">
+            <div class="col-6">
+              <div class="text-center p-2 bg-light rounded">
+                <div class="h4 fw-bold text-primary mb-0">{{ opStats.total }}</div>
+                <small class="text-muted">Total Ops</small>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="text-center p-2 bg-light rounded">
+                <div class="h4 fw-bold text-success mb-0">{{ opStats.ai_operations }}</div>
+                <small class="text-muted">AI Ops</small>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="text-center p-2 bg-light rounded">
+                <div class="h4 fw-bold mb-0">{{ opStats.active }}</div>
+                <small class="text-muted">Active</small>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="text-center p-2 bg-light rounded">
+                <div class="h4 fw-bold text-secondary mb-0">{{ opStats.undone }}</div>
+                <small class="text-muted">Undone</small>
+              </div>
+            </div>
+          </div>
+          <div v-if="opStats?.top_types?.length" class="mt-3">
+            <small class="text-muted fw-bold">Most Used:</small>
+            <div v-for="t in opStats.top_types" :key="t.type" class="d-flex justify-content-between small mt-1">
+              <span>{{ formatOpType(t.type) }}</span>
+              <span class="badge bg-light text-dark">{{ t.count }}</span>
+            </div>
+          </div>
         </div>
       </div>
       <div class="col-lg-8">
@@ -175,11 +207,11 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getApiUrl } from '@/utils/api'
-import RateLimitStatus from '@/components/RateLimitStatus.vue'
 
 const router = useRouter()
 const apiUrl = getApiUrl()
 const stats = ref({ projects: 0, datasets: 0, rows: 0, storage: 0 })
+const opStats = ref(null)
 const projects = ref([])
 const operations = ref([])
 const loading = ref(true)
@@ -187,9 +219,7 @@ const operationsLoading = ref(true)
 const showImportModal = ref(false)
 
 onMounted(async () => {
-  await fetchStats()
-  await fetchProjects()
-  await fetchOperations()
+  await Promise.all([fetchStats(), fetchOpStats(), fetchProjects(), fetchOperations()])
 })
 
 async function fetchStats() {
@@ -215,6 +245,19 @@ async function fetchStats() {
   } catch (e) {
     console.error(e)
   }
+}
+
+async function fetchOpStats() {
+  try {
+    const res = await fetch(`${apiUrl}/api/operations/stats`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) opStats.value = await res.json()
+  } catch { /* silent */ }
+}
+
+function formatOpType(type) {
+  return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 }
 
 async function fetchOperations() {

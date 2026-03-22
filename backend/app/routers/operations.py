@@ -1273,3 +1273,79 @@ async def numeric_operations(
     msg = f"Applied {operation} to {success_count} column(s)"
 
     return {"status": "success", "message": msg, "columns": dataset.columns, "results": results}
+
+
+@router.get("/operations/stats")
+async def get_operation_stats(
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Get operation statistics for the current user's datasets."""
+    from sqlalchemy import func
+
+    # Get all dataset IDs owned by the user
+    projects_result = await session.execute(
+        select(Project.id).where(Project.user_id == current_user.id)
+    )
+    project_ids = [r[0] for r in projects_result.fetchall()]
+
+    if not project_ids:
+        return {"total": 0, "ai_operations": 0, "manual_operations": 0, "active": 0, "undone": 0, "top_types": []}
+
+    # Get dataset IDs for these projects
+    datasets_result = await session.execute(
+        select(Dataset.id).where(Dataset.project_id.in_(project_ids))
+    )
+    dataset_ids = [str(r[0]) for r in datasets_result.fetchall()]
+
+    if not dataset_ids:
+        return {"total": 0, "ai_operations": 0, "manual_operations": 0, "active": 0, "undone": 0, "top_types": []}
+
+    # Count operations
+    total_result = await session.execute(
+        select(func.count(OperationHistory.id)).where(
+            cast(OperationHistory.dataset_id, String).in_(dataset_ids)
+        )
+    )
+    total = total_result.scalar() or 0
+
+    # Count undone
+    undone_result = await session.execute(
+        select(func.count(OperationHistory.id)).where(
+            cast(OperationHistory.dataset_id, String).in_(dataset_ids),
+            OperationHistory.is_undone == True,
+        )
+    )
+    undone = undone_result.scalar() or 0
+
+    # Count AI operations
+    ai_types = ["ai_clean", "ai_structural", "ai_data_clean", "ai_data_clean_batch", "ai_suggest"]
+    ai_result = await session.execute(
+        select(func.count(OperationHistory.id)).where(
+            cast(OperationHistory.dataset_id, String).in_(dataset_ids),
+            OperationHistory.operation_type.in_(ai_types),
+        )
+    )
+    ai_count = ai_result.scalar() or 0
+
+    # Count by type (top 5)
+    type_result = await session.execute(
+        select(
+            OperationHistory.operation_type,
+            func.count(OperationHistory.id).label("count")
+        )
+        .where(cast(OperationHistory.dataset_id, String).in_(dataset_ids))
+        .group_by(OperationHistory.operation_type)
+        .order_by(func.count(OperationHistory.id).desc())
+        .limit(5)
+    )
+    top_types = [{"type": r[0], "count": r[1]} for r in type_result.fetchall()]
+
+    return {
+        "total": total,
+        "ai_operations": ai_count,
+        "manual_operations": total - ai_count,
+        "active": total - undone,
+        "undone": undone,
+        "top_types": top_types,
+    }
