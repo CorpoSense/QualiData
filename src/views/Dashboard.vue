@@ -63,7 +63,7 @@
             <BButton variant="primary" class="rounded-pill px-4" @click="$router.push('/projects')">
               <i class="bi bi-plus-lg me-2"></i>New Project
             </BButton>
-            <BButton variant="outline-primary" class="rounded-pill px-4" @click="showImportModal = true">
+            <BButton variant="outline-primary" class="rounded-pill px-4" @click="importData">
               <i class="bi bi-upload me-2"></i>Import Data
             </BButton>
             <BButton variant="outline-primary" class="rounded-pill px-4" @click="$router.push('/assistant')">
@@ -216,7 +216,15 @@ const projects = ref([])
 const operations = ref([])
 const loading = ref(true)
 const operationsLoading = ref(true)
-const showImportModal = ref(false)
+function importData() {
+  if (projects.value.length === 0) {
+    router.push('/projects')
+    return
+  }
+  // Projects are fetched from API; find the most recent by created_at
+  const sorted = [...projects.value].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  router.push(`/projects/${sorted[0].id}?import=true`)
+}
 
 onMounted(async () => {
   await Promise.all([fetchStats(), fetchOpStats(), fetchProjects(), fetchOperations()])

@@ -570,6 +570,12 @@ onMounted(async () => {
   await fetchDatasets()
   await fetchOperations() // Load operations on mount
   loading.value = false
+
+  // Auto-open import modal if navigated from dashboard "Import Data" shortcut
+  if (route.query.import === 'true') {
+    showImportModal.value = true
+    router.replace({ query: {} })
+  }
 })
 
 // Watch for tab changes to refresh operations when Operations tab is active
