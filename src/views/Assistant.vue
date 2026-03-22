@@ -75,6 +75,17 @@
                   Try Again
                 </BButton>
               </div>
+
+              <!-- AI analysis complete — continue button -->
+              <div v-if="useAiAgent && aiSuggestions.length > 0 && !aiAnalyzing && !aiError" class="mt-3">
+                <div class="alert alert-success py-2">
+                  <i class="bi bi-check-circle me-1"></i>
+                  <strong>{{ aiSuggestions.length }} suggestion(s) ready</strong>
+                </div>
+                <BButton size="sm" variant="success" @click="currentStep = 2">
+                  Continue to Clean →
+                </BButton>
+              </div>
             </div>
 
             <!-- Step 1: Analyze -->
@@ -552,7 +563,6 @@ async function onDatasetChange() {
   pendingOps.value = []
   analysisDone.value = false
   analysisChecks.value.forEach(c => { c.status = 'pending'; c.result = '' })
-  currentStep.value = 1
   await loadData()
 }
 
@@ -806,7 +816,7 @@ async function runAiAnalysis(systemPrompt, userPrompt) {
       return
     }
 
-    currentStep.value = 2
+    // Don't auto-advance — let user review suggestions and click "Continue to Clean"
   } catch (e) {
     aiStages.value.forEach(s => { if (s.status === 'running') s.status = 'error' })
     aiError.value = e.message || 'Connection failed'
