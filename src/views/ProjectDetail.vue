@@ -73,20 +73,41 @@
             </BButton>
           </div>
         </div>
-        <div v-else class="row">
+        <div v-else>
+          <!-- Dataset selection bar -->
+          <div v-if="selectedDatasetIds.length > 0" class="d-flex align-items-center gap-2 mb-3 p-2 bg-light rounded">
+            <span class="small text-muted">{{ selectedDatasetIds.length }} dataset(s) selected</span>
+            <BButton size="sm" variant="outline-secondary" @click="selectedDatasetIds = []">Clear</BButton>
+            <BButton v-if="selectedDatasetIds.length >= 2" size="sm" variant="primary" @click="openMergeModal">
+              <i class="bi bi-arrows-collapse me-1"></i>Merge
+            </BButton>
+          </div>
+          <div class="row">
           <div v-for="dataset in datasets" :key="dataset.id" class="col-md-4 mb-3">
-            <DatasetCard 
-              :dataset="dataset"
-              @click="viewDataset(dataset)"
-            >
-              <template #actions>
-                <BDropdownItem @click="previewDataset(dataset)">Preview</BDropdownItem>
-                <BDropdownItem @click="openRenameModal(dataset)">Rename</BDropdownItem>
-                <BDropdownItem @click="exportDataset(dataset)">Export</BDropdownItem>
-                <BDropdownItem @click="profileDataset(dataset)" variant="info">Profile</BDropdownItem>
-                <BDropdownItem @click="deleteDataset(dataset)" variant="danger">Delete</BDropdownItem>
-              </template>
-            </DatasetCard>
+            <div class="position-relative">
+              <div class="position-absolute top-0 start-0 m-2" style="z-index: 1;">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  :checked="selectedDatasetIds.includes(dataset.id)"
+                  @click.stop="toggleDatasetSelection(dataset.id)"
+                  @change.stop
+                >
+              </div>
+              <DatasetCard 
+                :dataset="dataset"
+                @click="viewDataset(dataset)"
+              >
+                <template #actions>
+                  <BDropdownItem @click="previewDataset(dataset)">Preview</BDropdownItem>
+                  <BDropdownItem @click="openRenameModal(dataset)">Rename</BDropdownItem>
+                  <BDropdownItem @click="exportDataset(dataset)">Export</BDropdownItem>
+                  <BDropdownItem @click="profileDataset(dataset)" variant="info">Profile</BDropdownItem>
+                  <BDropdownItem @click="deleteDataset(dataset)" variant="danger">Delete</BDropdownItem>
+                </template>
+              </DatasetCard>
+            </div>
+          </div>
           </div>
         </div>
         <!-- Datasets pagination -->
@@ -384,6 +405,33 @@
       </template>
     </BModal>
 
+    <!-- Merge Datasets Modal -->
+    <BModal v-model="showMergeModal" title="Merge Datasets" size="md">
+      <div class="alert alert-info py-2 small mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        Combine {{ selectedDatasetIds.length }} datasets into a new dataset.
+      </div>
+      <BFormGroup label="New dataset name" label-size="sm">
+        <BFormInput v-model="mergeName" size="sm" placeholder="Merged Dataset"></BFormInput>
+      </BFormGroup>
+      <BFormGroup label="Strategy" label-size="sm" class="mt-2">
+        <BFormSelect v-model="mergeStrategy" size="sm" :options="[
+          { value: 'union', text: 'Union — keep all columns, fill missing with null' },
+          { value: 'intersection', text: 'Intersection — keep only common columns' },
+          { value: 'strict', text: 'Strict — fail if columns don\'t match exactly' },
+        ]"></BFormSelect>
+      </BFormGroup>
+      <div class="mt-2 small text-muted">
+        Selected: {{ selectedDatasetIds.map(id => datasets.find(d => d.id === id)?.name || id).join(', ') }}
+      </div>
+      <template #footer>
+        <BButton variant="outline-secondary" @click="showMergeModal = false">Cancel</BButton>
+        <BButton variant="primary" :loading="merging" :disabled="!mergeName" @click="applyMerge">
+          <i class="bi bi-arrows-collapse me-1"></i>Merge
+        </BButton>
+      </template>
+    </BModal>
+
     <!-- Operation Details Modal -->
     <BModal v-model="showOpDetailsModal" title="Operation Details" size="md">
       <div v-if="selectedOp">
@@ -454,6 +502,11 @@ const profileData = ref(null)
 const profileLoading = ref(false)
 const showOpDetailsModal = ref(false)
 const selectedOp = ref(null)
+const showMergeModal = ref(false)
+const selectedDatasetIds = ref([])
+const mergeName = ref('Merged Dataset')
+const mergeStrategy = ref('union')
+const merging = ref(false)
 const renameDatasetId = ref(null)
 const renameDatasetName = ref('')
 const renameDatasetDesc = ref('')
@@ -960,6 +1013,46 @@ function formatOpParamsPretty(params) {
   try {
     return JSON.stringify(params, null, 2)
   } catch { return String(params) }
+}
+
+function toggleDatasetSelection(id) {
+  const idx = selectedDatasetIds.value.indexOf(id)
+  if (idx >= 0) selectedDatasetIds.value.splice(idx, 1)
+  else selectedDatasetIds.value.push(id)
+}
+
+function openMergeModal() {
+  mergeName.value = 'Merged Dataset'
+  mergeStrategy.value = 'union'
+  showMergeModal.value = true
+}
+
+async function applyMerge() {
+  if (!mergeName.value || selectedDatasetIds.value.length < 2) return
+  merging.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/merge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({
+        project_id: projectId,
+        dataset_ids: selectedDatasetIds.value,
+        name: mergeName.value,
+        strategy: mergeStrategy.value,
+      })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || 'Datasets merged')
+      showMergeModal.value = false
+      selectedDatasetIds.value = []
+      await fetchDatasets()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Merge failed')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { merging.value = false }
 }
 </script>
 

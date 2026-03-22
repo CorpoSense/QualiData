@@ -728,3 +728,110 @@ async def import_from_database(
         "dataset_id": dataset.id,
         "row_count": len(df),
     }
+
+
+@router.post("/merge", response_model=dict)
+async def merge_datasets(
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Merge (concatenate) multiple datasets into a new dataset.
+
+    Body: { project_id, dataset_ids: [...], name: "...", strategy: "union" | "intersection" | "strict" }
+    - union: keep all columns, fill missing with null (default)
+    - intersection: keep only common columns
+    - strict: fail if columns don't match exactly
+    """
+    project_id = request.get("project_id")
+    dataset_ids = request.get("dataset_ids", [])
+    name = request.get("name", "Merged Dataset")
+    strategy = request.get("strategy", "union")
+
+    if not project_id:
+        raise HTTPException(status_code=400, detail="project_id is required")
+    if len(dataset_ids) < 2:
+        raise HTTPException(status_code=400, detail="At least 2 datasets required")
+
+    # Verify project ownership
+    project_result = await session.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
+    )
+    if not project_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Fetch all datasets
+    dfs = []
+    all_columns = set()
+    for ds_id in dataset_ids:
+        result = await session.execute(select(Dataset).where(Dataset.id == ds_id, Dataset.project_id == project_id))
+        ds = result.scalar_one_or_none()
+        if not ds:
+            raise HTTPException(status_code=404, detail=f"Dataset {ds_id} not found")
+        if not ds.preview_data:
+            raise HTTPException(status_code=400, detail=f"Dataset '{ds.name}' has no data")
+        df = pd.DataFrame(ds.preview_data)
+        dfs.append(df)
+        all_columns.update(df.columns)
+
+    # Determine final columns based on strategy
+    if strategy == "intersection":
+        common_cols = set(dfs[0].columns)
+        for df in dfs[1:]:
+            common_cols &= set(df.columns)
+        final_columns = sorted(common_cols)
+    elif strategy == "strict":
+        ref_cols = set(dfs[0].columns)
+        for i, df in enumerate(dfs[1:], 2):
+            if set(df.columns) != ref_cols:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Column mismatch: dataset {i} has {sorted(df.columns)} but expected {sorted(ref_cols)}"
+                )
+        final_columns = sorted(ref_cols)
+    else:  # union
+        final_columns = sorted(all_columns)
+
+    if not final_columns:
+        raise HTTPException(status_code=400, detail="No columns to merge")
+
+    # Align all DataFrames to final columns
+    aligned_dfs = []
+    for df in dfs:
+        for col in final_columns:
+            if col not in df.columns:
+                df[col] = None
+        aligned_dfs.append(df[final_columns])
+
+    # Concatenate
+    merged_df = pd.concat(aligned_dfs, ignore_index=True)
+
+    # Create new dataset
+    dataset = Dataset(
+        project_id=project_id,
+        name=name,
+        description=f"Merged from {len(dataset_ids)} datasets ({strategy})",
+        file_name=f"{name}.csv",
+        file_type="csv",
+        row_count=len(merged_df),
+        columns=detect_columns(merged_df),
+        preview_data=get_preview_data(merged_df),
+    )
+    session.add(dataset)
+    await session.commit()
+    await session.refresh(dataset)
+
+    # Update project stats
+    project_result2 = await session.execute(select(Project).where(Project.id == project_id))
+    project = project_result2.scalar_one_or_none()
+    if project:
+        project.row_count = (project.row_count or 0) + len(merged_df)
+        await session.commit()
+
+    return {
+        "status": "success",
+        "message": f"Merged {len(dataset_ids)} datasets into '{name}' ({len(merged_df)} rows, {len(final_columns)} columns)",
+        "dataset_id": dataset.id,
+        "row_count": len(merged_df),
+        "column_count": len(final_columns),
+    }
