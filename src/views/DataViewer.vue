@@ -1811,7 +1811,7 @@ function showOpConfirmModal(opId) {
     toast.warning(`Unknown operation: ${opId}`)
     return
   }
-  if (!selectedColumns.value.length && !['remove-duplicates', 'fuzzy-dedupe', 'fillna-drop'].includes(config.operation)) {
+  if (!selectedColumns.value.length && !['remove-duplicates', 'fillna-drop'].includes(config.operation)) {
     toast.warning('Select column(s) first')
     return
   }
@@ -1845,7 +1845,7 @@ async function onOpConfirmApply(params) {
       body = mergedParams
     } else if (config.operation === 'fuzzy-dedupe') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/fuzzy-dedupe`
-      body = mergedParams
+      body = { column: selectedColumns.value[0] || null, threshold: (mergedParams.threshold || 85) / 100 }
     } else if (config.operation === 'string-operations') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/string-operations`
       body = { columns: selectedColumns.value, ...mergedParams }

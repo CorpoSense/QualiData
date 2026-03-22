@@ -804,6 +804,38 @@ class TestImportRecipeOperation:
         assert result["results"][1]["status"] == "success"
         assert dataset.preview_data[0]["name"] == "ALICE"
 
+    @pytest.mark.asyncio
+    async def test_import_recipe_snapshot_uses_dicts_not_strings(self):
+        """Before snapshot should contain column dicts, not plain strings (for undo)."""
+        from app.routers.operations import import_recipe, ImportRecipeRequest
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+        saved_snapshots = []
+
+        async def capture_save(*args, **kwargs):
+            if len(args) >= 5:
+                saved_snapshots.append(args[3])  # before_snapshot
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             patch("app.routers.operations.save_operation", side_effect=capture_save), \
+             _DETECT_PATCH, _PREVIEW_PATCH:
+            await import_recipe(
+                dataset_id="test-ds-id",
+                request=ImportRecipeRequest(operations=[
+                    {"operation": "string-operations", "column": "name", "params": {"operation": "upper"}},
+                ]),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert len(saved_snapshots) == 1
+        snapshot_cols = saved_snapshots[0]["columns"]
+        # Each column should be a dict with 'name' and 'dtype', not a plain string
+        assert all(isinstance(c, dict) for c in snapshot_cols)
+        assert all("name" in c and "dtype" in c for c in snapshot_cols)
+
 
 class TestMergeColumnsOperation:
     """Test the merge-columns operation."""
@@ -946,6 +978,50 @@ class TestSplitColumnOperation:
         assert result.status == "success"
         assert dataset.preview_data[0]["first"] == "John"
         assert dataset.preview_data[0]["last"] is None
+
+
+class TestFuzzyDedupeRequiresColumn:
+    """Test that fuzzy-dedupe requires a column parameter."""
+
+    @pytest.mark.asyncio
+    async def test_fuzzy_dedupe_missing_column_raises(self):
+        from app.routers.operations import fuzzy_dedupe
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await fuzzy_dedupe(
+                    dataset_id="test-ds-id",
+                    request={"threshold": 0.8},  # No column!
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+        assert exc_info.value.status_code == 400
+        assert "not found" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_fuzzy_dedupe_none_column_raises(self):
+        """Explicit None column should also fail."""
+        from app.routers.operations import fuzzy_dedupe
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await fuzzy_dedupe(
+                    dataset_id="test-ds-id",
+                    request={"column": None, "threshold": 0.8},
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+        assert exc_info.value.status_code == 400
 
 
 class TestDeleteRowsOperation:

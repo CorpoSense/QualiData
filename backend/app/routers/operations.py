@@ -1259,7 +1259,7 @@ async def import_recipe(
                 continue
 
         try:
-            before_snapshot = {"columns": list(df.columns), "row_count": len(df)}
+            before_snapshot = {"columns": detect_columns(df), "row_count": len(df)}
 
             if op_type == "fillna":
                 method = op_params.get("method", "constant")
