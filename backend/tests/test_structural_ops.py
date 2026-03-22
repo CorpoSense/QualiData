@@ -185,8 +185,8 @@ class TestReorderColumnsOperation:
     """Test the reorder-columns operation."""
 
     @pytest.mark.asyncio
-    async def test_reorder_moves_selected_to_start(self):
-        """Moving selected columns to the start reorders correctly."""
+    async def test_reorder_shifts_selected_one_step_left(self):
+        """Shifting selected columns one step left reorders correctly."""
         from app.routers.operations import reorder_columns, ReorderColumnsRequest
 
         dataset = _make_mock_dataset(SAMPLE_DATA)
@@ -197,17 +197,17 @@ class TestReorderColumnsOperation:
              _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
             result = await reorder_columns(
                 dataset_id="test-ds-id",
-                request=ReorderColumnsRequest(columns=["city", "name", "age"]),
+                request=ReorderColumnsRequest(columns=["name", "city", "age"]),
                 current_user=MagicMock(id="user-1"),
                 session=mock_session,
             )
 
         assert result.status == "success"
-        assert list(dataset.preview_data[0].keys()) == ["city", "name", "age"]
+        assert list(dataset.preview_data[0].keys()) == ["name", "city", "age"]
 
     @pytest.mark.asyncio
-    async def test_reorder_moves_selected_to_end(self):
-        """Moving selected columns to the end reorders correctly."""
+    async def test_reorder_shifts_selected_one_step_right(self):
+        """Shifting selected columns one step right reorders correctly."""
         from app.routers.operations import reorder_columns, ReorderColumnsRequest
 
         dataset = _make_mock_dataset(SAMPLE_DATA)
@@ -218,13 +218,13 @@ class TestReorderColumnsOperation:
              _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
             result = await reorder_columns(
                 dataset_id="test-ds-id",
-                request=ReorderColumnsRequest(columns=["age", "city", "name"]),
+                request=ReorderColumnsRequest(columns=["age", "name", "city"]),
                 current_user=MagicMock(id="user-1"),
                 session=mock_session,
             )
 
         assert result.status == "success"
-        assert list(dataset.preview_data[0].keys()) == ["age", "city", "name"]
+        assert list(dataset.preview_data[0].keys()) == ["age", "name", "city"]
 
     @pytest.mark.asyncio
     async def test_reorder_preserves_data(self):

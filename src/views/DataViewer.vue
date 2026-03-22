@@ -202,10 +202,10 @@
       <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-secondary" @click="selectedColumns = []">
         Clear
       </BButton>
-      <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" @click="reorderColumns('left')" title="Move selected columns to the left">
+      <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveLeft" @click="reorderColumns('left')" title="Move selected columns one step left">
         <i class="bi bi-arrow-left"></i>
       </BButton>
-      <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" @click="reorderColumns('right')" title="Move selected columns to the right">
+      <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRight" @click="reorderColumns('right')" title="Move selected columns one step right">
         <i class="bi bi-arrow-right"></i>
       </BButton>
       <span v-if="selectedColumns.length === 0" class="text-muted small ms-2">
@@ -1551,14 +1551,40 @@ async function undo() {
   finally { operating.value = false }
 }
 
+const canMoveLeft = computed(() => {
+  if (!selectedColumns.value.length) return false
+  const allCols = columns.value.map(c => c.field)
+  return selectedColumns.value.some(c => allCols.indexOf(c) > 0)
+})
+
+const canMoveRight = computed(() => {
+  if (!selectedColumns.value.length) return false
+  const allCols = columns.value.map(c => c.field)
+  return selectedColumns.value.some(c => allCols.indexOf(c) < allCols.length - 1)
+})
+
 async function reorderColumns(direction) {
   if (!selectedColumns.value.length) return
   const allCols = columns.value.map(c => c.field)
   const selected = selectedColumns.value
-  const remaining = allCols.filter(c => !selected.includes(c))
-  const newOrder = direction === 'left'
-    ? [...selected, ...remaining]
-    : [...remaining, ...selected]
+  const newOrder = [...allCols]
+
+  if (direction === 'left') {
+    // Process left to right so each swap moves a selected column left by 1
+    for (let i = 1; i < newOrder.length; i++) {
+      if (selected.includes(newOrder[i]) && !selected.includes(newOrder[i - 1])) {
+        [newOrder[i - 1], newOrder[i]] = [newOrder[i], newOrder[i - 1]]
+      }
+    }
+  } else {
+    // Process right to left so each swap moves a selected column right by 1
+    for (let i = newOrder.length - 2; i >= 0; i--) {
+      if (selected.includes(newOrder[i]) && !selected.includes(newOrder[i + 1])) {
+        [newOrder[i], newOrder[i + 1]] = [newOrder[i + 1], newOrder[i]]
+      }
+    }
+  }
+
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/reorder-columns`, {
