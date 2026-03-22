@@ -51,7 +51,7 @@
                   <i class="bi bi-arrow-repeat spin me-1"></i>{{ aiAnalysisStage }}
                 </template>
                 <template v-else>
-                  {{ useAiAgent ? 'Start AI Analysis' : 'Next → Analyze' }}
+                  {{ useAiAgent ? 'Configure & Start AI Analysis' : 'Next → Analyze' }}
                 </template>
               </BButton>
 
@@ -219,6 +219,110 @@
         </div>
       </div>
 
+      <!-- AI Pre-flight Modal -->
+      <BModal v-model="showAiPreflight" title="AI Analysis Configuration" size="lg" no-close-on-backdrop>
+        <div v-if="preflightLoading" class="text-center py-4">
+          <div class="spinner-border text-primary"></div>
+          <p class="text-muted mt-2">Loading agent configuration…</p>
+        </div>
+        <div v-else-if="preflight">
+          <!-- Agent Info -->
+          <div class="alert alert-info py-2 mb-3">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-robot fs-4"></i>
+              <div>
+                <strong>{{ preflight.agent_name }}</strong>
+                <small class="d-block text-muted">{{ preflight.provider }} / {{ preflight.model }}</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Prompt Presets -->
+          <div class="mb-3">
+            <label class="form-label fw-bold small">Quick Presets</label>
+            <div class="d-flex flex-wrap gap-2">
+              <button
+                v-for="preset in preflight.prompt_presets"
+                :key="preset.id"
+                class="btn btn-sm"
+                :class="selectedPreset === preset.id ? 'btn-primary' : 'btn-outline-secondary'"
+                @click="applyPreset(preset)"
+              >
+                <i class="bi me-1" :class="preset.id === 'quality' ? 'bi-shield-check' : preset.id === 'formatting' ? 'bi-type' : 'bi-stars'"></i>
+                {{ preset.label }}
+              </button>
+              <button
+                class="btn btn-sm"
+                :class="selectedPreset === null ? 'btn-primary' : 'btn-outline-secondary'"
+                @click="selectedPreset = null"
+              >
+                <i class="bi bi-pencil me-1"></i> Custom
+              </button>
+            </div>
+            <small v-if="selectedPreset" class="text-muted d-block mt-1">
+              {{ preflight.prompt_presets.find(p => p.id === selectedPreset)?.description }}
+            </small>
+          </div>
+
+          <!-- System Prompt -->
+          <div class="mb-3">
+            <label class="form-label fw-bold small">System Prompt
+              <span v-if="selectedPreset" class="badge bg-light text-dark ms-1">{{ preflight.prompt_presets.find(p => p.id === selectedPreset)?.label }}</span>
+            </label>
+            <BFormTextarea
+              v-model="preflightSystemPrompt"
+              rows="3"
+              size="sm"
+              placeholder="System prompt for the AI agent…"
+            ></BFormTextarea>
+          </div>
+
+          <!-- User Prompt -->
+          <div class="mb-3">
+            <label class="form-label fw-bold small">Additional Instructions <span class="text-muted fw-normal">(optional)</span></label>
+            <BFormTextarea
+              v-model="preflightUserPrompt"
+              rows="2"
+              size="sm"
+              placeholder="Add specific instructions for this analysis, e.g. 'Focus on the email column' or 'Ignore the ID column'…"
+            ></BFormTextarea>
+          </div>
+
+          <!-- Available Operations -->
+          <div class="mb-2">
+            <label class="form-label fw-bold small">Available Operations</label>
+            <div class="d-flex flex-wrap gap-1">
+              <span v-for="op in preflight.available_operations" :key="op.operation" class="badge bg-light text-dark" :title="op.description">
+                {{ op.label }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Rows & Options -->
+          <div class="row g-2 mt-1">
+            <div class="col-6">
+              <BFormGroup label="Rows for context" label-size="sm">
+                <BFormSelect v-model="assistRows" :options="limitOptions" size="sm"></BFormSelect>
+              </BFormGroup>
+            </div>
+            <div class="col-6">
+              <BFormGroup label=" " label-size="sm">
+                <div class="form-check mt-1">
+                  <input class="form-check-input" type="checkbox" v-model="assistIncludeDesc" id="preflight-desc">
+                  <label class="form-check-label small" for="preflight-desc">Include dataset description</label>
+                </div>
+              </BFormGroup>
+            </div>
+          </div>
+        </div>
+        <template #footer>
+          <BButton variant="outline-secondary" @click="showAiPreflight = false">Cancel</BButton>
+          <BButton variant="primary" :loading="aiAnalyzing" @click="runAiAnalysisFromPreflight">
+            <i class="bi bi-magic me-1"></i> Start Analysis
+          </BButton>
+        </template>
+      </BModal>
+
       <!-- Right: Data Table (always visible) -->
       <div class="col-md-8">
         <div v-if="!selectedDataset" class="card">
@@ -254,7 +358,7 @@ import { useRoute } from 'vue-router'
 import { getApiUrl } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
 import DataTable from '@/components/DataTable.vue'
-import { BFormGroup, BFormSelect, BFormInput, BButton, BAlert } from 'bootstrap-vue-next'
+import { BFormGroup, BFormSelect, BFormInput, BFormTextarea, BButton, BAlert, BModal } from 'bootstrap-vue-next'
 
 const apiUrl = getApiUrl()
 const route = useRoute()
@@ -279,6 +383,12 @@ const aiStages = ref([
   { label: 'Analyzing and generating suggestions', status: 'pending' },
   { label: 'Processing response', status: 'pending' },
 ])
+const showAiPreflight = ref(false)
+const preflightLoading = ref(false)
+const preflight = ref(null)
+const preflightSystemPrompt = ref('')
+const preflightUserPrompt = ref('')
+const selectedPreset = ref(null)
 
 const limitOptions = [
   { value: 10, text: '10 rows' },
@@ -369,10 +479,49 @@ fetchAgents()
 
 function startAnalysis() {
   if (useAiAgent.value) {
-    runAiAnalysis()
+    openAiPreflight()
   } else {
     currentStep.value = 1
   }
+}
+
+async function openAiPreflight() {
+  showAiPreflight.value = true
+  preflightLoading.value = true
+  preflight.value = null
+  selectedPreset.value = null
+  preflightSystemPrompt.value = ''
+  preflightUserPrompt.value = ''
+  try {
+    const res = await fetch(`${apiUrl}/api/assistant/ai-suggest/preflight`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ agent_id: assistAgentId.value })
+    })
+    if (res.ok) {
+      preflight.value = await res.json()
+      preflightSystemPrompt.value = preflight.value.system_prompt
+    } else {
+      toast.error('Failed to load agent configuration')
+      showAiPreflight.value = false
+    }
+  } catch (e) {
+    toast.error(e.message)
+    showAiPreflight.value = false
+  } finally {
+    preflightLoading.value = false
+  }
+}
+
+function applyPreset(preset) {
+  selectedPreset.value = preset.id
+  preflightSystemPrompt.value = preset.system_prompt
+  preflightUserPrompt.value = preset.user_prompt
+}
+
+async function runAiAnalysisFromPreflight() {
+  showAiPreflight.value = false
+  await runAiAnalysis(preflightSystemPrompt.value, preflightUserPrompt.value)
 }
 
 async function onProjectChange() {
@@ -589,7 +738,7 @@ async function analyzeData() {
   finally { analyzing.value = false }
 }
 
-async function runAiAnalysis() {
+async function runAiAnalysis(systemPrompt, userPrompt) {
   aiAnalyzing.value = true
   aiError.value = ''
   aiSuggestions.value = []
@@ -618,6 +767,8 @@ async function runAiAnalysis() {
         agent_id: assistAgentId.value,
         rows: assistRows.value,
         include_description: assistIncludeDesc.value,
+        system_prompt: systemPrompt || undefined,
+        user_prompt: userPrompt || undefined,
       })
     })
 

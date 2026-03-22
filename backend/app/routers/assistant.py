@@ -234,6 +234,73 @@ async def execute_operation(
     )
 
 
+@router.post("/assistant/ai-suggest/preflight")
+async def ai_suggest_preflight(
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Return prompts and agent info for review before running AI analysis.
+
+    Body: { agent_id }
+    Returns: { agent_name, provider, model, system_prompt, available_operations }
+    """
+    agent_id = request.get("agent_id")
+    if not agent_id:
+        raise HTTPException(status_code=400, detail="agent_id required")
+
+    agent_config = await _get_agent_config(agent_id, current_user.id, session)
+
+    # Get agent name
+    result = await session.execute(select(Agent).where(Agent.id == agent_id))
+    agent = result.scalar_one_or_none()
+    agent_name = agent.name if agent else "Unknown"
+
+    default_system_prompt = "You are a data cleaning expert. Analyze the data and suggest the best cleaning operations."
+
+    available_operations = [
+        {"operation": "fillna", "label": "Fill Missing Values", "description": "Fill null values using various strategies (constant, mean, median, mode, forward/backward fill)"},
+        {"operation": "remove-duplicates", "label": "Remove Duplicates", "description": "Identify and remove duplicate rows"},
+        {"operation": "find-replace", "label": "Find & Replace", "description": "Find and replace text patterns (with regex support)"},
+        {"operation": "extract-json", "label": "Extract JSON", "description": "Extract values from JSON-formatted strings"},
+        {"operation": "string-operations", "label": "String Operations", "description": "Transform text (uppercase, lowercase, trim, title case, capitalize)"},
+    ]
+
+    prompt_presets = [
+        {
+            "id": "quality",
+            "label": "Data Quality",
+            "description": "Focus on missing values, duplicates, and data consistency",
+            "system_prompt": "You are a data quality specialist. Focus on identifying and fixing data quality issues like missing values, duplicates, and inconsistencies.",
+            "user_prompt": "Analyze this dataset for data quality issues. Prioritize operations that improve completeness and consistency.",
+        },
+        {
+            "id": "formatting",
+            "label": "Formatting & Standardization",
+            "description": "Standardize text formats, casing, and patterns",
+            "system_prompt": "You are a data formatting expert. Focus on standardizing text formats, fixing casing issues, and normalizing patterns.",
+            "user_prompt": "Analyze this dataset for formatting inconsistencies. Suggest operations to standardize text, normalize patterns, and fix casing.",
+        },
+        {
+            "id": "cleanup",
+            "label": "Deep Cleanup",
+            "description": "Thorough analysis covering all aspects of data cleaning",
+            "system_prompt": "You are a meticulous data cleaning expert. Perform a thorough analysis covering quality, formatting, consistency, and structure.",
+            "user_prompt": "Perform a comprehensive analysis of this dataset. Suggest all beneficial cleaning operations, explaining the impact of each.",
+        },
+    ]
+
+    return {
+        "agent_name": agent_name,
+        "provider": agent_config["provider"],
+        "model": agent_config.get("model", "default"),
+        "system_prompt": agent_config.get("system_prompt") or default_system_prompt,
+        "default_user_prompt": None,
+        "available_operations": available_operations,
+        "prompt_presets": prompt_presets,
+    }
+
+
 @router.post("/assistant/ai-suggest")
 async def ai_suggest_operations(
     request: dict,
@@ -309,6 +376,10 @@ Suggest only operations that would meaningfully improve data quality. Be specifi
 
     system_prompt = "You are a data cleaning expert. Analyze the data and suggest the best cleaning operations."
 
+    # Allow custom prompts from request
+    custom_system_prompt = request.get("system_prompt")
+    custom_user_prompt = request.get("user_prompt")
+
     try:
         agent_config = await _get_agent_config(agent_id, current_user.id, session)
         provider = AIProvider(agent_config["provider"])
@@ -320,7 +391,10 @@ Suggest only operations that would meaningfully improve data quality. Be specifi
             temperature=agent_config.get("temperature", 0.3), **llm_kwargs,
         )
 
-        sys = agent_config.get("system_prompt") or system_prompt
+        sys = custom_system_prompt or agent_config.get("system_prompt") or system_prompt
+        user_content = context + AVAILABLE_OPS
+        if custom_user_prompt:
+            user_content = custom_user_prompt + "\n\n" + user_content
         response = await llm.ainvoke([
             SystemMessage(content=sys),
             HumanMessage(content=context + AVAILABLE_OPS),
