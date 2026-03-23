@@ -74,3 +74,6 @@ install-koyeb.js
 run-koyeb.sh
 run-tests.js
 run-e2e.sh
+
+# pnpm store
+.pnpm-store
