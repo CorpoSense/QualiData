@@ -33,7 +33,7 @@
         <div class="row align-items-center min-vh-75">
           <div class="col-lg-6 mb-5 mb-lg-0 text-center text-lg-start z-2">
             <span class="badge rounded-pill mb-4 px-3 py-2" style="background: rgba(79, 70, 229, 0.1); color: var(--primary-color); border: 1px solid rgba(79, 70, 229, 0.2); font-weight: 600; letter-spacing: 0.5px;">
-              <i class="bi bi-lightning-charge-fill text-warning me-1"></i> Version 3.0 is here
+              <i class="bi bi-lightning-charge-fill text-warning me-1"></i> Blazing fast!
             </span>
             <h1 class="display-3 fw-bolder mb-4 lh-tight">
               Master Your Data with <br class="d-none d-lg-block">
