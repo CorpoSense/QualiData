@@ -77,3 +77,9 @@ run-e2e.sh
 
 # pnpm store
 .pnpm-store
+
+# generated types
+components.d.ts
+
+# docs
+./docs
