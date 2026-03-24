@@ -4,8 +4,23 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+from pathlib import Path
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    # Try to load from .env in current dir (backend/) or parent dir (project root)
+    model_config = SettingsConfigDict(
+        env_file=[
+            ".env",
+            "../.env",
+            str(BASE_DIR / ".env"),
+            str(BASE_DIR.parent / ".env")
+        ],
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
 
     # App Settings
     app_name: str = "MasterDataCleaner API"
@@ -22,6 +37,10 @@ class Settings(BaseSettings):
     @classmethod
     def get_frontend_url(cls, v: str) -> str:
         """Get frontend URL from environment or use default."""
+        # If value is provided (e.g. from .env), use it
+        if v:
+            return v
+            
         import os
         # Check common deployment platform env vars
         for env_var in ["KOYEB_PUBLIC_DOMAIN", "APP_URL", "FRONTEND_URL", "ORIGIN_URL", "URL"]:

@@ -5,7 +5,8 @@ os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///test.db"
 
 import sys
 
-sys.path.insert(0, "/root/.openclaw/workspace/MasterDataCleaner/backend")
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from app.main import app
 
