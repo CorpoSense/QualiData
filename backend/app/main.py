@@ -54,49 +54,17 @@ async def lifespan(app: FastAPI):
 
 async def run_migrations():
     """Run database migrations on startup."""
-    from sqlalchemy import text
     from app.db.database import get_async_engine
+    from app.db.database import Base
     
     try:
         engine = get_async_engine()
         async with engine.begin() as conn:
-            # Add missing columns to operation_history if they don't exist
-            columns_to_add = [
-                ("operation_params", "JSON"),
-                ("is_undone", "BOOLEAN DEFAULT false"),
-                ("is_applied", "BOOLEAN DEFAULT true"),
-                ("before_snapshot", "JSON"),
-                ("after_snapshot", "JSON"),
-                ("dataset_id", "UUID"),
-            ]
-            
-            for col_name, col_type in columns_to_add:
-                try:
-                    await conn.execute(text(
-                        f"ALTER TABLE operation_history ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
-                    ))
-                except Exception as e:
-                    # Column might already exist, continue
-                    logger.debug(f"Migration: {col_name} - {e}")
-
-            # Add api_key to agents table
-            try:
-                await conn.execute(text(
-                    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS api_key TEXT"
-                ))
-            except Exception as e:
-                logger.debug(f"Migration: agents.api_key - {e}")
-
-            try:
-                await conn.execute(text(
-                    "ALTER TABLE agents ADD COLUMN IF NOT EXISTS base_url VARCHAR(500)"
-                ))
-            except Exception as e:
-                logger.debug(f"Migration: agents.base_url - {e}")
-                    
-        logger.info("Database migrations completed")
+            # Create all tables from models (development-friendly approach)
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables created/verified")
     except Exception as e:
-        logger.warning(f"Migration check failed (may need manual migration): {e}")
+        logger.warning(f"Database initialization failed: {e}")
 
 
 

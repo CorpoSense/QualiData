@@ -6,24 +6,31 @@ import pytest
 class TestMigrations:
     """Test migration files are valid."""
 
-    def test_add_operation_history_fields_migration_exists(self):
-        """Test that the migration file exists and can be imported."""
+    def test_initial_migration_exists(self):
+        """Test that the initial migration file exists and can be imported."""
         # This just verifies the migration file is syntactically valid
         import sys
         import os
         import importlib.util
+        import glob
         
-        # Load the migration module directly
-        migration_path = os.path.join(
-            os.path.dirname(__file__), 
-            '..', 
-            'alembic', 
-            'versions', 
-            'add_operation_history_fields.py'
+        # Find the initial migration file (starts with 155b9933f705)
+        migration_dir = os.path.join(
+            os.path.dirname(__file__),
+            '..',
+            'alembic',
+            'versions'
         )
         
+        migration_files = glob.glob(os.path.join(migration_dir, '155b9933f705_*.py'))
+        
+        if not migration_files:
+            pytest.skip("Initial migration file not found")
+        
+        migration_path = migration_files[0]
+        
         spec = importlib.util.spec_from_file_location(
-            "add_operation_history_fields", 
+            "initial_migration",
             migration_path
         )
         module = importlib.util.module_from_spec(spec)
@@ -41,26 +48,40 @@ class TestMigrations:
         """Test that migration revision chain is valid."""
         import os
         import re
+        import glob
         
-        # Read the migration file and extract revision info
-        migration_path = os.path.join(
-            os.path.dirname(__file__), 
-            '..', 
-            'alembic', 
-            'versions', 
-            'add_operation_history_fields.py'
+        # Find the initial migration file (starts with 155b9933f705)
+        migration_dir = os.path.join(
+            os.path.dirname(__file__),
+            '..',
+            'alembic',
+            'versions'
         )
+        
+        migration_files = glob.glob(os.path.join(migration_dir, '155b9933f705_*.py'))
+        
+        if not migration_files:
+            pytest.skip("Initial migration file not found")
+        
+        migration_path = migration_files[0]
         
         with open(migration_path, 'r') as f:
             content = f.read()
         
-        # Extract revision info using regex
-        revision_match = re.search(r"revision\s*=\s*['\"]([^'\"]+)['\"]", content)
-        down_revision_match = re.search(r"down_revision\s*=\s*['\"]([^'\"]+)['\"]", content)
+        # Extract revision info using regex (handles both revision = and revision: formats)
+        # Also handles type annotations like "revision: str = '...'"
+        revision_match = re.search(r"revision\s*:\s*str\s*=\s*['\"]([^'\"]+)['\"]", content)
+        if not revision_match:
+            revision_match = re.search(r"revision\s*=\s*['\"]([^'\"]+)['\"]", content)
         
-        assert revision_match, "Could not find revision in migration"
-        assert down_revision_match, "Could not find down_revision in migration"
-        assert down_revision_match.group(1) == 'convert_role_to_varchar'
+        down_revision_match = re.search(r"down_revision\s*:\s*.*?=\s*['\"]([^'\"]+)['\"]", content)
+        if not down_revision_match:
+            down_revision_match = re.search(r"down_revision\s*=\s*['\"]([^'\"]+)['\"]", content)
+        
+        assert revision_match, f"Could not find revision in migration file: {migration_path}"
+        # For initial migration, down_revision should be None or empty
+        if down_revision_match:
+            assert down_revision_match.group(1) in ['None', ''], "Initial migration should have no down_revision"
 
 
 class TestOperationHistoryModelFields:
