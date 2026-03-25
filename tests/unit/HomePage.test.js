@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { mount } from '@vue/test-utils';
 import Home from '@/views/Home.vue';
+import Navbar from '@/components/Navbar.vue';
 
 describe('Home Page', () => {
   it('renders the hero section with main heading', () => {
@@ -12,7 +13,11 @@ describe('Home Page', () => {
   });
 
   it('contains navigation elements', () => {
-    const wrapper = mount(Home);
+    const wrapper = mount(Navbar, {
+      props: {
+        isAuthenticated: false
+      }
+    });
     
     // Check for navigation elements
     expect(wrapper.find('.navbar-brand').text()).toBe('MasterDataCleaner');

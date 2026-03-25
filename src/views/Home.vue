@@ -1,32 +1,5 @@
 <template>
   <div id="home-page">
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-light fixed-top py-3" style="background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0, 0, 0, 0.05);">
-      <div class="container">
-        <a href="#" class="navbar-brand fw-bold d-flex align-items-center gap-2" @click.prevent="$router.push('/')">
-          <div class="bg-gradient-primary rounded text-white d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
-            <i class="bi bi-stars"></i>
-          </div>
-          MasterDataCleaner
-        </a>
-        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav ms-auto align-items-lg-center gap-2 gap-lg-4">
-            <li class="nav-item"><a href="#" class="nav-link active" @click.prevent>Home</a></li>
-            <li class="nav-item"><a href="#features" class="nav-link">Features</a></li>
-            <li class="nav-item"><a href="#pricing" class="nav-link">Pricing</a></li>
-            <li class="nav-item mt-2 mt-lg-0">
-              <BButton variant="primary" class="px-4 rounded-pill" @click="goToDashboard">
-                Sign In
-              </BButton>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </nav>
-
     <!-- Hero Section -->
     <section class="hero-section position-relative overflow-hidden" style="padding-top: 120px; padding-bottom: 80px; background: radial-gradient(circle at top right, rgba(79, 70, 229, 0.08), transparent 40%), radial-gradient(circle at bottom left, rgba(236, 72, 153, 0.05), transparent 40%);">
       <div class="container">
