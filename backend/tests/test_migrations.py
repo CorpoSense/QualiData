@@ -60,7 +60,7 @@ class TestMigrations:
         
         assert revision_match, "Could not find revision in migration"
         assert down_revision_match, "Could not find down_revision in migration"
-        assert down_revision_match.group(1) == 'add_role_timezone'
+        assert down_revision_match.group(1) == 'convert_role_to_varchar'
 
 
 class TestOperationHistoryModelFields:
