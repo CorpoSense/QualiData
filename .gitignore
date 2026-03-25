@@ -71,3 +71,9 @@ components.d.ts
 
 # docs
 ./docs
+
+# memory
+.memory/
+
+# sql files
+backend/*.sql
