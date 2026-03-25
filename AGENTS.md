@@ -12,6 +12,7 @@ Follow these guidelines when working on this project.
 - **Clean code** - Write clean, readable, and maintainable code
 - **Reuse code** - Reuse existing code whenever possible
 - **Keep this file updated** - If you make changes that affect this document (new routers, models, structure, etc.), update the relevant sections in `AGENTS.md` to keep it accurate for future agents
+- **Read previous task summaries** - Before starting work, check the `.memory/` directory for task summaries from previous sessions to understand context and avoid duplicating work
 
 ---
 
@@ -31,6 +32,7 @@ Follow these guidelines when working on this project.
     - **Backend**: pytest (`pnpm test:backend`)
     - **E2E**: Cypress (`pnpm test:e2e`)
 11. **Check dependencies** - Review `package.json` or `requirements.txt` before using any library
+12. **Use existing venv** - Always use the existing virtual environment at `backend/.venv/` when running Python commands or modules (e.g., `backend/.venv/bin/python`, `backend/.venv/bin/pip`)
 
 ---
 
@@ -294,6 +296,29 @@ Multiple routers organized by feature in [`backend/app/routers/`](backend/app/ro
 | Add migration | `backend/alembic/versions/` |
 | View API docs | `http://localhost:8000/docs` |
 | View project docs | [`docs/`](docs/) directory |
+
+---
+
+## Previous Task Memory
+
+**Location:** `.memory/` directory
+
+Before starting new work, check `.memory/` for summaries of previous tasks to understand:
+- What issues were previously addressed
+- What solutions were applied
+- Any remaining TODOs or follow-up items
+
+**Structure:**
+```
+.memory/
+├── <task-name>/
+│   └── summary.md    # Summary of the task, problems, solutions, and results
+```
+
+**How to use:**
+1. List `.memory/` to see previous task directories
+2. Read `summary.md` files to understand what was done
+3. Use this context to avoid duplicating work and build on previous solutions
 
 ---
 
