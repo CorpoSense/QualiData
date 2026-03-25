@@ -68,22 +68,14 @@
     </div>
 
     <!-- Create/Edit Modal -->
-    <BModal v-model="showCreateModal" :has-modal-card="true" :ok-title="editingProject ? 'Update' : 'Create'" @ok="saveProject">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">{{ editingProject ? 'Edit Project' : 'New Project' }}</h5>
-            <button type="button" class="btn-close" @click="closeModal"></button>
-          </div>
-          <div class="modal-body">
-            <BFormGroup label="Name" label-class="fw-bold">
-              <BFormInput v-model="projectForm.name" placeholder="My Project" required></BFormInput>
-            </BFormGroup>
-            <BFormGroup label="Description" label-class="fw-bold">
-              <BFormTextarea v-model="projectForm.description" placeholder="Project description..."></BFormTextarea>
-            </BFormGroup>
-          </div>
-        </div>
+    <BModal v-model="showCreateModal" :title="editingProject ? 'Edit Project' : 'New Project'" :ok-title="editingProject ? 'Update' : 'Create'" @ok="saveProject">
+      <div class="modal-body">
+        <BFormGroup label="Name" label-class="fw-bold">
+          <BFormInput v-model="projectForm.name" placeholder="My Project" required></BFormInput>
+        </BFormGroup>
+        <BFormGroup label="Description" label-class="fw-bold">
+          <BFormTextarea v-model="projectForm.description" placeholder="Project description..."></BFormTextarea>
+        </BFormGroup>
       </div>
     </BModal>
   </div>
