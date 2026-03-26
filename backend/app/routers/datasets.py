@@ -1009,6 +1009,65 @@ async def delete_dataset(
     return None
 
 
+@router.post("/bulk-delete", response_model=dict)
+async def bulk_delete_datasets(
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Delete multiple datasets at once.
+
+    Body: { dataset_ids: [...] }
+    """
+    dataset_ids = request.get("dataset_ids", [])
+    
+    if not dataset_ids:
+        raise HTTPException(status_code=400, detail="dataset_ids is required")
+    
+    if len(dataset_ids) > 100:
+        raise HTTPException(status_code=400, detail="Cannot delete more than 100 datasets at once")
+    
+    deleted_count = 0
+    errors = []
+    
+    for dataset_id in dataset_ids:
+        try:
+            result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+            dataset = result.scalar_one_or_none()
+            
+            if not dataset:
+                errors.append(f"Dataset {dataset_id} not found")
+                continue
+            
+            # Verify ownership
+            project_result = await session.execute(
+                select(Project).where(
+                    Project.id == dataset.project_id, Project.user_id == current_user.id
+                )
+            )
+            project = project_result.scalar_one_or_none()
+            if not project:
+                errors.append(f"Access denied for dataset {dataset_id}")
+                continue
+            
+            # Update project stats
+            project.row_count -= dataset.row_count
+            project.storage_bytes -= dataset.file_size
+            
+            await session.delete(dataset)
+            deleted_count += 1
+        except Exception as e:
+            errors.append(f"Failed to delete {dataset_id}: {str(e)}")
+    
+    await session.commit()
+    
+    return {
+        "status": "success",
+        "deleted_count": deleted_count,
+        "errors": errors,
+    }
+
+
 def _build_db_url(db_type: str, host: str, port: str, database: str, username: str, password: str, sslmode: str | None = None) -> str:
     """Build SQLAlchemy connection URL from parameters."""
     drivers = {

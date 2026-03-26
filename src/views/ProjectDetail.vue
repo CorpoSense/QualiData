@@ -81,6 +81,9 @@
             <BButton v-if="selectedDatasetIds.length >= 2" size="sm" variant="primary" @click="openMergeModal">
               <i class="bi bi-arrows-collapse me-1"></i>Merge
             </BButton>
+            <BButton size="sm" variant="danger" @click="confirmBulkDelete">
+              <i class="bi bi-trash me-1"></i>Delete
+            </BButton>
           </div>
           <div class="row">
           <div v-for="dataset in datasets" :key="dataset.id" class="col-md-4 mb-3">
@@ -554,6 +557,23 @@
       </template>
     </BModal>
 
+    <!-- Bulk Delete Confirmation Modal -->
+    <BModal v-model="showBulkDeleteModal" title="Delete Datasets" size="md">
+      <div class="alert alert-danger py-2 small mb-3">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Are you sure you want to delete {{ selectedDatasetIds.length }} dataset(s)? This action cannot be undone.
+      </div>
+      <div class="small text-muted">
+        Selected: {{ selectedDatasetIds.map(id => datasets.find(d => d.id === id)?.name || id).join(', ') }}
+      </div>
+      <template #footer>
+        <BButton variant="outline-secondary" @click="showBulkDeleteModal = false">Cancel</BButton>
+        <BButton variant="danger" :loading="deletingBulk" @click="deleteSelectedDatasets">
+          <i class="bi bi-trash me-1"></i>Delete
+        </BButton>
+      </template>
+    </BModal>
+
     <!-- Operation Details Modal -->
     <BModal v-model="showOpDetailsModal" title="Operation Details" size="md">
       <div v-if="selectedOp">
@@ -636,6 +656,8 @@ const selectedDatasetIds = ref([])
 const mergeName = ref('Merged Dataset')
 const mergeStrategy = ref('union')
 const merging = ref(false)
+const showBulkDeleteModal = ref(false)
+const deletingBulk = ref(false)
 const renameDatasetId = ref(null)
 const renameDatasetName = ref('')
 const renameDatasetDesc = ref('')
@@ -1333,6 +1355,33 @@ async function applyMerge() {
     }
   } catch (e) { toast.error(e.message) }
   finally { merging.value = false }
+}
+
+function confirmBulkDelete() {
+  showBulkDeleteModal.value = true
+}
+
+async function deleteSelectedDatasets() {
+  if (selectedDatasetIds.value.length === 0) return
+  deletingBulk.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/bulk-delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ dataset_ids: selectedDatasetIds.value })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(`Deleted ${data.deleted_count} dataset(s)`)
+      showBulkDeleteModal.value = false
+      selectedDatasetIds.value = []
+      await fetchDatasets()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Delete failed')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { deletingBulk.value = false }
 }
 </script>
 
