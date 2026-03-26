@@ -313,12 +313,17 @@ Before starting new work, check `.memory/` for summaries of previous tasks to un
 .memory/
 ├── <task-name>/
 │   └── summary.md    # Summary of the task, problems, solutions, and results
+├── archived/          # Archived old/completed tasks (ignore unless necessary)
+│   └── <task-name>/
+│       └── summary.md
 ```
 
 **How to use:**
-1. List `.memory/` to see previous task directories
-2. Read `summary.md` files to understand what was done
-3. Use this context to avoid duplicating work and build on previous solutions
+1. List `.memory/` sorted by modification time: `ls -lt .memory/` to see task directories with most recent first
+2. Focus on **recent tasks** (top of the list) for relevant context; older tasks are less likely to be relevant
+3. Read `summary.md` files to understand what was done
+4. Use this context to avoid duplicating work and build on previous solutions
+5. **Ignore `archived/` subdirectory** unless explicitly instructed by the user or when investigating historical context is absolutely necessary
 
 ---
 
