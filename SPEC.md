@@ -53,16 +53,41 @@ Upload → Memory (pandas) → Transform → Preview → Commit → Database (pe
 ### 2. Project (Dataset)
 
 **Import Sources:**
-| Source | Format |
-|--------|--------|
-| File Upload | CSV, Excel (.xlsx, .xls), JSON |
-| Database | PostgreSQL, MySQL (via SQLAlchemy with dynamic schema discovery) |
-| Clipboard | Paste CSV/TSV data |
+| Source | Format | Features |
+|--------|--------|----------|
+| File Upload | CSV, TSV, Excel (.xlsx, .xls), JSON, XML | Auto-detection, preview, schema mapping |
+| Database | PostgreSQL, MySQL (via SQLAlchemy with dynamic schema discovery) | Connection pooling, query builder |
+| Clipboard | Paste CSV/TSV data | Auto-detect delimiter |
+| Remote | FTP, SFTP | Fetch files from remote servers |
+
+**Import Features:**
+- **Auto-detection** - Automatically detect delimiters, encoding, and data types
+- **Preview** - Review data before importing (first 100 rows)
+- **Schema mapping** - Configure column names and types
+- **Validation** - Check for data quality issues on import
+- **Encoding detection** - Auto-detect UTF-8, Latin-1, etc.
+- **Header detection** - Auto-detect header rows
+- **Skip rows** - Skip N rows at start (for metadata headers)
+- **Comment handling** - Ignore comment lines (starting with #)
 
 **Export Formats:**
-- CSV, Excel, JSON
-- Copy to clipboard
-- Database export (same connection types as import)
+| Format | Use Case | Features |
+|--------|----------|----------|
+| **CSV** | Universal compatibility, small file size | Configurable delimiter, quoting, encoding |
+| **TSV** | Tab-separated values | For spreadsheet compatibility |
+| **Excel** | Rich formatting, multiple sheets | Sheet naming, column widths, formatting |
+| **JSON** | API integration, nested data | Pretty print, nested structure support |
+| **XML** | Legacy systems, data exchange | Configurable root/row elements |
+| **Database** | Direct export to production databases | Same connection types as import |
+| **Clipboard** | Quick copy-paste to other applications | Copy selected rows/columns |
+
+**Export Features:**
+- **Column selection** - Choose which columns to export
+- **Row filtering** - Export only filtered/selected rows
+- **Format configuration** - Delimiter, encoding, quoting options
+- **Template export** - Custom export formats using templates
+- **Batch export** - Export multiple datasets at once
+- **Scheduled export** - Export on schedule (Enterprise tier)
 
 **Dataset Limits (by tier):**
 
@@ -104,6 +129,10 @@ Upload → Memory (pandas) → Transform → Preview → Commit → Database (pe
 | Split Column | Split into multiple columns | delimiter / regex / number of columns |
 | Duplicate Column | Copy column | new name |
 | Reorder Columns | Change column order | drag-and-drop |
+| Transpose | Swap rows and columns | - |
+| Fill Down | Fill empty cells with value from above | column selection |
+| Fill Up | Fill empty cells with value from below | column selection |
+| Blank Down | Clear duplicate values in sorted column | column selection |
 
 #### 4.2 Simple Cleaning Operations
 
@@ -133,7 +162,18 @@ trim(length)               # Truncate to length
 pad(length, char)          # Pad with character
 ```
 
-#### 4.3 AI Cleaning Operations
+#### 4.3 Advanced String Operations
+
+| Operation | Description | Use Case |
+|-----------|-------------|----------|
+| **Fingerprint** | Normalize text for comparison | Find duplicates with different formatting |
+| **N-gram** | Generate character n-grams | Fuzzy matching, clustering |
+| **Metaphone** | Phonetic encoding | Match names with similar pronunciation |
+| **Soundex** | Phonetic algorithm | Match names by sound |
+| **Levenshtein** | Edit distance calculation | Find similar strings |
+| **Jaro-Winkler** | String similarity score | Match short strings (names) |
+
+#### 4.4 AI Cleaning Operations
 
 **Workflow:**
 1. User selects column(s)
@@ -188,7 +228,92 @@ pad(length, char)          # Pad with character
 
 *Implementation:* Global sleep between requests, display quota warnings via notifications.
 
-### 5. Preview & History
+### 5. Data Exploration & Filtering
+
+#### 5.1 Faceted Browsing
+
+**Core feature for data exploration (inspired by OpenRefine):**
+
+| Facet Type | Description | Use Case |
+|------------|-------------|----------|
+| **Text Facet** | List all unique values with counts | See distribution of categorical data |
+| **Numeric Facet** | Histogram, min/max slider | Filter numeric ranges |
+| **Timeline Facet** | Date range picker | Filter by date ranges |
+| **Scatterplot Facet** | Two numeric columns plotted | Find correlations, outliers |
+| **Custom Facet** | GREL expression-based | Advanced filtering logic |
+
+**Facet Features:**
+- **Multi-select** - Choose multiple values
+- **Range selection** - Numeric/date ranges
+- **Include/Exclude** - Include or exclude selected values
+- **Sort by count** - See most common values first
+- **Cluster within facet** - Group similar values
+- **Save facet** - Save facet configuration for reuse
+
+**Facet Workflow:**
+1. Click column header → "Facet"
+2. Choose facet type (text, numeric, timeline, etc.)
+3. Configure facet options
+4. Select values/ranges to filter
+5. View filtered results
+6. Combine multiple facets for complex filtering
+
+#### 5.2 Clustering
+
+**Fuzzy matching for deduplication (inspired by OpenRefine):**
+
+| Algorithm | Description | Best For |
+|-----------|-------------|----------|
+| **Key Collision** | Group by normalized key | Fast, exact-ish matching |
+| **Nearest Neighbor** | Compare all pairs | Small datasets, high accuracy |
+| **Fingerprint** | Normalize whitespace, punctuation | General text |
+| **N-gram Fingerprint** | Use n-grams as keys | Partial matches |
+| **Metaphone** | Phonetic encoding | Names, words |
+| **Double Metaphone** | Improved phonetic | Names with variations |
+
+**Clustering Features:**
+- **Similarity threshold** - Adjust how strict matching is
+- **Merge suggestions** - AI suggests which values to merge
+- **Preview merge** - See result before applying
+- **Bulk merge** - Merge all selected clusters at once
+- **Undo merge** - Revert cluster merges
+
+**Clustering Workflow:**
+1. Select column to cluster
+2. Choose clustering algorithm
+3. Adjust similarity threshold
+4. Review cluster suggestions
+5. Select clusters to merge
+6. Choose canonical value (or create new)
+7. Apply merge
+
+#### 5.3 Reconciliation
+
+**Match data against external knowledge bases (inspired by OpenRefine):**
+
+| Service | Description | Use Case |
+|---------|-------------|----------|
+| **Wikidata** | Match entities to Wikidata | People, organizations, places |
+| **VIAF** | Virtual International Authority File | Authors, creators |
+| **Custom API** | Any reconciliation service | Domain-specific matching |
+
+**Reconciliation Features:**
+- **Scored matches** - Confidence score for each match
+- **Multiple candidates** - See top N matches
+- **Manual review** - Accept/reject matches
+- **Auto-match** - Accept matches above threshold
+- **Create new** - Add new entity if no match found
+
+**Reconciliation Workflow:**
+1. Select column to reconcile
+2. Choose reconciliation service
+3. Configure matching options
+4. Run reconciliation
+5. Review matches (scored by confidence)
+6. Accept/reject matches
+7. Add matched IDs to dataset
+
+### 6. Preview & History
 
 **Preview Panel:**
 - Display options: 25, 50, 100 rows
@@ -201,6 +326,9 @@ pad(length, char)          # Pad with character
 - Undo/Redo buttons
 - Click to restore any previous state
 - Auto-drop oldest when stack full
+- **Export history** - Save operation history as JSON
+- **Import history** - Apply saved operations to new data
+- **Replay operations** - Run same operations on different dataset
 
 **Column Profiling:**
 - Auto-detect data types (string, number, date, boolean)
@@ -210,7 +338,7 @@ pad(length, char)          # Pad with character
   - Date: min, max, range
 - Highlight potential issues (nulls, mixed types, outliers)
 
-### 6. Assistant Feature
+### 7. Assistant Feature
 
 Step-by-step wizard for guided cleaning:
 1. **Analyze** - Agent analyzes data and suggests operations
@@ -218,7 +346,7 @@ Step-by-step wizard for guided cleaning:
 3. **Apply** - User selects which operations to apply
 4. **Confirm** - Final review before commit
 
-### 7. Notifications
+### 8. Notifications
 
 Real-time notification system for:
 - Operation progress (with percentage)
@@ -434,6 +562,9 @@ operation_history (
 | GET | `/api/projects/{id}/history` | Get operation history |
 | POST | `/api/projects/{id}/undo` | Undo last operation |
 | POST | `/api/projects/{id}/redo` | Redo operation |
+| POST | `/api/projects/{id}/history/export` | Export operation history |
+| POST | `/api/projects/{id}/history/import` | Import operation history |
+| POST | `/api/projects/{id}/history/replay` | Replay operations on new data |
 
 ### Agents
 | Method | Endpoint | Description |
@@ -452,6 +583,24 @@ operation_history (
 | POST | `/api/ai/analyze` | Analyze data |
 | POST | `/api/ai/suggest` | Get suggestions |
 | POST | `/api/ai/chat` | Chat with assistant |
+
+### Facets & Clustering
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/projects/{id}/facets` | Create facet |
+| GET | `/api/projects/{id}/facets` | List facets |
+| DELETE | `/api/projects/{id}/facets/{facet_id}` | Delete facet |
+| POST | `/api/projects/{id}/cluster` | Run clustering |
+| GET | `/api/projects/{id}/clusters` | List clusters |
+| POST | `/api/projects/{id}/clusters/merge` | Merge clusters |
+
+### Reconciliation
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/projects/{id}/reconcile` | Run reconciliation |
+| GET | `/api/projects/{id}/reconcile/matches` | List matches |
+| POST | `/api/projects/{id}/reconcile/accept` | Accept match |
+| POST | `/api/projects/{id}/reconcile/reject` | Reject match |
 
 ---
 
@@ -484,6 +633,21 @@ Select Columns → Choose Operation → Configure → Preview → Commit/Rollbac
 - Side-by-side view (default)
 - Toggle view (switch between before/after)
 - Diff highlighting (changed cells)
+
+### Faceted Browsing UI
+- Facet panel on left side
+- Collapsible facet groups
+- Visual indicators for selected values
+- Count badges for each value
+- Range sliders for numeric facets
+- Timeline picker for date facets
+
+### Clustering UI
+- Cluster preview modal
+- Side-by-side value comparison
+- Similarity score display
+- Bulk select/deselect
+- Merge confirmation dialog
 
 ---
 
@@ -520,6 +684,17 @@ Select Columns → Choose Operation → Configure → Preview → Commit/Rollbac
 - Enterprise tier
 - Templates for cleaning workflows
 - Advanced scheduling/batch processing
+- Faceted browsing
+- Clustering algorithms
+- Reconciliation services
+- Operation replay/export
+
+### Deferred (Post-MVP)
+- Database import/export (SQLAlchemy connections)
+- Collaboration features
+- Enterprise tier
+- Templates for cleaning workflows
+- Advanced scheduling/batch processing
 
 ---
 
@@ -549,11 +724,24 @@ Select Columns → Choose Operation → Configure → Preview → Commit/Rollbac
 - [ ] Before/After comparison
 - [ ] Assistant wizard
 
+### Phase 5: Advanced Features
+- [ ] Faceted browsing
+- [ ] Clustering algorithms
+- [ ] Reconciliation services
+- [ ] Operation replay/export
+
+### Phase 6: Billing & Launch
+
 ### Phase 5: Billing & Launch
 - [ ] Lago integration
 - [ ] Tier enforcement
 - [ ] Landing page
 - [ ] Pricing page
+
+---
+
+*Document Version: 2.0*
+*Last Updated: 2026-03-26*
 
 ---
 
