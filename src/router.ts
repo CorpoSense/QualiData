@@ -1,7 +1,6 @@
 import { createWebHistory, createRouter } from 'vue-router'
 import { getApiUrl } from '@/utils/api'
 import { isAdmin } from '@/composables/useUser'
-import { useDebugStore } from '@/stores/debug'
 
 import Home from '@/views/Home.vue'
 import Login from '@/views/Login.vue'
@@ -41,27 +40,6 @@ const router = createRouter({
 
 // Navigation guard to check auth
 router.beforeEach(async (to, _from, next) => {
-  const debugStore = useDebugStore()
-  
-  // Auto-login in debug mode if no token
-  if (debugStore.isDebug && !localStorage.getItem('token') && to.path !== '/debug-login') {
-    try {
-      const res = await fetch(`${getApiUrl()}/api/auth/debug-login`, { method: 'POST' })
-      if (res.ok) {
-        const data = await res.json()
-        localStorage.setItem('token', data.access_token)
-      }
-    } catch (e) {
-      console.error('Debug login failed:', e)
-    }
-  }
-  
-  // Auto-redirect to dashboard in debug mode if on login page
-  if (debugStore.isDebug && to.path === '/login') {
-    next('/dashboard')
-    return
-  }
-  
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin)
   const token = localStorage.getItem('token')

@@ -210,44 +210,6 @@ async def login(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.post("/debug-login", response_model=Token)
-async def debug_login(session: AsyncSession = Depends(get_async_session)):
-    """Debug login - only works when DEBUG=true. Returns token for first user (admin)."""
-    settings = get_settings()
-    if not settings.debug:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Debug login is disabled",
-        )
-
-    # Get first user (admin)
-    result = await session.execute(select(User).order_by(User.id).limit(1))
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No users found",
-        )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="User is inactive"
-        )
-
-    # Update last login
-    user.last_login = datetime.utcnow()
-    await session.commit()
-
-    # Create access token
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
-    )
-
-    return {"access_token": access_token, "token_type": "bearer"}
-
-
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
     """Get current user info."""

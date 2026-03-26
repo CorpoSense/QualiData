@@ -63,7 +63,6 @@ src/
 │   └── useToast.js            # Toast notification system
 │
 ├── stores/                    # Pinia state stores
-│   └── debug.ts               # Debug mode state
 │
 ├── utils/                     # Utility functions
 │   └── api.js                 # API client utilities
@@ -132,32 +131,10 @@ router.beforeEach(async (to, _from, next) => {
 
 ## State Management
 
-### Pinia Stores
-
-#### Debug Store
-
-```typescript
-// stores/debug.ts
-import { defineStore } from 'pinia'
-
-export const useDebugStore = defineStore('debug', {
-  state: () => ({
-    isDebug: false,
-    debugToken: null,
-  }),
-  actions: {
-    init() {
-      this.isDebug = import.meta.env.DEV
-    },
-  },
-})
-```
-
 ### Global State
 
 User authentication state is managed via localStorage:
 - `token` - JWT authentication token
-- Auto-login in debug mode
 
 ## Components
 

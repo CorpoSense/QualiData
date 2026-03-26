@@ -335,12 +335,6 @@ async def login(credentials: Credentials):
     # Validate credentials
     # Generate JWT token
     # Return token
-
-@router.post("/auth/debug-login")
-async def debug_login():
-    """Debug login for development."""
-    # Create test user if needed
-    # Return token
 ```
 
 ## Services
@@ -411,7 +405,6 @@ class DataCleaningAssistant:
 | POST | `/api/auth/login` | Login |
 | POST | `/api/auth/logout` | Logout |
 | GET | `/api/auth/me` | Get current user |
-| POST | `/api/auth/debug-login` | Debug login (dev only) |
 
 ### Projects
 

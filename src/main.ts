@@ -3,7 +3,6 @@ import App from "./App.vue";
 import router from "./router";
 import { createPinia } from "pinia";
 import { createBootstrap } from "bootstrap-vue-next/plugins/createBootstrap";
-import { useDebugStore } from "@/stores/debug";
 import "bootstrap/dist/css/bootstrap.css";
 import "bootstrap-vue-next/dist/bootstrap-vue-next.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -16,9 +15,5 @@ const app = createApp(App);
 app.use(pinia);
 app.use(router);
 app.use(createBootstrap());
-
-// Initialize debug store on app start
-const debugStore = useDebugStore();
-debugStore.init();
 
 app.mount("#app");

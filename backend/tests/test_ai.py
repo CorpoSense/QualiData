@@ -98,11 +98,3 @@ async def test_ai_clean_accepts_multiple_columns(client):
     )
     # Should fail auth or dataset not found, but not 422 (validation error)
     assert response.status_code in [401, 404, 422]
-
-
-@pytest.mark.asyncio
-async def test_debug_login_disabled_by_default(client):
-    """Test that debug-login returns 403 when DEBUG=false."""
-    response = await client.post("/api/auth/debug-login")
-    # Should return 403 (forbidden) or 401/404 depending on test setup
-    assert response.status_code in [401, 403, 404]

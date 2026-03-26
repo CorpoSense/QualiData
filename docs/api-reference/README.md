@@ -131,19 +131,6 @@ Authorization: Bearer <token>
 }
 ```
 
-#### Debug Login (Development)
-
-```http
-POST /api/auth/debug-login
-```
-
-**Response:**
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIs..."
-}
-```
-
 ---
 
 ### Users
