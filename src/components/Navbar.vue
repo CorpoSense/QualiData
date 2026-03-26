@@ -51,7 +51,6 @@
               </button>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><router-link class="dropdown-item" to="/profile"><i class="bi bi-person me-2"></i>Profile</router-link></li>
-                <li v-if="canManageUsers(user)"><router-link class="dropdown-item" to="/admin/users"><i class="bi bi-people me-2"></i>User Management</router-link></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item text-danger" href="#" @click.prevent="$emit('logout')"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
               </ul>
