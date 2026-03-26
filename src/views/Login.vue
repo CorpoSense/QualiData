@@ -162,6 +162,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getApiUrl } from '@/utils/api'
+import { currentUser } from '@/composables/useUser'
 
 const router = useRouter()
 const apiUrl = getApiUrl()
@@ -211,6 +212,15 @@ async function handleLogin() {
     
     const data = await res.json()
     localStorage.setItem('token', data.access_token)
+    
+    // Fetch user data and update currentUser
+    const userRes = await fetch(`${apiUrl}/api/auth/me`, {
+      headers: { Authorization: `Bearer ${data.access_token}` }
+    })
+    if (userRes.ok) {
+      currentUser.value = await userRes.json()
+    }
+    
     router.push('/dashboard')
   } catch (e) {
     const errorMsg = e?.message || (typeof e === 'string' ? e : JSON.stringify(e) || 'An error occurred. Please try again.')

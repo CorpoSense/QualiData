@@ -12,6 +12,8 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { getApiUrl } from '@/utils/api'
+import { currentUser } from '@/composables/useUser'
 
 const route = useRoute()
 const router = useRouter()
@@ -31,6 +33,15 @@ onMounted(async () => {
     if (res.ok) {
       const data = await res.json()
       localStorage.setItem('token', data.access_token)
+      
+      // Fetch user data and update currentUser
+      const userRes = await fetch(`${apiUrl}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${data.access_token}` }
+      })
+      if (userRes.ok) {
+        currentUser.value = await userRes.json()
+      }
+      
       router.push('/dashboard')
     } else {
       throw new Error('OAuth failed')

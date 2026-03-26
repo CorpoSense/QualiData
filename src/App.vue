@@ -5,7 +5,7 @@
     <!-- Navbar -->
     <Navbar
       :is-authenticated="isAuthenticated"
-      :user="user"
+      :user="currentUser"
       :unread-count="unreadCount"
       @show-notifications="showNotifications = true"
       @logout="logout"
@@ -64,17 +64,16 @@
 import { useToast } from './composables/useToast'
 const { toasts } = useToast()
 
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getApiUrl } from '@/utils/api'
-import { canManageUsers } from '@/composables/useUser'
+import { canManageUsers, currentUser } from '@/composables/useUser'
 import { BOrchestrator } from 'bootstrap-vue-next'
 import Navbar from '@/components/Navbar.vue'
 
 const router = useRouter()
 
 const isAuthenticated = ref(false)
-const user = ref(null)
 const notifications = ref([])
 const unreadCount = ref(0)
 const showNotifications = ref(false)
@@ -90,13 +89,18 @@ onMounted(async () => {
   }
 })
 
+// Watch for changes in currentUser to update isAuthenticated
+watch(currentUser, (newUser) => {
+  isAuthenticated.value = !!newUser
+})
+
 async function fetchUser() {
   try {
     const res = await fetch(`${apiUrl}/api/auth/me`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
     if (res.ok) {
-      user.value = await res.json()
+      currentUser.value = await res.json()
     } else {
       logout()
     }
@@ -123,7 +127,7 @@ async function fetchNotifications() {
 function logout() {
   localStorage.removeItem('token')
   isAuthenticated.value = false
-  user.value = null
+  currentUser.value = null
   router.push('/login')
 }
 
