@@ -75,5 +75,8 @@ components.d.ts
 # memory
 .memory/
 
+# implementation plans
+plans/
+
 # sql files
 backend/*.sql

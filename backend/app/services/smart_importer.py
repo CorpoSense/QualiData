@@ -356,7 +356,7 @@ class SmartImporter:
         return True, []
 
     def _detect_dtypes(self, lines: List[str], analysis: FileAnalysis) -> Dict[str, str]:
-        """Detect column data types."""
+        """Detect column data types with warnings for mixed types."""
         delim = analysis.delimiter or ','
         
         try:
@@ -390,7 +390,18 @@ class SmartImporter:
             elif all(self._is_numeric(v) for v in col_values):
                 dtypes[f"col_{col_idx}"] = 'numeric'
             else:
-                dtypes[f"col_{col_idx}"] = 'string'
+                # Check for date patterns
+                if any(self._is_date_pattern(v) for v in col_values):
+                    dtypes[f"col_{col_idx}"] = 'date'
+                    col_name = analysis.column_names[col_idx] if col_idx < len(analysis.column_names) else f"Column {col_idx}"
+                    analysis.add_message(
+                        ImportSeverity.INFO,
+                        "DATE_DETECTED",
+                        f"Column '{col_name}' appears to contain dates",
+                        "Dates will be imported as strings. Use date parsing operations after import if needed."
+                    )
+                else:
+                    dtypes[f"col_{col_idx}"] = 'string'
         
         if analysis.column_names:
             dtypes = {analysis.column_names[i]: v for i, v in enumerate(dtypes.values()) if i < len(analysis.column_names)}
@@ -405,6 +416,20 @@ class SmartImporter:
             return True
         except ValueError:
             return False
+
+    def _is_date_pattern(self, value: str) -> bool:
+        """Check if value looks like a date."""
+        import re
+        # Common date patterns
+        date_patterns = [
+            r'\d{4}-\d{2}-\d{2}',  # YYYY-MM-DD
+            r'\d{2}/\d{2}/\d{4}',  # MM/DD/YYYY
+            r'\d{2}-\d{2}-\d{4}',  # DD-MM-YYYY
+            r'\d{4}/\d{2}/\d{2}',  # YYYY/MM/DD
+            r'\d{2}\.\d{2}\.\d{4}',  # DD.MM.YYYY
+            r'\d{4}\.\d{2}\.\d{2}',  # YYYY.MM.DD
+        ]
+        return any(re.match(pattern, value) for pattern in date_patterns)
 
     def _analyze_excel(self, file_path: str, analysis: FileAnalysis) -> None:
         """Analyze Excel file."""

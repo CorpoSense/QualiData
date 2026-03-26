@@ -186,11 +186,130 @@
         <div v-if="importTab === 'file'">
           <BFormGroup label="Dataset Name">
             <BFormInput v-model="importForm.name" placeholder="My Dataset"></BFormInput>
+            <small class="text-muted">If empty, the first file name will be used. When merging multiple files, this name will be used for the merged dataset.</small>
           </BFormGroup>
-          <BFormGroup label="Upload File" class="mt-3">
-            <BFormFile v-model="importForm.file" accept=".csv,.tsv,.txt,.xlsx,.xls" drop-placeholder="Drop file here"></BFormFile>
-            <small class="text-muted">CSV, Excel</small>
+          
+          <!-- Multi-file Drop Zone -->
+          <BFormGroup label="Upload Files" class="mt-3">
+            <div
+              class="drop-zone p-4 border rounded text-center"
+              :class="{ 'drop-zone-active': isDragging }"
+              @dragover.prevent="isDragging = true"
+              @dragleave.prevent="isDragging = false"
+              @drop.prevent="handleDrop"
+              @click="triggerFileInput"
+            >
+              <input
+                ref="fileInput"
+                type="file"
+                multiple
+                accept=".csv,.tsv,.txt,.xlsx,.xls"
+                class="d-none"
+                @change="handleFileSelect"
+              >
+              <i class="bi bi-cloud-arrow-up text-muted" style="font-size: 2rem;"></i>
+              <p class="mb-1 mt-2">Drag & drop files here or click to browse</p>
+              <small class="text-muted">CSV, TSV, Excel (.xlsx, .xls)</small>
+            </div>
           </BFormGroup>
+
+          <!-- File List -->
+          <div v-if="importForm.files.length > 0" class="mt-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="small text-muted">{{ importForm.files.length }} file(s) selected</span>
+              <BButton size="sm" variant="link" @click="clearFiles">Clear all</BButton>
+            </div>
+            <div class="file-list">
+              <div
+                v-for="(file, index) in importForm.files"
+                :key="index"
+                class="file-item d-flex align-items-center gap-2 p-2 border rounded mb-2"
+              >
+                <i class="bi bi-file-earmark-text text-muted"></i>
+                <div class="flex-grow-1">
+                  <div class="small">{{ file.name }}</div>
+                  <div class="text-muted" style="font-size: 0.75rem;">{{ formatFileSize(file.size) }}</div>
+                </div>
+                <BButton size="sm" variant="link" class="text-danger p-0" @click="removeFile(index)">
+                  <i class="bi bi-x-circle"></i>
+                </BButton>
+              </div>
+            </div>
+          </div>
+
+          <!-- Excel Sheet Selection (shown when Excel files are selected) -->
+          <div v-if="excelSheets.length > 0" class="mt-3 p-3 border rounded bg-light">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <i class="bi bi-file-earmark-excel text-success"></i>
+              <strong class="small">Excel Sheet Selection</strong>
+              <div v-if="loadingSheets" class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Loading sheets...</span>
+              </div>
+            </div>
+            <BFormGroup label="Select sheet to import:" label-size="sm">
+              <BFormSelect
+                v-model="selectedSheet"
+                :options="excelSheets.map(sheet => ({ value: sheet, text: sheet }))"
+                size="sm"
+                @update:model-value="importForm.sheetName = $event"
+              >
+                <template #first>
+                  <BFormSelectOption :value="''" disabled>-- Select a sheet --</BFormSelectOption>
+                </template>
+              </BFormSelect>
+            </BFormGroup>
+            <small class="text-muted d-block mt-1">
+              <i class="bi bi-info-circle me-1"></i>
+              This Excel file contains {{ excelSheets.length }} sheet(s). Select which sheet to import.
+            </small>
+          </div>
+
+          <!-- Merge Option (shown when multiple files are selected) -->
+          <div v-if="importForm.files.length > 1" class="mt-3 p-3 border rounded bg-light">
+            <div class="form-check">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="mergeFiles"
+                v-model="importForm.mergeFiles"
+              >
+              <label class="form-check-label" for="mergeFiles">
+                <strong>Merge files into a single dataset</strong>
+              </label>
+            </div>
+            <small class="text-muted d-block mt-1">
+              <i class="bi bi-info-circle me-1"></i>
+              When enabled, all files will be combined into one dataset. The dataset name above will be used for the merged result.
+              If disabled, each file will be imported as a separate dataset.
+            </small>
+            <div v-if="importForm.mergeFiles" class="mt-2">
+              <BFormGroup label="Merge Strategy" label-size="sm">
+                <BFormSelect v-model="importForm.mergeStrategy" size="sm" :options="[
+                  { value: 'union', text: 'Union — keep all columns, fill missing with null' },
+                  { value: 'intersection', text: 'Intersection — keep only common columns' },
+                  { value: 'strict', text: 'Strict — fail if columns don\'t match exactly' },
+                ]"></BFormSelect>
+              </BFormGroup>
+            </div>
+          </div>
+
+          <!-- Import Progress -->
+          <div v-if="importProgress.length > 0" class="mt-3">
+            <div class="fw-bold mb-2">Import Progress</div>
+            <div
+              v-for="(progress, index) in importProgress"
+              :key="index"
+              class="import-progress-item d-flex align-items-center gap-2 p-2 border rounded mb-2"
+            >
+              <div v-if="progress.status === 'pending'" class="spinner-border spinner-border-sm" role="status"></div>
+              <i v-else-if="progress.status === 'success'" class="bi bi-check-circle-fill text-success"></i>
+              <i v-else-if="progress.status === 'error'" class="bi bi-x-circle-fill text-danger"></i>
+              <div class="flex-grow-1">
+                <div class="small">{{ progress.fileName }}</div>
+                <div v-if="progress.message" class="text-muted" style="font-size: 0.75rem;">{{ progress.message }}</div>
+              </div>
+            </div>
+          </div>
 
           <!-- Import Options -->
           <div class="mt-3 p-3 border rounded">
@@ -230,8 +349,11 @@
             </div>
           </div>
           <div class="mt-3 text-end">
-            <BButton variant="primary" :loading="importing" :disabled="!importForm.name || !importForm.file" @click="handleImport">
-              <i class="bi bi-upload me-1"></i> Import
+            <BButton v-if="!importComplete" variant="primary" :loading="importing" :disabled="importForm.files.length === 0" @click="handleImport">
+              <i class="bi bi-upload me-1"></i> Import {{ importForm.files.length > 0 ? `(${importForm.files.length} files)` : '' }}
+            </BButton>
+            <BButton v-else variant="secondary" @click="showImportModal = false">
+              <i class="bi bi-x-circle me-1"></i> Close
             </BButton>
           </div>
         </div>
@@ -484,8 +606,15 @@ const showImportModal = ref(false)
 watch(showImportModal, (val) => {
   if (!val) {
     importForm.name = ''
-    importForm.file = null
+    importForm.files = []
+    importForm.mergeFiles = false
+    importForm.sheetName = ''
     importTab.value = 'file'
+    importProgress.value = []
+    importComplete.value = false
+    excelSheets.value = []
+    selectedSheet.value = ''
+    loadingSheets.value = false
     dbImportForm.name = ''
     dbImportForm.table = ''
     dbTables.value = []
@@ -613,11 +742,22 @@ const previewLimitOptions = [
 
 const importForm = reactive({
   name: '',
-  file: null,
+  files: [],
   autoDetect: true,
   hasHeader: true,
-  delimiter: ','
+  delimiter: ',',
+  mergeFiles: false,
+  mergeStrategy: 'union',
+  sheetName: ''
 })
+
+const isDragging = ref(false)
+const fileInput = ref(null)
+const importProgress = ref([])
+const importComplete = ref(false)
+const excelSheets = ref([])
+const selectedSheet = ref('')
+const loadingSheets = ref(false)
 
 const autoModeOptions = [
   { value: true, text: 'Auto (recommended)' },
@@ -728,38 +868,178 @@ async function fetchOperations() {
   }
 }
 
-function handleFileSelect() {
-  const file = importForm.file
-  if (!file) return
+function triggerFileInput() {
+  fileInput.value?.click()
+}
+
+function handleDrop(e) {
+  isDragging.value = false
+  const files = Array.from(e.dataTransfer.files)
+  addFiles(files)
+}
+
+function handleFileSelect(e) {
+  const files = Array.from(e.target.files)
+  addFiles(files)
+}
+
+function addFiles(files) {
+  const validFiles = files.filter(file => {
+    const ext = file.name.split('.').pop().toLowerCase()
+    return ['csv', 'tsv', 'txt', 'xlsx', 'xls'].includes(ext)
+  })
+  importForm.files.push(...validFiles)
   
-  // Preview disabled - import goes directly to backend
-  importPreviewHeaders.value = []
-  importPreview.value = []
+  // Auto-populate dataset name from first file if name is empty
+  if (!importForm.name && validFiles.length > 0) {
+    const firstFileName = validFiles[0].name
+    // Remove file extension
+    const nameWithoutExt = firstFileName.replace(/\.[^/.]+$/, '')
+    importForm.name = nameWithoutExt
+  }
+  
+  // Check if any Excel files were added and fetch sheets
+  const excelFiles = validFiles.filter(file => {
+    const ext = file.name.split('.').pop().toLowerCase()
+    return ['xlsx', 'xls'].includes(ext)
+  })
+  
+  if (excelFiles.length > 0) {
+    fetchExcelSheets(excelFiles[0])
+  }
 }
 
-async function confirmImport() {
-  handleImport()
-}
-
-async function handleImport() {
-  if (!importForm.file) return
-  importing.value = true
+async function fetchExcelSheets(file) {
+  loadingSheets.value = true
+  excelSheets.value = []
+  selectedSheet.value = ''
+  
   try {
     const formData = new FormData()
-    formData.append('file', importForm.file)
-    formData.append('project_id', projectId)
-    if (importForm.name) formData.append('name', importForm.name)
-
-    const res = await fetch(`${apiUrl}/api/datasets/import`, {
+    formData.append('file', file)
+    
+    const res = await fetch(`${apiUrl}/api/datasets/import/excel/sheets`, {
       method: 'POST',
       body: formData,
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     })
+    
     if (res.ok) {
-      showImportModal.value = false
-      importForm.name = ''
-      importForm.file = null
+      const data = await res.json()
+      excelSheets.value = data.sheets || []
+      
+      // Auto-select first sheet if only one sheet available
+      if (excelSheets.value.length === 1) {
+        selectedSheet.value = excelSheets.value[0]
+        importForm.sheetName = excelSheets.value[0]
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch Excel sheets:', e)
+  } finally {
+    loadingSheets.value = false
+  }
+}
+
+function removeFile(index) {
+  importForm.files.splice(index, 1)
+  
+  // Reset sheet selection if no Excel files remain
+  const hasExcelFiles = importForm.files.some(file => {
+    const ext = file.name.split('.').pop().toLowerCase()
+    return ['xlsx', 'xls'].includes(ext)
+  })
+  
+  if (!hasExcelFiles) {
+    excelSheets.value = []
+    selectedSheet.value = ''
+    importForm.sheetName = ''
+  }
+  
+  // Reset dataset name if no files remain
+  if (importForm.files.length === 0) {
+    importForm.name = ''
+  }
+}
+
+function clearFiles() {
+  importForm.files = []
+  importForm.name = ''
+  excelSheets.value = []
+  selectedSheet.value = ''
+  importForm.sheetName = ''
+}
+
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+async function handleImport() {
+  if (importForm.files.length === 0) return
+  
+  importing.value = true
+  importComplete.value = false
+  importProgress.value = importForm.files.map(file => ({
+    fileName: file.name,
+    status: 'pending',
+    message: null
+  }))
+
+  try {
+    const formData = new FormData()
+    formData.append('project_id', projectId)
+    if (importForm.name) formData.append('name', importForm.name)
+    formData.append('auto_detect', importForm.autoDetect.toString())
+    formData.append('delimiter', importForm.delimiter)
+    formData.append('has_header', importForm.hasHeader.toString())
+    if (importForm.sheetName) formData.append('sheet_name', importForm.sheetName)
+    
+    // Use single endpoint for one file, multiple endpoint for multiple files
+    const isSingleFile = importForm.files.length === 1
+    const endpoint = isSingleFile ? 'single' : 'multiple'
+    
+    if (isSingleFile) {
+      formData.append('file', importForm.files[0])
+    } else {
+      importForm.files.forEach(file => {
+        formData.append('files', file)
+      })
+      if (importForm.mergeFiles) formData.append('merge_strategy', importForm.mergeStrategy)
+    }
+
+    const res = await fetch(`${apiUrl}/api/datasets/import/${endpoint}`, {
+      method: 'POST',
+      body: formData,
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    
+    if (res.ok) {
+      const data = await res.json()
+      if (isSingleFile) {
+        // Single file response
+        importProgress.value[0] = {
+          fileName: importForm.files[0].name,
+          status: 'success',
+          message: `Imported ${data.row_count} rows`
+        }
+      } else {
+        // Multiple files response
+        data.results.forEach((result, index) => {
+          importProgress.value[index] = {
+            fileName: result.file_name,
+            status: result.success ? 'success' : 'error',
+            message: result.message
+          }
+        })
+      }
+      
+      // Refresh datasets list
       await fetchDatasets()
+      importComplete.value = true
     }
   } catch (e) {
     console.error(e)
@@ -1103,4 +1383,39 @@ async function applyMerge() {
 .operation-icon.bg-danger { background: rgba(239, 68, 68, 0.1); }
 .operation-icon.bg-info { background: rgba(6, 182, 212, 0.1); }
 .operation-icon.bg-secondary { background: rgba(107, 114, 128, 0.1); }
+
+/* Drop Zone */
+.drop-zone {
+  border: 2px dashed #dee2e6;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.drop-zone:hover {
+  border-color: #6c757d;
+  background-color: #f8f9fa;
+}
+
+.drop-zone-active {
+  border-color: #0d6efd;
+  background-color: #e7f1ff;
+}
+
+/* File List */
+.file-item {
+  transition: background 0.2s ease;
+}
+
+.file-item:hover {
+  background-color: #f8f9fa;
+}
+
+/* Import Progress */
+.import-progress-item {
+  transition: background 0.2s ease;
+}
+
+.import-progress-item:hover {
+  background-color: #f8f9fa;
+}
 </style>

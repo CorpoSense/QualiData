@@ -2,6 +2,8 @@
 
 import tempfile
 import os
+import json
+import logging
 
 from app.services.smart_importer import SmartImporter
 
@@ -9,7 +11,7 @@ import io
 
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, date, time, timedelta
 from fastapi import (
     APIRouter,
     Depends,
@@ -28,7 +30,16 @@ from app.db.database import get_async_session
 from app.db.models import Dataset, Project, User
 from app.routers.auth import get_current_active_user
 
+# For Excel sheet detection
+try:
+    from openpyxl import load_workbook
+    OPENPYXL_AVAILABLE = True
+except ImportError:
+    OPENPYXL_AVAILABLE = False
+
 router = APIRouter(prefix="/datasets", tags=["datasets"])
+
+logger = logging.getLogger(__name__)
 
 
 # Pydantic schemas
@@ -57,6 +68,22 @@ class DatasetResponse(BaseModel):
     created_at: datetime | None
 
     model_config = {"from_attributes": True}
+
+
+class MultiImportResult(BaseModel):
+    file_name: str
+    success: bool
+    message: str | None
+    dataset_id: str | None
+    row_count: int
+
+
+class MultiImportResponse(BaseModel):
+    status: str
+    message: str
+    results: list[MultiImportResult]
+    total_rows: int
+    total_size: int
 
 
 class ColumnInfo(BaseModel):
@@ -99,21 +126,65 @@ def _normalize_columns(columns):
     return columns
 
 
+def _ensure_json_serializable(data: list[dict]) -> list[dict]:
+    """Ensure all values in the data are JSON serializable."""
+    def convert_value(val):
+        if val is None:
+            return None
+        if isinstance(val, (datetime, date, time)):
+            return val.isoformat()
+        if isinstance(val, timedelta):
+            return str(val)
+        if isinstance(val, (np.integer,)):
+            return int(val)
+        if isinstance(val, (np.floating,)):
+            return float(val) if not np.isnan(val) else None
+        if isinstance(val, np.ndarray):
+            return val.tolist()
+        if isinstance(val, pd.Timestamp):
+            return val.isoformat()
+        if isinstance(val, pd.Timedelta):
+            return str(val)
+        # Try to convert to string as fallback
+        try:
+            json.dumps(val)
+            return val
+        except (TypeError, ValueError):
+            return str(val)
+    
+    return [{k: convert_value(v) for k, v in row.items()} for row in data]
+
+
 def get_preview_data(df: pd.DataFrame, max_rows: int = 500, offset: int = 0) -> list[dict]:
-    """Get preview data from DataFrame."""
-    # Convert datetime columns FIRST (before NaN replacement, since NaT != NaN)
-    for col in df.columns:
-        if pd.api.types.is_datetime64_any_dtype(df[col]):
-            df[col] = df[col].astype(str)
-            df[col] = df[col].replace("NaT", None)
+    """Get preview data from DataFrame with proper JSON serialization."""
+    # Create a copy to avoid modifying original
+    df_copy = df.copy()
+    
+    # Convert all datetime columns to ISO format strings
+    for col in df_copy.columns:
+        if pd.api.types.is_datetime64_any_dtype(df_copy[col]):
+            df_copy[col] = df_copy[col].astype(str)
+            df_copy[col] = df_copy[col].replace("NaT", None)
+        # Handle timedelta
+        elif pd.api.types.is_timedelta64_dtype(df_copy[col]):
+            df_copy[col] = df_copy[col].astype(str)
+        # Handle period
+        elif pd.api.types.is_period_dtype(df_copy[col]):
+            df_copy[col] = df_copy[col].astype(str)
+    
     # Replace NaN/inf with None for JSON compatibility
-    df = df.replace([np.inf, -np.inf], np.nan).replace({np.nan: None})
-    return df.iloc[offset:offset + max_rows].to_dict(orient="records")
+    df_copy = df_copy.replace([np.inf, -np.inf], np.nan).replace({np.nan: None})
+    
+    # Convert to dict and ensure all values are JSON serializable
+    records = df_copy.iloc[offset:offset + max_rows].to_dict(orient="records")
+    
+    # Final pass to ensure JSON serialization
+    return _ensure_json_serializable(records)
 
 
 # Routes
-@router.post("/import", response_model=DatasetResponse)
-async def import_dataset(
+@router.post("/import/single", response_model=DatasetResponse)
+async def import_single_dataset(
     file: UploadFile = File(...),
     project_id: str = Form(...),
     name: str | None = Form(None),
@@ -127,7 +198,7 @@ async def import_dataset(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Import data from CSV, Excel, or JSON file."""
+    """Import a single data file (CSV, Excel, or JSON)."""
     # Verify project belongs to user
     result = await session.execute(
         select(Project).where(
@@ -210,36 +281,384 @@ async def import_dataset(
         os.unlink(tmp_path)
 
     # Get column info and preview
-    columns = detect_columns(df)
-    preview_data = get_preview_data(df)
-    row_count = len(df)
+    try:
+        columns = detect_columns(df)
+        preview_data = get_preview_data(df)
+        row_count = len(df)
+    except Exception as e:
+        logger.exception("Failed to process DataFrame for import")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process data: {str(e)}"
+        )
 
     # Use filename as name if not provided
     if not name:
         name = filename
 
     # Create dataset record
-    dataset = Dataset(
-        name=name,
-        description=description,
-        project_id=project_id,
-        file_name=filename,
-        file_size=file_size,
-        file_type=file_type,
-        columns=columns,
-        preview_data=preview_data,
-        row_count=row_count,
+    try:
+        dataset = Dataset(
+            name=name,
+            description=description,
+            project_id=project_id,
+            file_name=filename,
+            file_size=file_size,
+            file_type=file_type,
+            columns=columns,
+            preview_data=preview_data,
+            row_count=row_count,
+        )
+        session.add(dataset)
+
+        # Update project stats
+        project.row_count += row_count
+        project.storage_bytes += file_size
+
+        await session.commit()
+        await session.refresh(dataset)
+
+        return dataset
+    except Exception as e:
+        await session.rollback()
+        logger.exception("Failed to save dataset to database")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save dataset: {str(e)}"
+        )
+
+
+@router.post("/import/excel/sheets")
+async def get_excel_sheets(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Get sheet names from an Excel file."""
+    filename = file.filename or "data.xlsx"
+    file_ext = os.path.splitext(filename)[1].lower()
+    
+    # Only process Excel files
+    if file_ext not in (".xlsx", ".xls", ".xlsb", ".ods"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be an Excel file (.xlsx, .xls, .xlsb, .ods)"
+        )
+    
+    content = await file.read()
+    
+    # Save to temp file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+    
+    try:
+        sheet_names = []
+        
+        if file_ext == ".xlsx" and OPENPYXL_AVAILABLE:
+            # Use openpyxl for .xlsx files (faster and more reliable)
+            workbook = load_workbook(tmp_path, read_only=True, data_only=True)
+            sheet_names = workbook.sheetnames
+            workbook.close()
+        else:
+            # Use pandas for other formats (.xls, .xlsb, .ods)
+            excel_file = pd.ExcelFile(tmp_path)
+            sheet_names = excel_file.sheet_names
+            excel_file.close()
+        
+        return {
+            "status": "success",
+            "sheets": sheet_names,
+            "file_name": filename
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to read Excel file: {str(e)}"
+        )
+    finally:
+        # Clean up temp file
+        os.unlink(tmp_path)
+
+
+@router.post("/import/multiple", response_model=MultiImportResponse)
+async def import_multiple_datasets(
+    files: list[UploadFile] = File(...),
+    project_id: str = Form(...),
+    name: str | None = Form(None),
+    description: str | None = Form(None),
+    auto_detect: str | None = Form('true'),
+    delimiter: str | None = Form(None),
+    encoding: str | None = Form(None),
+    has_header: str | None = Form(None),
+    sheet_name: str | None = Form(None),
+    merge_strategy: str | None = Form('union'),
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Import multiple data files at once."""
+    # Verify project belongs to user
+    result = await session.execute(
+        select(Project).where(
+            Project.id == project_id, Project.user_id == current_user.id
+        )
     )
-    session.add(dataset)
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
 
+    results = []
+    total_rows = 0
+    total_size = 0
+    dataframes = []  # For merging when strategy is provided
+
+    for file in files:
+        file_result = {
+            "file_name": file.filename or "unknown",
+            "success": False,
+            "message": None,
+            "dataset_id": None,
+            "row_count": 0
+        }
+        
+        try:
+            # Process each file (similar to existing import logic)
+            filename = file.filename or "data.csv"
+            content = await file.read()
+            file_size = len(content)
+            
+            # Determine file type
+            file_ext = os.path.splitext(filename)[1].lower()
+            file_type = "csv"
+            if file_ext in (".xlsx", ".xls", ".xlsb", ".ods"):
+                file_type = "excel"
+            elif file_ext == ".json":
+                file_type = "json"
+            
+            # Convert string values from FormData
+            auto_detect_bool = auto_detect.lower() == 'true' if auto_detect else True
+            has_header_bool = has_header.lower() == 'true' if has_header else True
+            
+            # Save to temp file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+            
+            try:
+                if auto_detect_bool:
+                    # Use smart importer
+                    importer = SmartImporter()
+                    analysis = importer.analyze(tmp_path)
+                    
+                    if not analysis.is_importable:
+                        error_msgs = [m.message for m in analysis.messages if m.severity.value == "error"]
+                        file_result["message"] = f"Cannot analyze file: {'; '.join(error_msgs)}"
+                        results.append(file_result)
+                        continue
+                    
+                    df = importer.import_file(
+                        tmp_path,
+                        analysis=analysis,
+                        delimiter=delimiter if not auto_detect_bool else None,
+                        encoding=encoding,
+                        has_header=has_header_bool if not auto_detect_bool else None,
+                        sheet_name=sheet_name,
+                    )
+                else:
+                    # Manual settings
+                    if file_type == "csv":
+                        df = pd.read_csv(
+                            tmp_path,
+                            sep=delimiter or ',',
+                            encoding=encoding or 'utf-8',
+                            header=0 if has_header_bool else None,
+                        )
+                    elif file_type == "excel":
+                        df = pd.read_excel(
+                            tmp_path,
+                            sheet_name=sheet_name,
+                            header=0 if has_header_bool else None,
+                        )
+                    elif file_type == "json":
+                        df = pd.read_json(tmp_path)
+                    else:
+                        file_result["message"] = "Unsupported file type"
+                        results.append(file_result)
+                        continue
+            finally:
+                os.unlink(tmp_path)
+            
+            # Store DataFrame for potential merging
+            dataframes.append({
+                "df": df,
+                "filename": filename,
+                "file_size": file_size,
+                "file_type": file_type,
+                "file_result": file_result
+            })
+            
+        except Exception as e:
+            file_result["message"] = str(e)
+            results.append(file_result)
+    
+    # Handle merging if strategy is provided and multiple files exist
+    if merge_strategy and len(dataframes) > 1:
+        try:
+            # Determine final columns based on strategy
+            all_columns = set()
+            for item in dataframes:
+                all_columns.update(item["df"].columns)
+            
+            if merge_strategy == "intersection":
+                common_cols = set(dataframes[0]["df"].columns)
+                for item in dataframes[1:]:
+                    common_cols &= set(item["df"].columns)
+                final_columns = sorted(common_cols)
+            elif merge_strategy == "strict":
+                ref_cols = set(dataframes[0]["df"].columns)
+                mismatches = []
+                for i, item in enumerate(dataframes[1:], 2):
+                    ds_cols = set(item["df"].columns)
+                    if ds_cols != ref_cols:
+                        missing = ref_cols - ds_cols
+                        extra = ds_cols - ref_cols
+                        detail = f"File {i} ({item['filename']})"
+                        if missing:
+                            detail += f" is missing: {sorted(missing)}"
+                        if extra:
+                            detail += f" has extra: {sorted(extra)}"
+                        mismatches.append(detail)
+                if mismatches:
+                    return {
+                        "status": "failed",
+                        "message": f"Column mismatch in strict mode: {'; '.join(mismatches)}",
+                        "results": [],
+                        "total_rows": 0,
+                        "total_size": 0
+                    }
+                final_columns = sorted(ref_cols)
+            else:  # union
+                final_columns = sorted(all_columns)
+            
+            if not final_columns:
+                raise HTTPException(status_code=400, detail="No columns to merge")
+            
+            # Align all DataFrames to final columns
+            aligned_dfs = []
+            for item in dataframes:
+                df = item["df"]
+                for col in final_columns:
+                    if col not in df.columns:
+                        df[col] = None
+                aligned_dfs.append(df[final_columns])
+            
+            # Concatenate
+            merged_df = pd.concat(aligned_dfs, ignore_index=True)
+            
+            # Get column info and preview
+            columns = detect_columns(merged_df)
+            preview_data = get_preview_data(merged_df)
+            row_count = len(merged_df)
+            
+            # Calculate total file size
+            total_file_size = sum(item["file_size"] for item in dataframes)
+            
+            # Use provided name or default
+            dataset_name = name if name else "Merged Dataset"
+            
+            # Create merged dataset record
+            dataset = Dataset(
+                name=dataset_name,
+                description=description or f"Merged from {len(dataframes)} files ({merge_strategy})",
+                project_id=project_id,
+                file_name=f"{dataset_name}.csv",
+                file_size=total_file_size,
+                file_type="csv",
+                columns=columns,
+                preview_data=preview_data,
+                row_count=row_count,
+            )
+            session.add(dataset)
+            await session.flush()  # Get the ID
+            
+            # Create success results for all files
+            for item in dataframes:
+                item["file_result"]["success"] = True
+                item["file_result"]["dataset_id"] = dataset.id
+                item["file_result"]["row_count"] = len(item["df"])
+                item["file_result"]["message"] = f"Merged into '{dataset_name}'"
+                results.append(item["file_result"])
+            
+            total_rows = row_count
+            total_size = total_file_size
+            
+        except Exception as e:
+            logger.exception("Failed to merge datasets")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to merge datasets: {str(e)}"
+            )
+    else:
+        # Import each file as a separate dataset
+        for item in dataframes:
+            df = item["df"]
+            filename = item["filename"]
+            file_size = item["file_size"]
+            file_type = item["file_type"]
+            file_result = item["file_result"]
+            
+            try:
+                # Get column info and preview
+                columns = detect_columns(df)
+                preview_data = get_preview_data(df)
+                row_count = len(df)
+                
+                # Use filename as name if not provided
+                dataset_name = name if name and len(files) == 1 else filename
+                
+                # Create dataset record
+                dataset = Dataset(
+                    name=dataset_name,
+                    description=description,
+                    project_id=project_id,
+                    file_name=filename,
+                    file_size=file_size,
+                    file_type=file_type,
+                    columns=columns,
+                    preview_data=preview_data,
+                    row_count=row_count,
+                )
+                session.add(dataset)
+                await session.flush()  # Get the ID
+                
+                file_result["success"] = True
+                file_result["dataset_id"] = dataset.id
+                file_result["row_count"] = row_count
+                file_result["message"] = f"Imported {row_count} rows"
+                
+                total_rows += row_count
+                total_size += file_size
+            except Exception as e:
+                await session.rollback()
+                logger.exception("Failed to save dataset to database")
+                file_result["message"] = f"Failed to save dataset: {str(e)}"
+            
+            results.append(file_result)
+    
     # Update project stats
-    project.row_count += row_count
-    project.storage_bytes += file_size
-
+    project.row_count += total_rows
+    project.storage_bytes += total_size
+    
     await session.commit()
-    await session.refresh(dataset)
-
-    return dataset
+    
+    return {
+        "status": "success",
+        "message": f"Imported {len([r for r in results if r['success']])} of {len(files)} files",
+        "results": results,
+        "total_rows": total_rows,
+        "total_size": total_size
+    }
 
 
 @router.get("/{dataset_id}/preview", response_model=DatasetPreviewResponse)
@@ -707,27 +1126,48 @@ async def import_from_database(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    dataset = Dataset(
-        project_id=project_id,
-        name=request.get("name", table_name),
-        description=f"Imported from {request.get('db_type', 'database')} table: {table_name}",
-        file_name=f"{table_name}.csv",
-        file_type="csv",
-        row_count=len(df),
-        columns=detect_columns(df),
-        preview_data=get_preview_data(df),
-    )
+    # Get column info and preview
+    try:
+        columns = detect_columns(df)
+        preview_data = get_preview_data(df)
+        row_count = len(df)
+    except Exception as e:
+        logger.exception("Failed to process DataFrame for database import")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process data: {str(e)}"
+        )
 
-    session.add(dataset)
-    await session.commit()
-    await session.refresh(dataset)
+    # Create dataset record
+    try:
+        dataset = Dataset(
+            project_id=project_id,
+            name=request.get("name", table_name),
+            description=f"Imported from {request.get('db_type', 'database')} table: {table_name}",
+            file_name=f"{table_name}.csv",
+            file_type="csv",
+            row_count=row_count,
+            columns=columns,
+            preview_data=preview_data,
+        )
 
-    return {
-        "status": "success",
-        "message": f"Imported {len(df)} rows from '{table_name}'",
-        "dataset_id": dataset.id,
-        "row_count": len(df),
-    }
+        session.add(dataset)
+        await session.commit()
+        await session.refresh(dataset)
+
+        return {
+            "status": "success",
+            "message": f"Imported {row_count} rows from '{table_name}'",
+            "dataset_id": dataset.id,
+            "row_count": row_count,
+        }
+    except Exception as e:
+        await session.rollback()
+        logger.exception("Failed to save dataset to database")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save dataset: {str(e)}"
+        )
 
 
 @router.post("/merge", response_model=dict)
@@ -816,34 +1256,61 @@ async def merge_datasets(
         aligned_dfs.append(df[final_columns])
 
     # Concatenate
-    merged_df = pd.concat(aligned_dfs, ignore_index=True)
+    try:
+        merged_df = pd.concat(aligned_dfs, ignore_index=True)
+    except Exception as e:
+        logger.exception("Failed to concatenate DataFrames")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to merge datasets: {str(e)}"
+        )
+
+    # Get column info and preview
+    try:
+        columns = detect_columns(merged_df)
+        preview_data = get_preview_data(merged_df)
+        row_count = len(merged_df)
+    except Exception as e:
+        logger.exception("Failed to process merged DataFrame")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process merged data: {str(e)}"
+        )
 
     # Create new dataset
-    dataset = Dataset(
-        project_id=project_id,
-        name=name,
-        description=f"Merged from {len(dataset_ids)} datasets ({strategy})",
-        file_name=f"{name}.csv",
-        file_type="csv",
-        row_count=len(merged_df),
-        columns=detect_columns(merged_df),
-        preview_data=get_preview_data(merged_df),
-    )
-    session.add(dataset)
-    await session.commit()
-    await session.refresh(dataset)
-
-    # Update project stats
-    project_result2 = await session.execute(select(Project).where(Project.id == project_id))
-    project = project_result2.scalar_one_or_none()
-    if project:
-        project.row_count = (project.row_count or 0) + len(merged_df)
+    try:
+        dataset = Dataset(
+            project_id=project_id,
+            name=name,
+            description=f"Merged from {len(dataset_ids)} datasets ({strategy})",
+            file_name=f"{name}.csv",
+            file_type="csv",
+            row_count=row_count,
+            columns=columns,
+            preview_data=preview_data,
+        )
+        session.add(dataset)
         await session.commit()
+        await session.refresh(dataset)
 
-    return {
-        "status": "success",
-        "message": f"Merged {len(dataset_ids)} datasets into '{name}' ({len(merged_df)} rows, {len(final_columns)} columns)",
-        "dataset_id": dataset.id,
-        "row_count": len(merged_df),
-        "column_count": len(final_columns),
-    }
+        # Update project stats
+        project_result2 = await session.execute(select(Project).where(Project.id == project_id))
+        project = project_result2.scalar_one_or_none()
+        if project:
+            project.row_count = (project.row_count or 0) + row_count
+            await session.commit()
+
+        return {
+            "status": "success",
+            "message": f"Merged {len(dataset_ids)} datasets into '{name}' ({row_count} rows, {len(final_columns)} columns)",
+            "dataset_id": dataset.id,
+            "row_count": row_count,
+            "column_count": len(final_columns),
+        }
+    except Exception as e:
+        await session.rollback()
+        logger.exception("Failed to save merged dataset to database")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save merged dataset: {str(e)}"
+        )

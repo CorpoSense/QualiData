@@ -24,7 +24,7 @@ class TestDatasetRoutes:
 
     def test_import_requires_auth(self):
         """Test importing dataset requires authentication."""
-        response = client.post("/api/datasets/import")
+        response = client.post("/api/datasets/import/single")
         assert response.status_code == 401
 
     def test_preview_requires_auth(self):

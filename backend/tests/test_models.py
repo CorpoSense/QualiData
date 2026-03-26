@@ -184,9 +184,9 @@ class TestDatasetRouting:
 
     def test_dataset_import_accepts_string_project_id(self):
         """Dataset import should accept string project_id (UUID)."""
-        from app.routers.datasets import import_dataset
+        from app.routers.datasets import import_single_dataset
         import inspect
-        sig = inspect.signature(import_dataset)
+        sig = inspect.signature(import_single_dataset)
         params = sig.parameters
         assert 'project_id' in params
 
