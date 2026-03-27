@@ -409,16 +409,44 @@ Jane Smith, jane@example.com
 
 ### AI Clean
 
-Use AI to transform data based on natural language instructions.
+Use AI to transform data based on natural language instructions. The AI Clean feature provides two interfaces:
+
+#### Simple Mode
+
+Quick cleaning with minimal configuration.
 
 **Workflow:**
 1. Select column(s) to clean
-2. Click **AI Clean**
+2. Click **AI Clean** → **Simple** tab
 3. Choose an agent
-4. Enter your prompt
-5. Configure batch size
-6. Preview results
-7. Commit or rollback
+4. Enter your instruction
+5. Click **Apply**
+
+**Best for:** Quick, straightforward cleaning tasks
+
+#### Advanced Mode
+
+Full control over AI behavior with prompt customization.
+
+**Workflow:**
+1. Select column(s) to clean
+2. Click **AI Clean** → **Advanced** tab
+3. Choose an agent
+4. Select a preset or customize prompts
+5. Configure additional options
+6. Click **Apply**
+
+**Features:**
+- **Prompt Presets** - Pre-configured prompts for common tasks:
+  - **Quality** - Focus on data quality and consistency
+  - **Formatting** - Standardize formats and values
+  - **Enrichment** - Fill missing values and derive new data
+- **System Prompt** - Customize the AI's behavior and instructions
+- **Additional Instructions** - Add specific requirements for this operation
+- **Rows for Context** - Number of rows to include for context (default: 10)
+- **Include Description** - Include dataset description in AI context
+
+**Best for:** Complex tasks requiring specific AI behavior or custom prompts
 
 **Prompt Examples:**
 ```

@@ -452,103 +452,28 @@
     </BModal>
 
     <!-- Structural AI Clean Modal -->
-    <BModal v-model="showStructuralAiModal" title="AI Structural Clean">
-      <div class="alert alert-secondary mb-3">
-        <i class="bi bi-info-circle me-1"></i>
-        <strong>For column-level changes:</strong> rename columns, drop columns, add new columns, or change column types.
-        For filling/deriving values, use <em>AI Data Clean</em> instead.
-      </div>
-      <div class="alert alert-info">
-        <i class="bi bi-info-circle me-2"></i>
-        <strong>Selected {{ selectedColumns.length === 1 ? 'column' : 'columns' }}:</strong> 
-        {{ selectedColumns.length === 1 ? selectedColumns[0] : selectedColumns.join(', ') }}
-      </div>
-      <BFormGroup label="AI Agent *">
-        <BFormSelect v-model="selectedAgentId" :options="agentOptions" required></BFormSelect>
-      </BFormGroup>
-      <BFormGroup label="Instruction">
-        <BFormTextarea v-model="structuralAiInstruction" placeholder="e.g., Rename columns to snake_case, Convert column types appropriately"></BFormTextarea>
-      </BFormGroup>
-      <template #footer>
-        <BButton @click="showStructuralAiModal = false">Cancel</BButton>
-        <BButton variant="primary" :loading="operating" :disabled="!selectedAgentId" @click="applyStructuralAiClean">Apply</BButton>
-      </template>
-    </BModal>
+    <AiCleanModal
+      v-model="showStructuralAiModal"
+      type="structural"
+      :selected-columns="selectedColumns"
+      :agent-options="agentOptions"
+      :total-rows="totalRows"
+      :operating="operating"
+      @apply="applyStructuralAiClean"
+    />
 
     <!-- Data AI Clean Modal -->
-    <BModal v-model="showDataAiModal" title="AI Data Clean" size="lg">
-      <div class="alert alert-secondary mb-3">
-        <i class="bi bi-info-circle me-1"></i>
-        <strong>For row-level changes:</strong> fill/derive values, fix typos, standardize formats, categorize data.
-        For renaming/dropping columns, use <em>AI Structural Clean</em> instead.
-      </div>
-      <div class="alert alert-info">
-        <i class="bi bi-info-circle me-2"></i>
-        <strong>Selected {{ selectedColumns.length === 1 ? 'column' : 'columns' }}:</strong>
-        {{ selectedColumns.length === 1 ? selectedColumns[0] : selectedColumns.join(', ') }}
-      </div>
-      <BFormGroup label="AI Agent *">
-        <BFormSelect v-model="selectedAgentId" :options="agentOptions" required></BFormSelect>
-      </BFormGroup>
-      <BFormGroup label="Instruction">
-        <BFormTextarea v-model="dataAiInstruction" placeholder="e.g., Fill country based on city, Standardize phone numbers, Categorize product types"></BFormTextarea>
-      </BFormGroup>
-      <div class="form-check mb-2">
-        <input class="form-check-input" type="checkbox" v-model="batchProcessAll" id="batch-process-all">
-        <label class="form-check-label" for="batch-process-all">
-          Process all rows
-        </label>
-      </div>
-      <div v-if="batchProcessAll" class="row g-2 mb-2">
-        <div class="col-4">
-          <BFormGroup label="Batch size" label-for="batch-size">
-            <BFormInput id="batch-size" v-model.number="batchSize" type="number" min="1" max="100"></BFormInput>
-          </BFormGroup>
-        </div>
-        <div class="col-4">
-          <BFormGroup label="Delay (seconds)" label-for="batch-delay">
-            <BFormInput id="batch-delay" v-model.number="batchDelay" type="number" min="0" max="60" step="0.5"></BFormInput>
-          </BFormGroup>
-        </div>
-        <div class="col-4">
-          <BFormGroup label="Start from row" label-for="batch-start">
-            <BFormInput id="batch-start" v-model.number="batchStartRow" type="number" min="0"></BFormInput>
-          </BFormGroup>
-        </div>
-      </div>
-      <div v-if="batchProcessAll && totalRows > 100" class="alert alert-warning py-2 mb-2">
-        <i class="bi bi-exclamation-triangle me-1"></i>
-        Large dataset ({{ totalRows }} rows). This will make ~{{ estimatedCalls }} AI calls.
-      </div>
-      <!-- Progress bar -->
-      <div v-if="batchProgress" class="mb-2">
-        <div class="d-flex justify-content-between mb-1">
-          <small>{{ batchProgress.status === 'error' ? 'Completed with errors' : batchProgress.status === 'done' ? 'Done' : 'Processing…' }}</small>
-          <small>{{ batchProgress.percentage }}% ({{ batchProgress.completed }}/{{ batchProgress.total }} batches)</small>
-        </div>
-        <div class="progress" style="height: 20px;">
-          <div
-            class="progress-bar progress-bar-striped"
-            :class="progressBarClass"
-            :style="{ width: batchProgress.percentage + '%' }"
-            role="progressbar"
-          >
-            {{ batchProgress.percentage }}%
-          </div>
-        </div>
-        <small v-if="batchProgress.failed > 0" class="text-danger">
-          {{ batchProgress.failed }} batch(es) failed
-        </small>
-      </div>
-      <template #footer>
-        <BButton v-if="!operating && !batchProgress" @click="showDataAiModal = false">Cancel</BButton>
-        <BButton v-if="!operating && !batchProgress" variant="primary" :disabled="!selectedAgentId || !dataAiInstruction" @click="applyDataAiClean">Apply</BButton>
-        <BButton v-if="operating" variant="outline-secondary" disabled>
-          <i class="bi bi-hourglass-split me-1"></i>Processing…
-        </BButton>
-        <BButton v-if="!operating && batchProgress && (batchProgress.status === 'done' || batchProgress.status === 'error')" variant="primary" @click="closeDataAiModal">Close</BButton>
-      </template>
-    </BModal>
+    <AiCleanModal
+      v-model="showDataAiModal"
+      type="data"
+      :selected-columns="selectedColumns"
+      :agent-options="agentOptions"
+      :total-rows="totalRows"
+      :operating="operating"
+      :batch-progress="batchProgress"
+      @apply="applyDataAiClean"
+      @close="closeDataAiModal"
+    />
 
     <!-- Operation Confirm Modal -->
     <OperationConfirmModal
@@ -1202,9 +1127,10 @@ import { getApiUrl } from '@/utils/api'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormFile, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem } from 'bootstrap-vue-next'
-import DataTable from '../components/DataTable.vue'
-import PromptModal from '../components/PromptModal.vue'
-import OperationConfirmModal from '../components/OperationConfirmModal.vue'
+import DataTable from '@/components/DataTable.vue'
+import PromptModal from '@/components/PromptModal.vue'
+import OperationConfirmModal from '@/components/OperationConfirmModal.vue'
+import AiCleanModal from '@/components/AiCleanModal.vue'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
@@ -1363,8 +1289,6 @@ let confirmResolve = null
 const showProfile = ref(false)
 const showCompare = ref(false)
 const showHistory = ref(false)
-const showExportRecipe = ref(false)
-const showImportRecipe = ref(false)
 const exportZip = ref(false)
 const importText = ref('')
 const importFile = ref(null)
@@ -1377,7 +1301,6 @@ const showFillnaModal = ref(false)
 const showStructuralAiModal = ref(false)
 const showDataAiModal = ref(false)
 const agents = ref([])
-const selectedAgentId = ref(null)
 const agentOptions = computed(() => [
   { value: null, text: 'Select an AI Agent…' },
   ...agents.value.map(a => ({ value: a.id, text: `${a.name} (${a.provider}/${a.model})` }))
@@ -1389,13 +1312,6 @@ const comparisonResult = ref(null)
 const nullCount = ref(0)
 const selectedColumns = ref([])  // Selected columns (click on table headers)
 const selectedRows = ref([])  // Selected rows
-const structuralAiInstruction = ref('')
-const dataAiInstruction = ref('')
-const dataAiBatchSize = ref(10)
-const batchProcessAll = ref(false)
-const batchSize = ref(10)
-const batchDelay = ref(3)
-const batchStartRow = ref(0)
 const batchProgress = ref(null)
 
 // Computed fields for BTable - disable sorting to allow column selection
@@ -1455,7 +1371,6 @@ const undoableSelectedCount = computed(() => {
   }).length
 })
 const operating = ref(false)
-const aiInstruction = ref('')
 const clipboardData = ref('')
 const clipboardDatasetName = ref('')
 
@@ -1469,11 +1384,6 @@ const limitOptions = [
 ]
 
 const totalPages = computed(() => Math.ceil(totalRows.value / limit.value))
-const estimatedCalls = computed(() => {
-  if (!batchProcessAll.value) return 0
-  const remaining = totalRows.value - batchStartRow.value
-  return Math.max(1, Math.ceil(remaining / batchSize.value))
-})
 const progressBarClass = computed(() => {
   if (!batchProgress.value) return ''
   const p = batchProgress.value
@@ -2687,44 +2597,46 @@ async function redo() {
   finally { operating.value = false }
 }
 
-async function applyStructuralAiClean() {
+async function applyStructuralAiClean(payload) {
   if (!selectedColumns.value || selectedColumns.value.length === 0) {
     toast.warning('No column selected'); return
   }
-  if (!structuralAiInstruction.value) return
-  // For structural AI clean, we might want to operate on columns only (no rows)
-  // We'll send the selected columns and instruction
-  if (!selectedAgentId.value) {
+  if (!payload.instruction) return
+  if (!payload.agentId) {
     toast.warning('Please select an AI Agent'); return
   }
-  const payload = { 
-    columns: selectedColumns.value, 
-    instruction: structuralAiInstruction.value,
+  const body = {
+    columns: selectedColumns.value,
+    instruction: payload.instruction,
     type: 'structural',
-    agent_id: selectedAgentId.value
+    agent_id: payload.agentId,
+    system_prompt: payload.systemPrompt,
+    user_prompt: payload.userPrompt,
+    rows_for_context: payload.rowsForContext,
+    include_description: payload.includeDescription
   };
   operating.value = true;
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/ai-clean`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(body)
     });
-    if (res.ok) { 
+    if (res.ok) {
       toast.success('AI structural cleaning applied');
       showStructuralAiModal.value = false;
       selectedColumns.value = [];
-      await refreshData() 
+      await refreshData()
     }
-    else { 
-      const err = await res.json(); 
-      toast.error(err.detail || 'AI structural cleaning failed') 
+    else {
+      const err = await res.json();
+      toast.error(err.detail || 'AI structural cleaning failed')
     }
-  } catch (e) { 
-    toast.error(e.message) 
+  } catch (e) {
+    toast.error(e.message)
   }
-  finally { 
-    operating.value = false; 
+  finally {
+    operating.value = false;
   }
 }
 
@@ -2734,28 +2646,32 @@ function closeDataAiModal() {
   operating.value = false
 }
 
-async function applyDataAiClean() {
+async function applyDataAiClean(payload) {
   if (!selectedColumns.value || selectedColumns.value.length === 0) {
     toast.warning('No column selected'); return
   }
-  if (!dataAiInstruction.value) { toast.warning('Enter an instruction'); return }
-  if (!selectedAgentId.value) { toast.warning('Please select an AI Agent'); return }
+  if (!payload.instruction) { toast.warning('Enter an instruction'); return }
+  if (!payload.agentId) { toast.warning('Please select an AI Agent'); return }
 
-  if (!batchProcessAll.value) {
+  if (!payload.batchProcessAll) {
     // Single batch mode (original behavior)
-    const payload = {
+    const body = {
       columns: selectedColumns.value,
-      instruction: dataAiInstruction.value,
+      instruction: payload.instruction,
       type: 'data',
-      agent_id: selectedAgentId.value,
-      batch_size: dataAiBatchSize.value
+      agent_id: payload.agentId,
+      batch_size: 10,
+      system_prompt: payload.systemPrompt,
+      user_prompt: payload.userPrompt,
+      rows_for_context: payload.rowsForContext,
+      include_description: payload.includeDescription
     }
     operating.value = true
     try {
       const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/ai-clean`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(body)
       })
       if (res.ok) {
         toast.success('AI data cleaning applied')
@@ -2782,13 +2698,17 @@ async function applyDataAiClean() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify({
         columns: selectedColumns.value,
-        instruction: dataAiInstruction.value,
+        instruction: payload.instruction,
         type: 'data',
-        agent_id: selectedAgentId.value,
-        batch_size: batchSize.value,
-        delay: batchDelay.value,
-        start_row: batchStartRow.value,
-        process_all: true
+        agent_id: payload.agentId,
+        batch_size: payload.batchSize,
+        delay: payload.batchDelay,
+        start_row: payload.batchStartRow,
+        process_all: true,
+        system_prompt: payload.systemPrompt,
+        user_prompt: payload.userPrompt,
+        rows_for_context: payload.rowsForContext,
+        include_description: payload.includeDescription
       })
     })
 
@@ -2804,7 +2724,7 @@ async function applyDataAiClean() {
 
     // Step 2: Stream progress via SSE using fetch (EventSource can't send headers)
     const columnsParam = selectedColumns.value.join(',')
-    const sseUrl = `${apiUrl}/api/datasets/${datasetId.value}/ai-batch/${job_id}/stream?columns=${encodeURIComponent(columnsParam)}&instruction=${encodeURIComponent(dataAiInstruction.value)}&agent_id=${selectedAgentId.value}&batch_size=${batchSize.value}&delay=${batchDelay.value}&start_row=${batchStartRow.value}`
+    const sseUrl = `${apiUrl}/api/datasets/${datasetId.value}/ai-batch/${job_id}/stream?columns=${encodeURIComponent(columnsParam)}&instruction=${encodeURIComponent(payload.instruction)}&agent_id=${payload.agentId}&batch_size=${payload.batchSize}&delay=${payload.batchDelay}&start_row=${payload.batchStartRow}`
 
     try {
       const sseRes = await fetch(sseUrl, {
@@ -2864,30 +2784,6 @@ async function applyDataAiClean() {
     toast.error(e.message)
     operating.value = false
   }
-}
-
-// Keep the old applyAiClean for backward compatibility or remove if not needed
-// We'll comment it out and replace with the new dropdown, but let's keep it for now.
-async function applyAiClean() {
-  if (!selectedColumns.value || selectedColumns.value.length === 0) {
-    toast.warning('No column selected'); return
-  }
-  if (!aiInstruction.value) return
-  // Send columns (array) for multiple, column (string) for single
-  const payload = selectedColumns.value.length === 1
-    ? { column: selectedColumns.value[0], instruction: aiInstruction.value, batch_size: 10 }
-    : { columns: selectedColumns.value, instruction: aiInstruction.value, batch_size: 10 }
-  operating.value = true
-  try {
-    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/ai-clean`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify(payload)
-    })
-    if (res.ok) { toast.success('AI cleaning applied'); showAiModal.value = false; await refreshData() }
-    else { const err = await res.json(); toast.error(err.detail || 'AI cleaning failed') }
-  } catch (e) { toast.error(e.message) }
-  finally { operating.value = false }
 }
 
 async function pasteFromClipboard() {
