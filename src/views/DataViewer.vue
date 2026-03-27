@@ -169,21 +169,6 @@
             </BDropdownItem>
           </BDropdown>
 
-          <BButton size="sm" variant="primary" @click="showAddRecords = true">
-            <i class="bi bi-plus-lg me-1"></i>Add
-          </BButton>
-          <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowUp" @click="reorderRows('up')" title="Move selected rows one step up">
-            <i class="bi bi-arrow-up"></i>
-          </BButton>
-          <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowDown" @click="reorderRows('down')" title="Move selected rows one step down">
-            <i class="bi bi-arrow-down"></i>
-          </BButton>
-          <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-danger" @click="deleteSelectedRows">
-            <i class="bi bi-trash me-1"></i>Delete {{ selectedRowIndices.length }}
-          </BButton>
-          <BButton size="sm" :variant="'outline-secondary'" @click="showTableSettings = true">
-            <i class="bi bi-gear"></i>
-          </BButton>
           <BDropdown text="Rows" size="sm">
             <BDropdownItem @click="showRowFilterModal = true">
               <i class="bi bi-funnel me-2"></i>Filter rows
@@ -241,7 +226,7 @@
         {{ selectedColumns.length === 1 ? `1 column: ${selectedColumns[0]}` : `${selectedColumns.length} columns selected` }}
       </BBadge>
       <BButton size="sm" variant="outline-secondary" @click="selectedColumns = columns.map(c => c.field)">
-        Select All
+        <i class="bi bi-check-all"></i> Select All
       </BButton>
       <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-secondary" @click="selectedColumns = []">
         Clear
@@ -252,6 +237,21 @@
       <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRight" @click="reorderColumns('right')" title="Move selected columns one step right">
         <i class="bi bi-arrow-right"></i>
       </BButton>
+      <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowUp" @click="reorderRows('up')" title="Move selected rows one step up">
+        <i class="bi bi-arrow-up"></i>
+      </BButton>
+      <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowDown" @click="reorderRows('down')" title="Move selected rows one step down">
+        <i class="bi bi-arrow-down"></i>
+      </BButton>
+      <BButton size="sm" variant="primary" @click="showAddRecords = true">
+        <i class="bi bi-plus-lg me-1"></i>Add
+      </BButton>
+      <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-danger" @click="deleteSelectedRows">
+        <i class="bi bi-trash me-1"></i>Delete {{ selectedRowIndices.length }}
+      </BButton>
+      <BButton size="sm" :variant="'outline-secondary'" @click="showTableSettings = true">
+        <i class="bi bi-gear"></i>
+      </BButton>      
       <span v-if="selectedColumns.length === 0" class="text-muted small ms-2">
         <i class="bi bi-info-circle me-1"></i>Click column headers to select
       </span>
@@ -288,21 +288,23 @@
           Showing {{ startRow }} - {{ endRow }} of {{ totalRows }}
         </small>
         <div class="d-flex align-items-center gap-2">
-          <button 
-            class="btn btn-sm btn-outline-secondary" 
+          <BButton 
+            variant="outline-secondary" 
+            size="sm"
             :disabled="page <= 1"
             @click="goToPrev"
           >
             ← Prev
-          </button>
+          </BButton>
                     <span class="text-muted">Page {{ page }} of {{ totalPages }}</span>
-          <button 
-            class="btn btn-sm btn-outline-secondary" 
+          <BButton 
+            BButton="outline-secondary" 
+            size="sm"
             :disabled="page >= totalPages"
             @click="goToNext"
           >
             Next →
-          </button>
+          </BButton>
         </div>
       </div>
     </div>
@@ -350,7 +352,7 @@
         </div>
       </div>
       <template #footer>
-        <BButton @click="showProfile = false">Close</BButton>
+        <BButton variant="primary" @click="showProfile = false">Close</BButton>
       </template>
     </BModal>
 
