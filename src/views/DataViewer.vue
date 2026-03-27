@@ -1300,6 +1300,8 @@ const showClipboardImport = ref(false)
 const showFillnaModal = ref(false)
 const showStructuralAiModal = ref(false)
 const showDataAiModal = ref(false)
+const showExportRecipe = ref(false)
+const showImportRecipe = ref(false)
 const agents = ref([])
 const agentOptions = computed(() => [
   { value: null, text: 'Select an AI Agent…' },
