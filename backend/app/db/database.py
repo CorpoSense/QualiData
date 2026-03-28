@@ -38,15 +38,22 @@ def get_async_engine():
                 "?sslmode=require", "?ssl=require"
             )
 
-        _async_engine = create_async_engine(
-            async_database_url,
-            echo=settings.debug,
-            pool_pre_ping=True,
-            pool_size=settings.db_pool_size,
-            max_overflow=settings.db_max_overflow,
-            pool_timeout=settings.db_pool_timeout,
-            pool_recycle=settings.db_pool_recycle,
-        )
+        # SQLite doesn't support pool parameters
+        if async_database_url.startswith("sqlite"):
+            _async_engine = create_async_engine(
+                async_database_url,
+                echo=settings.debug,
+            )
+        else:
+            _async_engine = create_async_engine(
+                async_database_url,
+                echo=settings.debug,
+                pool_pre_ping=True,
+                pool_size=settings.db_pool_size,
+                max_overflow=settings.db_max_overflow,
+                pool_timeout=settings.db_pool_timeout,
+                pool_recycle=settings.db_pool_recycle,
+            )
     return _async_engine
 
 
@@ -64,15 +71,22 @@ def get_sync_engine():
         else:
             sync_database_url = database_url
 
-        _sync_engine = create_engine(
-            sync_database_url,
-            echo=settings.debug,
-            pool_pre_ping=True,
-            pool_size=settings.db_pool_size,
-            max_overflow=settings.db_max_overflow,
-            pool_timeout=settings.db_pool_timeout,
-            pool_recycle=settings.db_pool_recycle,
-        )
+        # SQLite doesn't support pool parameters
+        if sync_database_url.startswith("sqlite"):
+            _sync_engine = create_engine(
+                sync_database_url,
+                echo=settings.debug,
+            )
+        else:
+            _sync_engine = create_engine(
+                sync_database_url,
+                echo=settings.debug,
+                pool_pre_ping=True,
+                pool_size=settings.db_pool_size,
+                max_overflow=settings.db_max_overflow,
+                pool_timeout=settings.db_pool_timeout,
+                pool_recycle=settings.db_pool_recycle,
+            )
     return _sync_engine
 
 

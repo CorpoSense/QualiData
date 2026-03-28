@@ -371,18 +371,18 @@
                 <BFormSelect v-model="dbImportForm.db_type" :options="dbTypeOptions" size="sm"></BFormSelect>
               </BFormGroup>
             </div>
-            <div class="col-5">
+            <div v-if="dbImportForm.db_type !== 'sqlite'" class="col-5">
               <BFormGroup label="Host" label-size="sm">
                 <BFormInput v-model="dbImportForm.host" size="sm" placeholder="localhost"></BFormInput>
               </BFormGroup>
             </div>
-            <div class="col-3">
+            <div v-if="dbImportForm.db_type !== 'sqlite'" class="col-3">
               <BFormGroup label="Port" label-size="sm">
                 <BFormInput v-model.number="dbImportForm.port" type="number" size="sm"></BFormInput>
               </BFormGroup>
             </div>
           </div>
-          <div class="row g-2 mt-1">
+          <div v-if="dbImportForm.db_type !== 'sqlite'" class="row g-2 mt-1">
             <div class="col-6">
               <BFormGroup label="Username" label-size="sm">
                 <BFormInput v-model="dbImportForm.username" size="sm" placeholder="user"></BFormInput>
@@ -396,14 +396,14 @@
           </div>
 
           <div class="row g-2 mt-1">
-            <div class="col-6">
+            <div :class="dbImportForm.db_type === 'sqlite' ? 'col-12' : 'col-6'">
               <BFormGroup label="Database" label-size="sm">
-                <BFormInput v-model="dbImportForm.database" size="sm" placeholder="mydb"></BFormInput>
+                <BFormInput v-model="dbImportForm.database" size="sm" :placeholder="dbImportForm.db_type === 'sqlite' ? '/path/to/database.db' : 'mydb'"></BFormInput>
               </BFormGroup>
             </div>
             
-            <div class="col-6">
-              <BFormGroup v-if="dbImportForm.db_type === 'postgresql' || dbImportForm.db_type === 'mysql'" label="SSL Mode" label-size="sm">
+            <div v-if="dbImportForm.db_type === 'postgresql' || dbImportForm.db_type === 'mysql'" class="col-6">
+              <BFormGroup label="SSL Mode" label-size="sm">
                 <BFormSelect v-model="dbImportForm.sslmode" :options="sslmodeOptions" size="sm"></BFormSelect>
               </BFormGroup>
             </div>
@@ -436,6 +436,15 @@
           <div v-if="dbTables.length" class="mt-3">
             <BFormGroup label="Select Table" label-size="sm">
               <BFormSelect v-model="dbImportForm.table" :options="dbTableOptions" size="sm"></BFormSelect>
+            </BFormGroup>
+          </div>
+          <div v-else-if="dbImportForm.db_type === 'sqlite' && dbTestResult?.success" class="mt-3">
+            <div class="alert alert-info py-2 small">
+              <i class="bi bi-info-circle me-1"></i>
+              No tables found in the SQLite database. Make sure the database file exists and contains tables.
+            </div>
+            <BFormGroup label="Table Name (manual entry)" label-size="sm">
+              <BFormInput v-model="dbImportForm.table" size="sm" placeholder="Enter table name"></BFormInput>
             </BFormGroup>
           </div>
 

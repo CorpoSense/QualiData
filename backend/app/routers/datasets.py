@@ -1131,6 +1131,13 @@ def _build_db_url(db_type: str, host: str, port: str, database: str, username: s
     return url
 
 
+def _get_connect_args(db_type: str) -> dict:
+    """Get connect_args for database connection. SQLite doesn't support connect_timeout."""
+    if db_type in ("postgresql", "mysql"):
+        return {"connect_timeout": 5}
+    return {}
+
+
 @router.post("/import/db/test")
 async def test_db_connection(request: dict):
     """Test a database connection."""
@@ -1151,7 +1158,7 @@ async def test_db_connection(request: dict):
             request.get("password", ""),
             sslmode=request.get("sslmode"),
         )
-        engine = create_engine(url, connect_args={"connect_timeout": 5})
+        engine = create_engine(url, connect_args=_get_connect_args(request.get("db_type", "postgresql")))
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         engine.dispose()
@@ -1180,7 +1187,7 @@ async def list_db_tables(request: dict):
             request.get("password", ""),
             sslmode=request.get("sslmode"),
         )
-        engine = create_engine(url, connect_args={"connect_timeout": 5})
+        engine = create_engine(url, connect_args=_get_connect_args(request.get("db_type", "postgresql")))
         inspector = inspect(engine)
         tables = inspector.get_table_names()
         engine.dispose()
@@ -1207,9 +1214,11 @@ async def import_from_database(
     if not database:
         raise HTTPException(status_code=400, detail="database is required")
 
+    db_type = request.get("db_type", "postgresql")
+
     try:
         url = _build_db_url(
-            request.get("db_type", "postgresql"),
+            db_type,
             request.get("host", "localhost"),
             str(request.get("port", 5432)),
             database,
@@ -1217,7 +1226,20 @@ async def import_from_database(
             request.get("password", ""),
             sslmode=request.get("sslmode"),
         )
-        engine = create_engine(url, connect_args={"connect_timeout": 10})
+        engine = create_engine(url, connect_args=_get_connect_args(db_type))
+        
+        # For SQLite, check if table exists before trying to read
+        if db_type == "sqlite":
+            from sqlalchemy import inspect
+            inspector = inspect(engine)
+            available_tables = inspector.get_table_names()
+            if table_name not in available_tables:
+                engine.dispose()
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Table '{table_name}' not found in SQLite database. Available tables: {', '.join(available_tables) if available_tables else 'none'}"
+                )
+        
         df = pd.read_sql_table(table_name, engine)
         engine.dispose()
 
@@ -1226,6 +1248,8 @@ async def import_from_database(
             if pd.api.types.is_datetime64_any_dtype(df[col]):
                 df[col] = df[col].astype(str)
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read table: {str(e)}")
 
@@ -1261,7 +1285,7 @@ async def import_from_database(
         dataset = Dataset(
             project_id=project_id,
             name=request.get("name", table_name),
-            description=f"Imported from {request.get('db_type', 'database')} table: {table_name}",
+            description=f"Imported from {db_type} table: {table_name}",
             file_name=f"{table_name}.csv",
             file_type="csv",
             row_count=row_count,
