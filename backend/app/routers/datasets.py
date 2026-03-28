@@ -1122,9 +1122,12 @@ def _build_db_url(db_type: str, host: str, port: str, database: str, username: s
         raise HTTPException(status_code=400, detail=f"Unsupported database type: {db_type}")
     if db_type == "sqlite":
         return f"sqlite:///{database}"
+    
     url = f"{driver}://{username}:{password}@{host}:{port}/{database}"
     if db_type == "postgresql" and sslmode:
         url += f"?sslmode={sslmode}"
+    elif db_type == "mysql" and sslmode:
+        url += f"?ssl-mode={sslmode}"
     return url
 
 
@@ -1133,12 +1136,17 @@ async def test_db_connection(request: dict):
     """Test a database connection."""
     from sqlalchemy import create_engine, text
 
+    # Validate required fields
+    database = request.get("database")
+    if not database:
+        raise HTTPException(status_code=400, detail="database is required")
+
     try:
         url = _build_db_url(
             request.get("db_type", "postgresql"),
             request.get("host", "localhost"),
             str(request.get("port", 5432)),
-            request.get("database", ""),
+            database,
             request.get("username", ""),
             request.get("password", ""),
             sslmode=request.get("sslmode"),
@@ -1157,12 +1165,17 @@ async def list_db_tables(request: dict):
     """List tables in a database."""
     from sqlalchemy import create_engine, inspect
 
+    # Validate required fields
+    database = request.get("database")
+    if not database:
+        raise HTTPException(status_code=400, detail="database is required")
+
     try:
         url = _build_db_url(
             request.get("db_type", "postgresql"),
             request.get("host", "localhost"),
             str(request.get("port", 5432)),
-            request.get("database", ""),
+            database,
             request.get("username", ""),
             request.get("password", ""),
             sslmode=request.get("sslmode"),
@@ -1185,16 +1198,21 @@ async def import_from_database(
     """Import a database table as a dataset."""
     from sqlalchemy import create_engine, text
 
+    # Validate required fields
     table_name = request.get("table")
     if not table_name:
         raise HTTPException(status_code=400, detail="table is required")
+
+    database = request.get("database")
+    if not database:
+        raise HTTPException(status_code=400, detail="database is required")
 
     try:
         url = _build_db_url(
             request.get("db_type", "postgresql"),
             request.get("host", "localhost"),
             str(request.get("port", 5432)),
-            request.get("database", ""),
+            database,
             request.get("username", ""),
             request.get("password", ""),
             sslmode=request.get("sslmode"),

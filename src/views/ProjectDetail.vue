@@ -168,7 +168,6 @@
       :has-modal-card="true"
       title="Import Data"
       size="lg"
-      no-header-close
     >
       <div class="p-3">
         <!-- Tabs -->
@@ -385,22 +384,31 @@
           </div>
           <div class="row g-2 mt-1">
             <div class="col-6">
-              <BFormGroup label="Database" label-size="sm">
-                <BFormInput v-model="dbImportForm.database" size="sm" placeholder="mydb"></BFormInput>
-              </BFormGroup>
-            </div>
-            <div class="col-6">
               <BFormGroup label="Username" label-size="sm">
                 <BFormInput v-model="dbImportForm.username" size="sm" placeholder="user"></BFormInput>
               </BFormGroup>
             </div>
+            <div class="col-6">
+              <BFormGroup label="Password" label-size="sm">
+                <BFormInput v-model="dbImportForm.password" type="password" size="sm"></BFormInput>
+              </BFormGroup>
+            </div>
           </div>
-          <BFormGroup label="Password" label-size="sm" class="mt-1">
-            <BFormInput v-model="dbImportForm.password" type="password" size="sm"></BFormInput>
-          </BFormGroup>
-          <BFormGroup v-if="dbImportForm.db_type === 'postgresql'" label="SSL Mode" label-size="sm" class="mt-1">
-            <BFormSelect v-model="dbImportForm.sslmode" :options="sslmodeOptions" size="sm"></BFormSelect>
-          </BFormGroup>
+
+          <div class="row g-2 mt-1">
+            <div class="col-6">
+              <BFormGroup label="Database" label-size="sm">
+                <BFormInput v-model="dbImportForm.database" size="sm" placeholder="mydb"></BFormInput>
+              </BFormGroup>
+            </div>
+            
+            <div class="col-6">
+              <BFormGroup v-if="dbImportForm.db_type === 'postgresql' || dbImportForm.db_type === 'mysql'" label="SSL Mode" label-size="sm">
+                <BFormSelect v-model="dbImportForm.sslmode" :options="sslmodeOptions" size="sm"></BFormSelect>
+              </BFormGroup>
+            </div>
+          </div>
+          
 
           <!-- Saved connections -->
           <div class="d-flex gap-2 mt-2">
@@ -735,7 +743,7 @@ const dbImportForm = reactive({
   database: '',
   username: '',
   password: '',
-  sslmode: 'require',
+  sslmode: '',
   table: '',
 })
 
