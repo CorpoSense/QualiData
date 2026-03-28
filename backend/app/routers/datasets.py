@@ -182,6 +182,33 @@ def get_preview_data(df: pd.DataFrame, max_rows: int = 500, offset: int = 0) -> 
     return _ensure_json_serializable(records)
 
 
+def get_full_data_json(df: pd.DataFrame) -> dict:
+    """Convert full DataFrame to JSON-serializable format for storage in data_json field."""
+    # Create a copy to avoid modifying original
+    df_copy = df.copy()
+    
+    # Convert all datetime columns to ISO format strings
+    for col in df_copy.columns:
+        if pd.api.types.is_datetime64_any_dtype(df_copy[col]):
+            df_copy[col] = df_copy[col].astype(str)
+            df_copy[col] = df_copy[col].replace("NaT", None)
+        # Handle timedelta
+        elif pd.api.types.is_timedelta64_dtype(df_copy[col]):
+            df_copy[col] = df_copy[col].astype(str)
+        # Handle period
+        elif pd.api.types.is_period_dtype(df_copy[col]):
+            df_copy[col] = df_copy[col].astype(str)
+    
+    # Replace NaN/inf with None for JSON compatibility
+    df_copy = df_copy.replace([np.inf, -np.inf], np.nan).replace({np.nan: None})
+    
+    # Convert to dict and ensure all values are JSON serializable
+    records = df_copy.to_dict(orient="records")
+    
+    # Final pass to ensure JSON serialization
+    return {"data": _ensure_json_serializable(records)}
+
+
 # Routes
 @router.post("/import/single", response_model=DatasetResponse)
 async def import_single_dataset(
@@ -284,6 +311,7 @@ async def import_single_dataset(
     try:
         columns = detect_columns(df)
         preview_data = get_preview_data(df)
+        data_json = get_full_data_json(df)
         row_count = len(df)
     except Exception as e:
         logger.exception("Failed to process DataFrame for import")
@@ -307,6 +335,7 @@ async def import_single_dataset(
             file_type=file_type,
             columns=columns,
             preview_data=preview_data,
+            data_json=data_json,
             row_count=row_count,
         )
         session.add(dataset)
@@ -559,6 +588,7 @@ async def import_multiple_datasets(
             # Get column info and preview
             columns = detect_columns(merged_df)
             preview_data = get_preview_data(merged_df)
+            data_json = get_full_data_json(merged_df)
             row_count = len(merged_df)
             
             # Calculate total file size
@@ -577,6 +607,7 @@ async def import_multiple_datasets(
                 file_type="csv",
                 columns=columns,
                 preview_data=preview_data,
+                data_json=data_json,
                 row_count=row_count,
             )
             session.add(dataset)
@@ -689,13 +720,22 @@ async def preview_dataset(
             status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
         )
 
-    # Apply limit and page to preview_data
-    # Note: preview_data is cached, so we can only return up to the cached amount
-    # For full pagination, the data would need to be stored in data_json
-    preview_list = dataset.preview_data or []
-    start_idx = (page - 1) * limit
-    end_idx = start_idx + limit
-    preview_data = preview_list[start_idx:end_idx]
+    # Use data_json if available for full pagination, otherwise fall back to preview_data
+    if dataset.data_json and "data" in dataset.data_json:
+        full_data = dataset.data_json["data"]
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        preview_data = full_data[start_idx:end_idx]
+        # Use actual data length for row_count to ensure pagination works correctly
+        row_count = len(full_data)
+    else:
+        # Fall back to preview_data (limited to cached amount)
+        preview_list = dataset.preview_data or []
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        preview_data = preview_list[start_idx:end_idx]
+        # Use actual preview_data length for row_count
+        row_count = len(preview_list)
 
     # Normalize columns: handle both dict format and legacy string format
     columns = _normalize_columns(dataset.columns)
@@ -703,7 +743,7 @@ async def preview_dataset(
     return {
         "columns": columns,
         "preview_data": preview_data,
-        "row_count": dataset.row_count,
+        "row_count": row_count,
         "page": page,
         "limit": limit,
     }
@@ -1189,6 +1229,7 @@ async def import_from_database(
     try:
         columns = detect_columns(df)
         preview_data = get_preview_data(df)
+        data_json = get_full_data_json(df)
         row_count = len(df)
     except Exception as e:
         logger.exception("Failed to process DataFrame for database import")
@@ -1208,6 +1249,7 @@ async def import_from_database(
             row_count=row_count,
             columns=columns,
             preview_data=preview_data,
+            data_json=data_json,
         )
 
         session.add(dataset)

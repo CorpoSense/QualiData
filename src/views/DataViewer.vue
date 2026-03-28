@@ -283,28 +283,88 @@
       />
 
       <!-- Pagination Footer -->
-      <div class="d-flex justify-content-between align-items-center mt-3">
+      <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
         <small class="text-muted">
           Showing {{ startRow }} - {{ endRow }} of {{ totalRows }}
         </small>
-        <div class="d-flex align-items-center gap-2">
-          <BButton 
-            variant="outline-secondary" 
+        <div class="d-flex align-items-center gap-1 flex-wrap">
+          <!-- First Page Button -->
+          <BButton
+            variant="outline-secondary"
+            size="sm"
+            :disabled="page <= 1"
+            @click="goToPage(1)"
+            title="First page"
+          >
+            «
+          </BButton>
+          <!-- Previous Page Button -->
+          <BButton
+            variant="outline-secondary"
             size="sm"
             :disabled="page <= 1"
             @click="goToPrev"
+            title="Previous page"
           >
-            ← Prev
+            ‹
           </BButton>
-                    <span class="text-muted">Page {{ page }} of {{ totalPages }}</span>
-          <BButton 
-            BButton="outline-secondary" 
+          
+          <!-- Page Numbers -->
+          <template v-for="p in pageNumbers" :key="p">
+            <span v-if="p === '...'" class="px-1 text-muted">…</span>
+            <BButton
+              v-else
+              :variant="p === page ? 'primary' : 'outline-secondary'"
+              size="sm"
+              @click="goToPage(p)"
+            >
+              {{ p }}
+            </BButton>
+          </template>
+          
+          <!-- Next Page Button -->
+          <BButton
+            variant="outline-secondary"
             size="sm"
             :disabled="page >= totalPages"
             @click="goToNext"
+            title="Next page"
           >
-            Next →
+            ›
           </BButton>
+          <!-- Last Page Button -->
+          <BButton
+            variant="outline-secondary"
+            size="sm"
+            :disabled="page >= totalPages"
+            @click="goToPage(totalPages)"
+            title="Last page"
+          >
+            »
+          </BButton>
+          
+          <!-- Jump to Page -->
+          <div class="d-flex align-items-center gap-1 ms-2">
+            <small class="text-muted">Go to</small>
+            <BFormInput
+              v-model.number="jumpToPage"
+              type="number"
+              min="1"
+              :max="totalPages"
+              size="sm"
+              style="width: 60px;"
+              @keyup.enter="goToPage(jumpToPage)"
+              placeholder="Page"
+            />
+            <BButton
+              variant="outline-primary"
+              size="sm"
+              :disabled="!jumpToPage || jumpToPage < 1 || jumpToPage > totalPages"
+              @click="goToPage(jumpToPage)"
+            >
+              Go
+            </BButton>
+          </div>
         </div>
       </div>
     </div>
@@ -1147,6 +1207,7 @@ const operations = ref([])
 const limit = ref(10)
 const page = ref(1)
 const totalRows = ref(0)
+const jumpToPage = ref(null)
 
 // Pagination computed properties
 const startRow = computed(() => Math.min((page.value - 1) * limit.value + 1, totalRows.value))
@@ -1386,6 +1447,42 @@ const limitOptions = [
 ]
 
 const totalPages = computed(() => Math.ceil(totalRows.value / limit.value))
+
+// Page numbers to display in pagination (shows up to 7 pages with ellipsis)
+const pageNumbers = computed(() => {
+  const total = totalPages.value
+  const current = page.value
+  const pages = []
+  
+  if (total <= 7) {
+    // Show all pages if 7 or fewer
+    for (let i = 1; i <= total; i++) pages.push(i)
+  } else {
+    // Always show first page
+    pages.push(1)
+    
+    if (current > 3) {
+      pages.push('...')
+    }
+    
+    // Show pages around current
+    const start = Math.max(2, current - 1)
+    const end = Math.min(total - 1, current + 1)
+    
+    for (let i = start; i <= end; i++) {
+      if (!pages.includes(i)) pages.push(i)
+    }
+    
+    if (current < total - 2) {
+      pages.push('...')
+    }
+    
+    // Always show last page
+    if (!pages.includes(total)) pages.push(total)
+  }
+  
+  return pages
+})
 const progressBarClass = computed(() => {
   if (!batchProgress.value) return ''
   const p = batchProgress.value
@@ -1404,10 +1501,9 @@ function nextPage() {
 
 function goToPage(p) {
   if (p < 1) return
-  const maxPage = Math.ceil(totalRows / limit.value)
+  const maxPage = Math.ceil(totalRows.value / limit.value)
   if (p > maxPage) return
   page.value = p
-  tableKey.value++
   refreshData()
 }
 
