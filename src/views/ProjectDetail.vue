@@ -516,6 +516,14 @@
           { value: 'json', text: 'JSON (.json)' },
           { value: 'tsv', text: 'TSV (.tsv)' },
           { value: 'excel', text: 'Excel (.xlsx)' },
+          { value: 'parquet', text: 'Parquet (.parquet)' },
+        ]"></BFormSelect>
+      </BFormGroup>
+      <BFormGroup v-if="exportFormat === 'parquet'" label="Compression" label-for="export-compression" class="mt-2">
+        <BFormSelect id="export-compression" v-model="exportCompression" :options="[
+          { value: null, text: 'None' },
+          { value: 'gzip', text: 'Gzip (.gz)' },
+          { value: 'zip', text: 'Zip (.zip)' },
         ]"></BFormSelect>
       </BFormGroup>
       <BFormGroup label="Rows" label-for="export-limit" class="mt-2">
@@ -662,6 +670,7 @@ const showPreviewModal = ref(false)
 const showRenameModal = ref(false)
 const showExportModal = ref(false)
 const exportFormat = ref('csv')
+const exportCompression = ref(null)
 const exportLimit = ref(0)
 const showProfileModal = ref(false)
 const profileData = ref(null)
@@ -1218,6 +1227,7 @@ function downloadExport() {
   if (!selectedDataset.value) return
   const params = new URLSearchParams({ format: exportFormat.value })
   if (exportLimit.value > 0) params.set('limit', exportLimit.value)
+  if (exportCompression.value) params.set('compression', exportCompression.value)
 
   // Use fetch with auth header instead of window.open (which doesn't send auth)
   fetch(`${apiUrl}/api/datasets/${selectedDataset.value.id}/export?${params}`, {

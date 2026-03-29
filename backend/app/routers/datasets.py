@@ -822,10 +822,11 @@ async def export_dataset(
     format: str = "csv",
     columns: str | None = None,  # comma-separated column names
     limit: int = 0,  # 0 = all rows
+    compression: str | None = None,  # compression format: gzip, zip (for parquet)
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Export dataset to CSV, JSON, or Excel. Returns a file download."""
+    """Export dataset to CSV, JSON, TSV, Excel, or Parquet. Returns a file download."""
     from fastapi.responses import StreamingResponse
 
     result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
@@ -892,8 +893,37 @@ async def export_dataset(
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": f'attachment; filename="{safe_name}.xlsx"'},
         )
+    elif format == "parquet":
+        # Validate compression option for parquet
+        valid_compressions = ["gzip", "zip", None]
+        if compression and compression not in valid_compressions:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported compression for Parquet. Use: gzip, zip, or none."
+            )
+        
+        output = io.BytesIO()
+        df.to_parquet(output, index=False, compression=compression)
+        output.seek(0)
+        
+        # Determine file extension based on compression
+        if compression == "gzip":
+            ext = ".parquet.gz"
+            media_type = "application/gzip"
+        elif compression == "zip":
+            ext = ".parquet.zip"
+            media_type = "application/zip"
+        else:
+            ext = ".parquet"
+            media_type = "application/octet-stream"
+        
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type=media_type,
+            headers={"Content-Disposition": f'attachment; filename="{safe_name}{ext}"'},
+        )
     else:
-        raise HTTPException(status_code=400, detail="Unsupported format. Use csv, json, tsv, or excel.")
+        raise HTTPException(status_code=400, detail="Unsupported format. Use csv, json, tsv, excel, or parquet.")
 
 
 @router.get("")
