@@ -1619,3 +1619,148 @@ async def merge_datasets(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save merged dataset: {str(e)}"
         )
+
+
+@router.post("/{dataset_id}/clone", response_model=DatasetResponse)
+async def clone_dataset(
+    dataset_id: str,
+    request: dict | None = None,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Clone a dataset with a new name.
+    
+    Body: { "name": "New Dataset Name" } (optional, defaults to "{original_name} (Copy)")
+    """
+    # Fetch the original dataset
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+    original = result.scalar_one_or_none()
+    
+    if not original:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        )
+    
+    # Verify ownership via project
+    project_result = await session.execute(
+        select(Project).where(
+            Project.id == original.project_id, Project.user_id == current_user.id
+        )
+    )
+    project = project_result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+        )
+    
+    # Determine new name
+    new_name = (request or {}).get("name")
+    if not new_name:
+        new_name = f"{original.name} (Copy)"
+    
+    # Create cloned dataset
+    try:
+        cloned = Dataset(
+            name=new_name,
+            description=original.description,
+            project_id=original.project_id,
+            file_name=original.file_name,
+            file_size=original.file_size,
+            file_type=original.file_type,
+            columns=original.columns,
+            preview_data=original.preview_data,
+            data_json=original.data_json,
+            row_count=original.row_count,
+        )
+        session.add(cloned)
+        
+        # Update project stats
+        project.row_count = (project.row_count or 0) + original.row_count
+        project.storage_bytes = (project.storage_bytes or 0) + original.file_size
+        
+        await session.commit()
+        await session.refresh(cloned)
+        
+        return cloned
+    except Exception as e:
+        await session.rollback()
+        logger.exception("Failed to clone dataset")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to clone dataset: {str(e)}"
+        )
+
+
+@router.post("/bulk-clone", response_model=dict)
+async def bulk_clone_datasets(
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Clone multiple datasets at once.
+    
+    Body: { dataset_ids: [...], name_prefix: "Copy of" }
+    Each cloned dataset will be named "{name_prefix} {original_name}"
+    """
+    dataset_ids = request.get("dataset_ids", [])
+    name_prefix = request.get("name_prefix", "Copy of")
+    
+    if not dataset_ids:
+        raise HTTPException(status_code=400, detail="dataset_ids is required")
+    
+    if len(dataset_ids) > 100:
+        raise HTTPException(status_code=400, detail="Cannot clone more than 100 datasets at once")
+    
+    cloned_count = 0
+    errors = []
+    
+    for dataset_id in dataset_ids:
+        try:
+            result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+            original = result.scalar_one_or_none()
+            
+            if not original:
+                errors.append(f"Dataset {dataset_id} not found")
+                continue
+            
+            # Verify ownership via project
+            project_result = await session.execute(
+                select(Project).where(
+                    Project.id == original.project_id, Project.user_id == current_user.id
+                )
+            )
+            project = project_result.scalar_one_or_none()
+            if not project:
+                errors.append(f"Access denied for dataset {dataset_id}")
+                continue
+            
+            # Create cloned dataset
+            cloned = Dataset(
+                name=f"{name_prefix} {original.name}",
+                description=original.description,
+                project_id=original.project_id,
+                file_name=original.file_name,
+                file_size=original.file_size,
+                file_type=original.file_type,
+                columns=original.columns,
+                preview_data=original.preview_data,
+                data_json=original.data_json,
+                row_count=original.row_count,
+            )
+            session.add(cloned)
+            
+            # Update project stats
+            project.row_count = (project.row_count or 0) + original.row_count
+            project.storage_bytes = (project.storage_bytes or 0) + original.file_size
+            
+            cloned_count += 1
+        except Exception as e:
+            errors.append(f"Failed to clone {dataset_id}: {str(e)}")
+    
+    await session.commit()
+    
+    return {
+        "status": "success",
+        "cloned_count": cloned_count,
+        "errors": errors,
+    }

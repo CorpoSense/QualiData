@@ -78,6 +78,9 @@
           <div v-if="selectedDatasetIds.length > 0" class="d-flex align-items-center gap-2 mb-3 p-2 bg-light rounded">
             <span class="small text-muted">{{ selectedDatasetIds.length }} dataset(s) selected</span>
             <BButton size="sm" variant="outline-secondary" @click="selectedDatasetIds = []">Clear</BButton>
+            <BButton size="sm" variant="outline-primary" @click="confirmBulkClone">
+              <i class="bi bi-copy me-1"></i>Clone
+            </BButton>
             <BButton v-if="selectedDatasetIds.length >= 2" size="sm" variant="primary" @click="openMergeModal">
               <i class="bi bi-arrows-collapse me-1"></i>Merge
             </BButton>
@@ -103,6 +106,7 @@
               >
                 <template #actions>
                   <BDropdownItem @click="previewDataset(dataset)">Preview</BDropdownItem>
+                  <BDropdownItem @click="cloneDataset(dataset)">Clone</BDropdownItem>
                   <BDropdownItem @click="openRenameModal(dataset)">Rename</BDropdownItem>
                   <BDropdownItem @click="exportDataset(dataset)">Export</BDropdownItem>
                   <BDropdownItem @click="profileDataset(dataset)" variant="info">Profile</BDropdownItem>
@@ -704,6 +708,26 @@
       </template>
     </BModal>
 
+    <!-- Bulk Clone Modal -->
+    <BModal v-model="showBulkCloneModal" title="Clone Datasets" size="md">
+      <div class="alert alert-info py-2 small mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        Clone {{ selectedDatasetIds.length }} dataset(s). Each clone will be named "{cloneNamePrefix} {original_name}".
+      </div>
+      <BFormGroup label="Name prefix" label-size="sm">
+        <BFormInput v-model="cloneNamePrefix" size="sm" placeholder="Copy of"></BFormInput>
+      </BFormGroup>
+      <div class="small text-muted mt-2">
+        Selected: {{ selectedDatasetIds.map(id => datasets.find(d => d.id === id)?.name || id).join(', ') }}
+      </div>
+      <template #footer>
+        <BButton variant="outline-secondary" @click="showBulkCloneModal = false">Cancel</BButton>
+        <BButton variant="primary" :loading="cloningBulk" @click="cloneSelectedDatasets">
+          <i class="bi bi-copy me-1"></i>Clone
+        </BButton>
+      </template>
+    </BModal>
+
     <!-- Bulk Delete Confirmation Modal -->
     <BModal v-model="showBulkDeleteModal" title="Delete Datasets" size="md">
       <div class="alert alert-danger py-2 small mb-3">
@@ -837,6 +861,9 @@ const mergeStrategy = ref('union')
 const merging = ref(false)
 const showBulkDeleteModal = ref(false)
 const deletingBulk = ref(false)
+const showBulkCloneModal = ref(false)
+const cloningBulk = ref(false)
+const cloneNamePrefix = ref('Copy of')
 const renameDatasetId = ref(null)
 const renameDatasetName = ref('')
 const renameDatasetDesc = ref('')
@@ -1672,6 +1699,60 @@ async function applyMerge() {
 
 function confirmBulkDelete() {
   showBulkDeleteModal.value = true
+}
+
+function confirmBulkClone() {
+  cloneNamePrefix.value = 'Copy of'
+  showBulkCloneModal.value = true
+}
+
+async function cloneDataset(dataset) {
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${dataset.id}/clone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({})
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(`Cloned "${dataset.name}" as "${data.name}"`)
+      await fetchDatasets()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Clone failed')
+    }
+  } catch (e) {
+    toast.error(e.message)
+  }
+}
+
+async function cloneSelectedDatasets() {
+  if (selectedDatasetIds.value.length === 0) return
+  cloningBulk.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/bulk-clone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ dataset_ids: selectedDatasetIds.value, name_prefix: cloneNamePrefix.value })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(`Cloned ${data.cloned_count} dataset(s)`)
+      if (data.errors && data.errors.length > 0) {
+        data.errors.forEach(err => toast.warning(err))
+      }
+      showBulkCloneModal.value = false
+      selectedDatasetIds.value = []
+      await fetchDatasets()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Clone failed')
+    }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    cloningBulk.value = false
+  }
 }
 
 async function deleteSelectedDatasets() {

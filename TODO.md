@@ -41,12 +41,12 @@ Track tasks and improvements for the project.
 
 ### Dataset Management
 
-- [ ] **Clone Dataset**
+- [x] **Clone Dataset**
   - Add "Clone" option to dataset card menu
   - Create exact copy with different name
   - Support multi-select for bulk clone
 
-- [ ] **Bulk Delete Datasets**
+- [x] **Bulk Delete Datasets**
   - Add multi-select checkboxes to dataset cards
   - Add bulk delete action with confirmation
   - Update existing multi-check UI from merge feature
