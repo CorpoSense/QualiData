@@ -1300,6 +1300,39 @@ def _get_connect_args(db_type: str) -> dict:
     return {}
 
 
+@router.post("/import/sqlite/upload")
+async def upload_sqlite_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Upload a SQLite database file and return the temp path."""
+    filename = file.filename or "database.db"
+    file_ext = os.path.splitext(filename)[1].lower()
+    
+    # Validate SQLite file extension
+    if file_ext not in (".db", ".sqlite", ".sqlite3"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be a SQLite database (.db, .sqlite, .sqlite3)"
+        )
+    
+    content = await file.read()
+    file_size = len(content)
+    
+    # Save to temp file with proper extension
+    with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+    
+    return {
+        "status": "success",
+        "message": "SQLite file uploaded successfully",
+        "path": tmp_path,
+        "filename": filename,
+        "file_size": file_size,
+    }
+
+
 @router.post("/import/db/test")
 async def test_db_connection(request: dict):
     """Test a database connection."""

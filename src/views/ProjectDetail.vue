@@ -403,10 +403,49 @@
             </div>
           </div>
 
-          <div class="row g-2 mt-1">
-            <div :class="dbImportForm.db_type === 'sqlite' ? 'col-12' : 'col-6'">
+          <!-- SQLite File Upload -->
+          <div v-if="dbImportForm.db_type === 'sqlite'" class="mt-3">
+            <BFormGroup label="SQLite Database File" label-size="sm">
+              <div
+                class="drop-zone p-4 border rounded text-center"
+                :class="{ 'drop-zone-active': isSqliteDragging }"
+                @dragover.prevent="isSqliteDragging = true"
+                @dragleave.prevent="isSqliteDragging = false"
+                @drop.prevent="handleSqliteDrop"
+                @click="triggerSqliteFileInput"
+              >
+                <input
+                  ref="sqliteFileInput"
+                  type="file"
+                  accept=".db,.sqlite,.sqlite3"
+                  class="d-none"
+                  @change="handleSqliteFileSelect"
+                >
+                <i class="bi bi-database text-muted" style="font-size: 2rem;"></i>
+                <p class="mb-1 mt-2">Drag & drop SQLite database here or click to browse</p>
+                <small class="text-muted">Supported formats: .db, .sqlite, .sqlite3</small>
+              </div>
+            </BFormGroup>
+            
+            <!-- Uploaded SQLite File Info -->
+            <div v-if="sqliteUploadedFile" class="mt-2 p-2 border rounded bg-light">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-check text-success"></i>
+                <div class="flex-grow-1">
+                  <div class="small">{{ sqliteUploadedFile.filename }}</div>
+                  <div class="text-muted" style="font-size: 0.75rem;">{{ formatFileSize(sqliteUploadedFile.file_size) }}</div>
+                </div>
+                <BButton size="sm" variant="link" class="text-danger p-0" @click="clearSqliteFile">
+                  <i class="bi bi-x-circle"></i>
+                </BButton>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="dbImportForm.db_type !== 'sqlite'" class="row g-2 mt-1">
+            <div class="col-6">
               <BFormGroup label="Database" label-size="sm">
-                <BFormInput v-model="dbImportForm.database" size="sm" :placeholder="dbImportForm.db_type === 'sqlite' ? '/path/to/database.db' : 'mydb'"></BFormInput>
+                <BFormInput v-model="dbImportForm.database" size="sm" placeholder="mydb"></BFormInput>
               </BFormGroup>
             </div>
             
@@ -810,6 +849,7 @@ watch(showImportModal, (val) => {
     dbImportForm.table = ''
     dbTables.value = []
     dbTestResult.value = null
+    sqliteUploadedFile.value = null
   }
 })
 
@@ -830,6 +870,7 @@ watch(showExportModal, (val) => {
     dbExportForm.if_exists = 'fail'
     dbExportTables.value = []
     dbExportTestResult.value = null
+    sqliteUploadedFile.value = null
   }
 })
 
@@ -873,6 +914,9 @@ const importing = ref(false)
 const dbTesting = ref(false)
 const dbTestResult = ref(null)
 const dbTables = ref([])
+const sqliteFileInput = ref(null)
+const isSqliteDragging = ref(false)
+const sqliteUploadedFile = ref(null)
 
 // Saved connections (localStorage)
 const savedConnections = ref(JSON.parse(localStorage.getItem('dbConnections') || '[]'))
@@ -995,7 +1039,15 @@ const dbTableOptions = computed(() => [
 watch(() => dbImportForm.db_type, (type) => {
   const defaultPorts = { postgresql: 5432, mysql: 3306, sqlite: 0, oracle: 1521, mssql: 1433 }
   dbImportForm.port = defaultPorts[type] || 5432
-  if (type === 'sqlite') dbImportForm.host = ''
+  if (type === 'sqlite') {
+    dbImportForm.host = ''
+    // Clear SQLite file when switching to SQLite
+    sqliteUploadedFile.value = null
+    dbImportForm.database = ''
+  } else {
+    // Clear SQLite file when switching away from SQLite
+    sqliteUploadedFile.value = null
+  }
 })
 const showAssistantModal = ref(false)
 const selectedDataset = ref(null)
@@ -1363,6 +1415,68 @@ async function fetchDbTables() {
   } catch { /* silent */ }
 }
 
+function triggerSqliteFileInput() {
+  sqliteFileInput.value?.click()
+}
+
+function handleSqliteDrop(e) {
+  isSqliteDragging.value = false
+  const files = Array.from(e.dataTransfer.files)
+  if (files.length > 0) {
+    uploadSqliteFile(files[0])
+  }
+}
+
+function handleSqliteFileSelect(e) {
+  const files = Array.from(e.target.files)
+  if (files.length > 0) {
+    uploadSqliteFile(files[0])
+  }
+}
+
+async function uploadSqliteFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase()
+  if (!['db', 'sqlite', 'sqlite3'].includes(ext)) {
+    toast.error('Please select a valid SQLite database file (.db, .sqlite, .sqlite3)')
+    return
+  }
+
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const res = await fetch(`${apiUrl}/api/datasets/import/sqlite/upload`, {
+      method: 'POST',
+      body: formData,
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      sqliteUploadedFile.value = {
+        filename: data.filename,
+        file_size: data.file_size,
+        path: data.path
+      }
+      dbImportForm.database = data.path
+      toast.success('SQLite file uploaded successfully')
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed to upload SQLite file')
+    }
+  } catch (e) {
+    toast.error(e.message)
+  }
+}
+
+function clearSqliteFile() {
+  sqliteUploadedFile.value = null
+  dbImportForm.database = ''
+  if (sqliteFileInput.value) {
+    sqliteFileInput.value.value = ''
+  }
+}
+
 async function handleDbImport() {
   if (!dbImportForm.name || !dbImportForm.table) return
   importing.value = true
@@ -1492,7 +1606,15 @@ function downloadExport() {
 watch(() => dbExportForm.db_type, (type) => {
   const defaultPorts = { postgresql: 5432, mysql: 3306, sqlite: 0, oracle: 1521, mssql: 1433 }
   dbExportForm.port = defaultPorts[type] || 5432
-  if (type === 'sqlite') dbExportForm.host = ''
+  if (type === 'sqlite') {
+    dbExportForm.host = ''
+    // Clear SQLite file when switching to SQLite
+    sqliteUploadedFile.value = null
+    dbExportForm.database = ''
+  } else {
+    // Clear SQLite file when switching away from SQLite
+    sqliteUploadedFile.value = null
+  }
 })
 
 async function testDbExportConnection() {
