@@ -25,7 +25,7 @@ Track tasks and improvements for the project.
 
 ### Export Features
 
-- [ ] **Export to Database**
+- [x] **Export to Database**
   - Export cleaned data to same or different database connection
   - Options: create new table or append to existing table
   - Support same databases as import (PostgreSQL, MySQL, SQLite, SQL Server)
