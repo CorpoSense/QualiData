@@ -603,6 +603,17 @@
             </div>
           </div>
 
+          <!-- Saved connections -->
+          <div class="d-flex gap-2 mt-2">
+            <BButton size="sm" variant="outline-success" @click="saveDbExportConnection" :disabled="!dbExportForm.host || !dbExportForm.database">
+              <i class="bi bi-save me-1"></i> Save
+            </BButton>
+            <BFormSelect v-if="savedExportConnections.length" v-model="selectedExportConnection" :options="savedExportConnectionOptions" size="sm" style="max-width: 200px;" @update:model-value="loadSavedExportConnection"></BFormSelect>
+            <BButton v-if="selectedExportConnection" size="sm" variant="outline-danger" @click="deleteSavedExportConnection">
+              <i class="bi bi-trash"></i>
+            </BButton>
+          </div>
+
           <!-- Test Connection -->
           <div class="d-flex gap-2 mt-2">
             <BButton size="sm" variant="outline-primary" :loading="dbExportTesting" @click="testDbExportConnection">
@@ -845,6 +856,15 @@ const savedConnectionOptions = computed(() => [
   ...savedConnections.value.map((c, i) => ({ value: i, text: `${c.name} (${c.db_type})` }))
 ])
 
+// Saved export connections (localStorage)
+const savedExportConnections = ref(JSON.parse(localStorage.getItem('dbExportConnections') || '[]'))
+const selectedExportConnection = ref(null)
+
+const savedExportConnectionOptions = computed(() => [
+  { value: null, text: 'Load connection…' },
+  ...savedExportConnections.value.map((c, i) => ({ value: i, text: `${c.name} (${c.db_type})` }))
+])
+
 function saveDbConnection() {
   const name = dbImportForm.name || `${dbImportForm.db_type}@${dbImportForm.host}`
   const conn = {
@@ -875,6 +895,38 @@ function deleteSavedConnection() {
   savedConnections.value.splice(selectedConnection.value, 1)
   localStorage.setItem('dbConnections', JSON.stringify(savedConnections.value))
   selectedConnection.value = null
+}
+
+function saveDbExportConnection() {
+  const name = dbExportForm.name || `${dbExportForm.db_type}@${dbExportForm.host}`
+  const conn = {
+    name,
+    db_type: dbExportForm.db_type,
+    host: dbExportForm.host,
+    port: dbExportForm.port,
+    database: dbExportForm.database,
+    username: dbExportForm.username,
+    sslmode: dbExportForm.sslmode,
+  }
+  savedExportConnections.value.push(conn)
+  localStorage.setItem('dbExportConnections', JSON.stringify(savedExportConnections.value))
+  toast.success('Export connection saved')
+}
+
+function loadSavedExportConnection(index) {
+  if (index === null || index === undefined) return
+  const conn = savedExportConnections.value[index]
+  if (!conn) return
+  Object.assign(dbExportForm, { ...conn, password: '', table: '' })
+  dbExportTables.value = []
+  dbExportTestResult.value = null
+}
+
+function deleteSavedExportConnection() {
+  if (selectedExportConnection.value === null) return
+  savedExportConnections.value.splice(selectedExportConnection.value, 1)
+  localStorage.setItem('dbExportConnections', JSON.stringify(savedExportConnections.value))
+  selectedExportConnection.value = null
 }
 
 const dbTypeOptions = [
