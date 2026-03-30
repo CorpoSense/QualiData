@@ -15,10 +15,11 @@
                 @change="$emit('toggle-all')"
               >
             </th>
-            <th 
-              v-for="field in fields" 
+            <th
+              v-for="field in fields"
               :key="field.key"
               :class="{ 'table-primary': isSelected(field) }"
+              :style="{ width: columnWidths[field.key] ? columnWidths[field.key] + 'px' : 'auto', minWidth: '50px', position: 'relative' }"
               @click="$emit('head-clicked', field)"
               style="cursor: pointer"
             >
@@ -37,6 +38,12 @@
                   <i v-else class="bi bi-arrow-down-up text-muted"></i>
                 </button>
               </span>
+              <div
+                class="resize-handle"
+                @mousedown.prevent="startResize($event, field.key)"
+                @dblclick.stop="autoFitColumn(field.key)"
+                title="Drag to resize, double-click to auto-fit"
+              ></div>
             </th>
           </tr>
         </thead>
@@ -71,7 +78,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -87,6 +94,10 @@ const emit = defineEmits(['row-clicked', 'head-clicked', 'row-selected', 'toggle
 
 // Sort state: array of { key, dir } for multi-sort
 const sortKeys = ref([]) // [{ key: 'name', dir: 'asc' }, ...]
+
+// Column resizing state
+const columnWidths = ref({}) // { key: width }
+const resizing = ref(null) // { key, startX, startWidth }
 
 const allSelected = computed(() =>
   props.items.length > 0 && props.selectedRows.length === props.items.length
@@ -160,13 +171,91 @@ function isSelected(field) {
   const fieldKey = field.key || field.field
   return props.selectedColumns.includes(fieldKey)
 }
+
+// Column resizing functions
+function startResize(event, key) {
+  const th = event.target.closest('th')
+  if (!th) return
+  
+  resizing.value = {
+    key,
+    startX: event.clientX,
+    startWidth: th.offsetWidth
+  }
+  
+  document.addEventListener('mousemove', handleResize)
+  document.addEventListener('mouseup', stopResize)
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
+
+function handleResize(event) {
+  if (!resizing.value) return
+  
+  const diff = event.clientX - resizing.value.startX
+  const newWidth = Math.max(50, resizing.value.startWidth + diff)
+  columnWidths.value[resizing.value.key] = newWidth
+}
+
+function stopResize() {
+  resizing.value = null
+  document.removeEventListener('mousemove', handleResize)
+  document.removeEventListener('mouseup', stopResize)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+}
+
+function autoFitColumn(key) {
+  // Find the column index
+  const fieldIndex = props.fields.findIndex(f => f.key === key)
+  if (fieldIndex === -1) return
+  
+  // Create a temporary element to measure text width
+  const tempSpan = document.createElement('span')
+  tempSpan.style.visibility = 'hidden'
+  tempSpan.style.position = 'absolute'
+  tempSpan.style.whiteSpace = 'nowrap'
+  tempSpan.style.font = '0.875rem system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+  document.body.appendChild(tempSpan)
+  
+  // Measure header text
+  const field = props.fields[fieldIndex]
+  tempSpan.textContent = field.label
+  let maxWidth = tempSpan.offsetWidth + 60 // Add padding for sort button and handle
+  
+  // Measure cell contents
+  const items = props.items || []
+  for (const row of items) {
+    const value = row[key]
+    if (value != null) {
+      tempSpan.textContent = String(value)
+      const cellWidth = tempSpan.offsetWidth + 32 // Add cell padding
+      maxWidth = Math.max(maxWidth, cellWidth)
+    }
+  }
+  
+  document.body.removeChild(tempSpan)
+  
+  // Set the column width with min/max constraints
+  columnWidths.value[key] = Math.min(500, Math.max(50, maxWidth))
+}
+
+// Cleanup event listeners on unmount
+onUnmounted(() => {
+  if (resizing.value) {
+    document.removeEventListener('mousemove', handleResize)
+    document.removeEventListener('mouseup', stopResize)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+})
 </script>
 
 <style scoped>
 .data-table-wrapper { width: 100%; }
 .table-responsive { max-height: 70vh; overflow-y: auto; }
 table { margin-bottom: 0; }
-th { user-select: none; }
+th { user-select: none; position: relative; }
 th:hover { background-color: var(--bs-table-hover-bg); }
 td { vertical-align: middle; }
 td:hover { background-color: rgba(79, 70, 229, 0.06); cursor: text; }
@@ -176,5 +265,32 @@ td:hover { background-color: rgba(79, 70, 229, 0.06); cursor: text; }
   font-size: 0.55rem;
   vertical-align: super;
   margin-left: 1px;
+}
+
+/* Column resize handle */
+.resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color 0.15s ease;
+  z-index: 10;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  background-color: rgba(79, 70, 229, 0.4);
+}
+
+th:hover .resize-handle {
+  background-color: rgba(79, 70, 229, 0.2);
+}
+
+/* Prevent text selection during resize */
+.data-table-wrapper:active {
+  user-select: none;
 }
 </style>
