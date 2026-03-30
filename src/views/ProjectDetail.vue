@@ -205,13 +205,13 @@
                 ref="fileInput"
                 type="file"
                 multiple
-                accept=".csv,.tsv,.txt,.xlsx,.xls"
+                accept=".csv,.tsv,.txt,.xlsx,.xls,.parquet"
                 class="d-none"
                 @change="handleFileSelect"
               >
               <i class="bi bi-cloud-arrow-up text-muted" style="font-size: 2rem;"></i>
               <p class="mb-1 mt-2">Drag & drop files here or click to browse</p>
-              <small class="text-muted">CSV, TSV, Excel (.xlsx, .xls)</small>
+              <small class="text-muted">CSV, TSV, Excel (.xlsx, .xls), Parquet (.parquet)</small>
             </div>
           </BFormGroup>
 
@@ -327,7 +327,7 @@
               </div>
             </div>
 
-            <div v-if="importForm.autoDetect === false" class="mt-2 ps-2 border-start">
+            <div v-if="importForm.autoDetect === false && !hasParquetFile" class="mt-2 ps-2 border-start">
               <div class="mb-2">
                 <label class="form-label">Has Header:</label>
                 <div class="form-check">
@@ -348,6 +348,10 @@
                   <option value="|">Pipe (|)</option>
                 </select>
               </div>
+            </div>
+            <div v-if="hasParquetFile" class="mt-2 small text-muted">
+              <i class="bi bi-info-circle me-1"></i>
+              Parquet files don't require delimiter or header options.
             </div>
           </div>
           <div class="mt-3 text-end">
@@ -519,16 +523,6 @@
           { value: 'parquet', text: 'Parquet (.parquet)' },
         ]"></BFormSelect>
       </BFormGroup>
-      <BFormGroup v-if="exportFormat === 'parquet'" label="Compression" label-for="export-compression" class="mt-2">
-        <BFormSelect id="export-compression" v-model="exportCompression" :options="[
-          { value: null, text: 'None' },
-          { value: 'snappy', text: 'Snappy (fast)' },
-          { value: 'gzip', text: 'Gzip (.gz)' },
-          { value: 'brotli', text: 'Brotli' },
-          { value: 'lz4', text: 'LZ4' },
-          { value: 'zstd', text: 'Zstandard' },
-        ]"></BFormSelect>
-      </BFormGroup>
       <BFormGroup label="Rows" label-for="export-limit" class="mt-2">
         <BFormSelect id="export-limit" v-model="exportLimit" :options="[
           { value: 0, text: 'All rows' },
@@ -673,7 +667,6 @@ const showPreviewModal = ref(false)
 const showRenameModal = ref(false)
 const showExportModal = ref(false)
 const exportFormat = ref('csv')
-const exportCompression = ref(null)
 const exportLimit = ref(0)
 const showProfileModal = ref(false)
 const profileData = ref(null)
@@ -835,6 +828,13 @@ const previewColumns = computed(() => {
   }))
 })
 
+const hasParquetFile = computed(() => {
+  return importForm.files.some(file => {
+    const ext = file.name.split('.').pop().toLowerCase()
+    return ext === 'parquet'
+  })
+})
+
 onMounted(async () => {
   await fetchProject()
   await fetchDatasets()
@@ -937,7 +937,7 @@ function handleFileSelect(e) {
 function addFiles(files) {
   const validFiles = files.filter(file => {
     const ext = file.name.split('.').pop().toLowerCase()
-    return ['csv', 'tsv', 'txt', 'xlsx', 'xls'].includes(ext)
+    return ['csv', 'tsv', 'txt', 'xlsx', 'xls', 'parquet'].includes(ext)
   })
   importForm.files.push(...validFiles)
   
@@ -1230,7 +1230,6 @@ function downloadExport() {
   if (!selectedDataset.value) return
   const params = new URLSearchParams({ format: exportFormat.value })
   if (exportLimit.value > 0) params.set('limit', exportLimit.value)
-  if (exportCompression.value) params.set('compression', exportCompression.value)
 
   // Use fetch with auth header instead of window.open (which doesn't send auth)
   fetch(`${apiUrl}/api/datasets/${selectedDataset.value.id}/export?${params}`, {
@@ -1240,7 +1239,15 @@ function downloadExport() {
       if (!res.ok) throw new Error(`Export failed (${res.status})`)
       const disposition = res.headers.get('Content-Disposition') || ''
       const match = disposition.match(/filename="(.+?)"/)
-      const filename = match ? match[1] : `export.${exportFormat.value}`
+      let filename = match ? match[1] : null
+      
+      // If no filename from header, construct it based on format
+      if (!filename) {
+        const baseName = selectedDataset.value.name || 'export'
+        const safeName = baseName.replace(/[^a-zA-Z0-9\-_ ]/g, '_')
+        filename = `${safeName}.${exportFormat.value}`
+      }
+      
       return res.blob().then(blob => ({ blob, filename }))
     })
     .then(({ blob, filename }) => {

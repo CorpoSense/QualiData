@@ -6,7 +6,7 @@ A robust file importer using chardet and csv.Sniffer for automatic detection.
 import os
 import csv
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Union, Tuple
 from dataclasses import dataclass, field
 from pathlib import Path
 from enum import Enum
@@ -31,6 +31,7 @@ class FileType(Enum):
     XLS = "xls"
     ODS = "ods"
     XLSB = "xlsb"
+    PARQUET = "parquet"
     UNKNOWN = "unknown"
 
 
@@ -141,6 +142,8 @@ class SmartImporter:
         try:
             if analysis.file_type in (FileType.CSV, FileType.TSV):
                 df = self._import_csv(file_path, analysis)
+            elif analysis.file_type == FileType.PARQUET:
+                df = self._import_parquet(file_path, analysis)
             else:
                 df = self._import_excel(file_path, analysis)
         except UnicodeDecodeError as e:
@@ -214,6 +217,7 @@ class SmartImporter:
             '.txt': FileType.CSV, '.dat': FileType.CSV,
             '.xlsx': FileType.XLSX, '.xls': FileType.XLS,
             '.xlsb': FileType.XLSB, '.ods': FileType.ODS,
+            '.parquet': FileType.PARQUET,
         }
 
         try:
@@ -224,6 +228,9 @@ class SmartImporter:
                 return FileType.XLSX
             if header[:8] == b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1':
                 return FileType.XLS
+            # Parquet files start with 'PAR1' magic bytes
+            if header[:4] == b'PAR1':
+                return FileType.PARQUET
         except Exception:
             pass
 
@@ -333,7 +340,7 @@ class SmartImporter:
         
         return best_delim
 
-    def _detect_header(self, lines: List[str], delimiter: str) -> tuple[bool, List[str]]:
+    def _detect_header(self, lines: List[str], delimiter: str) -> Tuple[bool, List[str]]:
         """Detect header using csv.Sniffer."""
         if not lines or len(lines) < 2:
             return True, []
@@ -493,6 +500,10 @@ class SmartImporter:
         """Import Excel file."""
         sheet = analysis.recommended_sheet or 0
         return pd.read_excel(file_path, sheet_name=sheet, header=0 if analysis.has_header else None)
+
+    def _import_parquet(self, file_path: str, analysis: FileAnalysis) -> pd.DataFrame:
+        """Import Parquet file."""
+        return pd.read_parquet(file_path)
 
 
 def smart_import(

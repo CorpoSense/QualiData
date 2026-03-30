@@ -250,6 +250,8 @@ async def import_single_dataset(
         file_type = "excel"
     elif file_ext == ".json":
         file_type = "json"
+    elif file_ext == ".parquet":
+        file_type = "parquet"
     
     # Convert string values from FormData
     auto_detect_bool = auto_detect.lower() == 'true' if auto_detect else True
@@ -261,7 +263,10 @@ async def import_single_dataset(
         tmp_path = tmp.name
     
     try:
-        if auto_detect:
+        # Parquet files are binary and don't need smart importer or encoding detection
+        if file_type == "parquet":
+            df = pd.read_parquet(tmp_path)
+        elif auto_detect:
             # Use smart importer for automatic detection
             importer = SmartImporter()
             analysis = importer.analyze(tmp_path)
@@ -298,6 +303,8 @@ async def import_single_dataset(
                 )
             elif file_type == "json":
                 df = pd.read_json(tmp_path)
+            elif file_type == "parquet":
+                df = pd.read_parquet(tmp_path)
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -464,6 +471,8 @@ async def import_multiple_datasets(
                 file_type = "excel"
             elif file_ext == ".json":
                 file_type = "json"
+            elif file_ext == ".parquet":
+                file_type = "parquet"
             
             # Convert string values from FormData
             auto_detect_bool = auto_detect.lower() == 'true' if auto_detect else True
@@ -475,7 +484,10 @@ async def import_multiple_datasets(
                 tmp_path = tmp.name
             
             try:
-                if auto_detect_bool:
+                # Parquet files are binary and don't need smart importer or encoding detection
+                if file_type == "parquet":
+                    df = pd.read_parquet(tmp_path)
+                elif auto_detect_bool:
                     # Use smart importer
                     importer = SmartImporter()
                     analysis = importer.analyze(tmp_path)
@@ -511,6 +523,8 @@ async def import_multiple_datasets(
                         )
                     elif file_type == "json":
                         df = pd.read_json(tmp_path)
+                    elif file_type == "parquet":
+                        df = pd.read_parquet(tmp_path)
                     else:
                         file_result["message"] = "Unsupported file type"
                         results.append(file_result)
@@ -822,7 +836,6 @@ async def export_dataset(
     format: str = "csv",
     columns: str | None = None,  # comma-separated column names
     limit: int = 0,  # 0 = all rows
-    compression: str | None = None,  # compression format: gzip, zip (for parquet)
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -894,43 +907,14 @@ async def export_dataset(
             headers={"Content-Disposition": f'attachment; filename="{safe_name}.xlsx"'},
         )
     elif format == "parquet":
-        # Validate compression option for parquet
-        # pyarrow supports: snappy, gzip, brotli, lz4, zstd, or None
-        valid_compressions = ["snappy", "gzip", "brotli", "lz4", "zstd", None]
-        if compression and compression not in valid_compressions:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported compression for Parquet. Use: snappy, gzip, brotli, lz4, zstd, or none."
-            )
-        
         output = io.BytesIO()
-        df.to_parquet(output, index=False, compression=compression)
+        df.to_parquet(output, index=False)
         output.seek(0)
-        
-        # Determine file extension based on compression
-        if compression == "gzip":
-            ext = ".parquet.gz"
-            media_type = "application/gzip"
-        elif compression == "snappy":
-            ext = ".parquet.snappy"
-            media_type = "application/octet-stream"
-        elif compression == "brotli":
-            ext = ".parquet.br"
-            media_type = "application/octet-stream"
-        elif compression == "lz4":
-            ext = ".parquet.lz4"
-            media_type = "application/octet-stream"
-        elif compression == "zstd":
-            ext = ".parquet.zst"
-            media_type = "application/octet-stream"
-        else:
-            ext = ".parquet"
-            media_type = "application/octet-stream"
         
         return StreamingResponse(
             iter([output.getvalue()]),
-            media_type=media_type,
-            headers={"Content-Disposition": f'attachment; filename="{safe_name}{ext}"'},
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": f'attachment; filename="{safe_name}.parquet"'},
         )
     else:
         raise HTTPException(status_code=400, detail="Unsupported format. Use csv, json, tsv, excel, or parquet.")

@@ -32,7 +32,7 @@ Follow these guidelines when working on this project.
     - **Backend**: pytest (`pnpm test:backend`)
     - **E2E**: Cypress (`pnpm test:e2e`)
 11. **Check dependencies** - Review `package.json` or `requirements.txt` before using any library
-12. **Use existing venv** - Always use the existing virtual environment at `backend/.venv/` when running Python commands or modules (e.g., `backend/.venv/bin/python`, `backend/.venv/bin/pip`)
+12. **Use existing venv** - Always use the existing virtual environment at `backend/.venv/` when running Python commands or modules (e.g., `backend/.venv/bin/python`, `backend/.venv/bin/pip`, `backend/.venv/bin/pytest`...etc.)
 
 ---
 
