@@ -895,11 +895,12 @@ async def export_dataset(
         )
     elif format == "parquet":
         # Validate compression option for parquet
-        valid_compressions = ["gzip", "zip", None]
+        # pyarrow supports: snappy, gzip, brotli, lz4, zstd, or None
+        valid_compressions = ["snappy", "gzip", "brotli", "lz4", "zstd", None]
         if compression and compression not in valid_compressions:
             raise HTTPException(
                 status_code=400,
-                detail=f"Unsupported compression for Parquet. Use: gzip, zip, or none."
+                detail=f"Unsupported compression for Parquet. Use: snappy, gzip, brotli, lz4, zstd, or none."
             )
         
         output = io.BytesIO()
@@ -910,9 +911,18 @@ async def export_dataset(
         if compression == "gzip":
             ext = ".parquet.gz"
             media_type = "application/gzip"
-        elif compression == "zip":
-            ext = ".parquet.zip"
-            media_type = "application/zip"
+        elif compression == "snappy":
+            ext = ".parquet.snappy"
+            media_type = "application/octet-stream"
+        elif compression == "brotli":
+            ext = ".parquet.br"
+            media_type = "application/octet-stream"
+        elif compression == "lz4":
+            ext = ".parquet.lz4"
+            media_type = "application/octet-stream"
+        elif compression == "zstd":
+            ext = ".parquet.zst"
+            media_type = "application/octet-stream"
         else:
             ext = ".parquet"
             media_type = "application/octet-stream"

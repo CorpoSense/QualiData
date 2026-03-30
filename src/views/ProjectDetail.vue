@@ -522,8 +522,11 @@
       <BFormGroup v-if="exportFormat === 'parquet'" label="Compression" label-for="export-compression" class="mt-2">
         <BFormSelect id="export-compression" v-model="exportCompression" :options="[
           { value: null, text: 'None' },
+          { value: 'snappy', text: 'Snappy (fast)' },
           { value: 'gzip', text: 'Gzip (.gz)' },
-          { value: 'zip', text: 'Zip (.zip)' },
+          { value: 'brotli', text: 'Brotli' },
+          { value: 'lz4', text: 'LZ4' },
+          { value: 'zstd', text: 'Zstandard' },
         ]"></BFormSelect>
       </BFormGroup>
       <BFormGroup label="Rows" label-for="export-limit" class="mt-2">
