@@ -33,10 +33,9 @@ Track tasks and improvements for the project.
   - Reuse connection UI components from import feature
   - Add validation and warnings for schema mismatches
 
-- [ ] **Export to Parquet format**
-  - Add Parquet export option with compression
-  - Support compression formats: zip, gzip
-  - Add compression options to export modal
+- [x] **Export to Parquet format**
+  - Add Parquet export option (simple, uncompressed)
+  - Support standard .parquet files
 
 ---
 

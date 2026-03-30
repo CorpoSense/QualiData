@@ -77,6 +77,7 @@ Upload → Memory (pandas) → Transform → Preview → Commit → Database (pe
 | **TSV** | Tab-separated values | For spreadsheet compatibility |
 | **Excel** | Rich formatting, multiple sheets | Sheet naming, column widths, formatting |
 | **JSON** | API integration, nested data | Pretty print, nested structure support |
+| **Parquet** | Columnar storage, efficient compression | Simple .parquet files |
 | **XML** | Legacy systems, data exchange | Configurable root/row elements |
 | **Database** | Direct export to production databases | Same connection types as import |
 | **Clipboard** | Quick copy-paste to other applications | Copy selected rows/columns |

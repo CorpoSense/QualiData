@@ -84,7 +84,7 @@ MasterDataCleaner/
 
 ## Documentation References
 
-**Read the [`./docs`](./docs/) directory for comprehensive documentation covering all aspects of the project.**
+**The [`./docs`](./docs/) directory contains comprehensive documentation. Search with `grep` command to find relevant files efficiently instead of reading the entire directory.**
 
 | Topic | Document | Description |
 |-------|----------|-------------|
@@ -101,6 +101,11 @@ MasterDataCleaner/
 | **API Reference** | [`docs/api-reference/`](docs/api-reference/README.md) | All API endpoints |
 | **Deployment** | [`docs/deployment/`](docs/deployment/README.md) | Docker, cloud, server deployment |
 | **Guides** | [`docs/guides/`](docs/guides/README.md) | Step-by-step user guides |
+
+**Search Strategy:**
+- Use `grep_search` with keywords (e.g., "router", "model", "endpoint") to locate relevant documentation
+- Use `glob` with patterns like `**/api*.md` or `**/database*.md` to find specific files
+- Only read the specific file(s) you need, not the entire `docs/` directory
 
 ---
 
