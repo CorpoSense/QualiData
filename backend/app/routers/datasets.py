@@ -920,6 +920,144 @@ async def export_dataset(
         raise HTTPException(status_code=400, detail="Unsupported format. Use csv, json, tsv, excel, or parquet.")
 
 
+@router.post("/{dataset_id}/export/db")
+async def export_to_database(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Export dataset to a database table.
+
+    Body: {
+        "db_type": "postgresql" | "mysql" | "sqlite" | "mssql",
+        "host": "localhost",
+        "port": 5432,
+        "database": "mydb",
+        "username": "user",
+        "password": "pass",
+        "sslmode": "prefer",
+        "table": "target_table",
+        "mode": "create" | "append",
+        "if_exists": "fail" | "replace" | "append"  (only for create mode)
+    }
+    """
+    from sqlalchemy import create_engine, inspect, text
+
+    # Validate dataset
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # Verify ownership
+    project_result = await session.execute(
+        select(Project).where(
+            Project.id == dataset.project_id, Project.user_id == current_user.id
+        )
+    )
+    if not project_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to export")
+
+    # Validate required fields
+    table_name = request.get("table")
+    if not table_name:
+        raise HTTPException(status_code=400, detail="table is required")
+
+    database = request.get("database")
+    if not database:
+        raise HTTPException(status_code=400, detail="database is required")
+
+    db_type = request.get("db_type", "postgresql")
+    mode = request.get("mode", "create")
+    if_exists = request.get("if_exists", "fail")
+
+    # Build connection URL
+    try:
+        url = _build_db_url(
+            db_type,
+            request.get("host", "localhost"),
+            str(request.get("port", 5432)),
+            database,
+            request.get("username", ""),
+            request.get("password", ""),
+            sslmode=request.get("sslmode"),
+        )
+        engine = create_engine(url, connect_args=_get_connect_args(db_type))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Connection failed: {str(e)}")
+
+    # Load dataset into DataFrame
+    df = pd.DataFrame(dataset.preview_data)
+
+    # Convert datetime columns to strings for compatibility
+    for col in df.columns:
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            df[col] = df[col].astype(str)
+
+    warnings = []
+
+    try:
+        if mode == "append":
+            # Check if table exists
+            inspector = inspect(engine)
+            existing_tables = inspector.get_table_names()
+            if table_name not in existing_tables:
+                engine.dispose()
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Table '{table_name}' does not exist. Use 'create' mode to create a new table.",
+                )
+
+            # Get existing table columns
+            existing_columns = {col["name"] for col in inspector.get_columns(table_name)}
+            df_columns = set(df.columns)
+
+            # Check for schema mismatches
+            extra_in_df = df_columns - existing_columns
+            missing_in_df = existing_columns - df_columns
+
+            if extra_in_df:
+                warnings.append(
+                    f"Columns in dataset but not in table will be dropped: {', '.join(sorted(extra_in_df))}"
+                )
+                df = df.drop(columns=list(extra_in_df))
+
+            if missing_in_df:
+                warnings.append(
+                    f"Columns in table but not in dataset will be NULL: {', '.join(sorted(missing_in_df))}"
+                )
+
+        # Write to database
+        df.to_sql(
+            table_name,
+            engine,
+            if_exists=if_exists if mode == "create" else "append",
+            index=False,
+            chunksize=1000,
+        )
+        engine.dispose()
+
+        return {
+            "status": "success",
+            "message": f"Exported {len(df)} rows to table '{table_name}'",
+            "row_count": len(df),
+            "table": table_name,
+            "warnings": warnings if warnings else None,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        engine.dispose()
+        raise HTTPException(status_code=400, detail=f"Export failed: {str(e)}")
+
+
 @router.get("")
 async def list_datasets(
     project_id: str,

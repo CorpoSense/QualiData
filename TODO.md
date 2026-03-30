@@ -28,7 +28,7 @@ Track tasks and improvements for the project.
 - [ ] **Export to Database**
   - Export cleaned data to same or different database connection
   - Options: create new table or append to existing table
-  - Support same databases as import (PostgreSQL, MySQL, SQL Server)
+  - Support same databases as import (PostgreSQL, MySQL, SQLite, SQL Server)
   - Add database tab to export modal (similar to import)
   - Reuse connection UI components from import feature
   - Add validation and warnings for schema mismatches

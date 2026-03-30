@@ -513,32 +513,146 @@
     </BModal>
 
     <!-- Export Modal -->
-    <BModal v-model="showExportModal" title="Export Dataset">
-      <BFormGroup label="Format" label-for="export-format">
-        <BFormSelect id="export-format" v-model="exportFormat" :options="[
-          { value: 'csv', text: 'CSV (.csv)' },
-          { value: 'json', text: 'JSON (.json)' },
-          { value: 'tsv', text: 'TSV (.tsv)' },
-          { value: 'excel', text: 'Excel (.xlsx)' },
-          { value: 'parquet', text: 'Parquet (.parquet)' },
-        ]"></BFormSelect>
-      </BFormGroup>
-      <BFormGroup label="Rows" label-for="export-limit" class="mt-2">
-        <BFormSelect id="export-limit" v-model="exportLimit" :options="[
-          { value: 0, text: 'All rows' },
-          { value: 10, text: 'First 10' },
-          { value: 50, text: 'First 50' },
-          { value: 100, text: 'First 100' },
-          { value: 500, text: 'First 500' },
-          { value: 1000, text: 'First 1000' },
-        ]"></BFormSelect>
-      </BFormGroup>
-      <template #footer>
-        <BButton @click="showExportModal = false">Cancel</BButton>
-        <BButton variant="primary" @click="downloadExport">
-          <i class="bi bi-download me-1"></i> Download
-        </BButton>
-      </template>
+    <BModal v-model="showExportModal" title="Export Dataset" size="lg">
+      <div class="p-3">
+        <!-- Tabs -->
+        <ul class="nav nav-pills mb-3">
+          <li class="nav-item">
+            <button class="nav-link" :class="{ active: exportTab === 'file' }" @click="exportTab = 'file'">
+              <i class="bi bi-file-earmark-arrow-down me-1"></i> File
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" :class="{ active: exportTab === 'database' }" @click="exportTab = 'database'">
+              <i class="bi bi-database me-1"></i> Database
+            </button>
+          </li>
+        </ul>
+
+        <!-- File Export -->
+        <div v-if="exportTab === 'file'">
+          <BFormGroup label="Format" label-for="export-format">
+            <BFormSelect id="export-format" v-model="exportFormat" :options="[
+              { value: 'csv', text: 'CSV (.csv)' },
+              { value: 'json', text: 'JSON (.json)' },
+              { value: 'tsv', text: 'TSV (.tsv)' },
+              { value: 'excel', text: 'Excel (.xlsx)' },
+              { value: 'parquet', text: 'Parquet (.parquet)' },
+            ]"></BFormSelect>
+          </BFormGroup>
+          <BFormGroup label="Rows" label-for="export-limit" class="mt-2">
+            <BFormSelect id="export-limit" v-model="exportLimit" :options="[
+              { value: 0, text: 'All rows' },
+              { value: 10, text: 'First 10' },
+              { value: 50, text: 'First 50' },
+              { value: 100, text: 'First 100' },
+              { value: 500, text: 'First 500' },
+              { value: 1000, text: 'First 1000' },
+            ]"></BFormSelect>
+          </BFormGroup>
+          <div class="mt-3 text-end">
+            <BButton variant="primary" @click="downloadExport">
+              <i class="bi bi-download me-1"></i> Download
+            </BButton>
+          </div>
+        </div>
+
+        <!-- Database Export -->
+        <div v-if="exportTab === 'database'">
+          <div class="row g-2 mt-1">
+            <div class="col-4">
+              <BFormGroup label="Database Type" label-size="sm">
+                <BFormSelect v-model="dbExportForm.db_type" :options="dbTypeOptions" size="sm"></BFormSelect>
+              </BFormGroup>
+            </div>
+            <div v-if="dbExportForm.db_type !== 'sqlite'" class="col-5">
+              <BFormGroup label="Host" label-size="sm">
+                <BFormInput v-model="dbExportForm.host" size="sm" placeholder="localhost"></BFormInput>
+              </BFormGroup>
+            </div>
+            <div v-if="dbExportForm.db_type !== 'sqlite'" class="col-3">
+              <BFormGroup label="Port" label-size="sm">
+                <BFormInput v-model.number="dbExportForm.port" type="number" size="sm"></BFormInput>
+              </BFormGroup>
+            </div>
+          </div>
+          <div v-if="dbExportForm.db_type !== 'sqlite'" class="row g-2 mt-1">
+            <div class="col-6">
+              <BFormGroup label="Username" label-size="sm">
+                <BFormInput v-model="dbExportForm.username" size="sm" placeholder="user"></BFormInput>
+              </BFormGroup>
+            </div>
+            <div class="col-6">
+              <BFormGroup label="Password" label-size="sm">
+                <BFormInput v-model="dbExportForm.password" type="password" size="sm"></BFormInput>
+              </BFormGroup>
+            </div>
+          </div>
+
+          <div class="row g-2 mt-1">
+            <div :class="dbExportForm.db_type === 'sqlite' ? 'col-12' : 'col-6'">
+              <BFormGroup label="Database" label-size="sm">
+                <BFormInput v-model="dbExportForm.database" size="sm" :placeholder="dbExportForm.db_type === 'sqlite' ? '/path/to/database.db' : 'mydb'"></BFormInput>
+              </BFormGroup>
+            </div>
+            
+            <div v-if="dbExportForm.db_type === 'postgresql' || dbExportForm.db_type === 'mysql'" class="col-6">
+              <BFormGroup label="SSL Mode" label-size="sm">
+                <BFormSelect v-model="dbExportForm.sslmode" :options="sslmodeOptions" size="sm"></BFormSelect>
+              </BFormGroup>
+            </div>
+          </div>
+
+          <!-- Test Connection -->
+          <div class="d-flex gap-2 mt-2">
+            <BButton size="sm" variant="outline-primary" :loading="dbExportTesting" @click="testDbExportConnection">
+              <i class="bi bi-plug me-1"></i> Test Connection
+            </BButton>
+            <span v-if="dbExportTestResult" :class="dbExportTestResult.success ? 'text-success' : 'text-danger'" class="small align-self-center">
+              <i class="bi me-1" :class="dbExportTestResult.success ? 'bi-check-circle' : 'bi-x-circle'"></i>
+              {{ dbExportTestResult.message }}
+            </span>
+          </div>
+
+          <!-- Mode Selection -->
+          <div class="mt-3">
+            <BFormGroup label="Export Mode" label-size="sm">
+              <BFormSelect v-model="dbExportForm.mode" size="sm" :options="[
+                { value: 'create', text: 'Create new table' },
+                { value: 'append', text: 'Append to existing table' },
+              ]"></BFormSelect>
+            </BFormGroup>
+          </div>
+
+          <!-- Table Selection (for append mode) -->
+          <div v-if="dbExportForm.mode === 'append' && dbExportTables.length" class="mt-2">
+            <BFormGroup label="Select Table" label-size="sm">
+              <BFormSelect v-model="dbExportForm.table" :options="dbExportTableOptions" size="sm"></BFormSelect>
+            </BFormGroup>
+          </div>
+
+          <!-- Table Name (for create mode) -->
+          <div v-if="dbExportForm.mode === 'create'" class="mt-2">
+            <BFormGroup label="Table Name" label-size="sm">
+              <BFormInput v-model="dbExportForm.table" size="sm" placeholder="my_table"></BFormInput>
+            </BFormGroup>
+            <BFormGroup label="If Table Exists" label-size="sm" class="mt-2">
+              <BFormSelect v-model="dbExportForm.if_exists" size="sm" :options="[
+                { value: 'fail', text: 'Fail (error)' },
+                { value: 'replace', text: 'Replace (drop and recreate)' },
+                { value: 'append', text: 'Append (add rows)' },
+              ]"></BFormSelect>
+            </BFormGroup>
+          </div>
+
+          <div class="mt-3 text-end">
+            <BButton variant="primary" :loading="dbExporting" :disabled="!dbExportForm.table" @click="handleDbExport">
+              <i class="bi bi-upload me-1"></i> Export
+            </BButton>
+          </div>
+        </div>
+      </div>
+      <template #footer><span></span></template>
     </BModal>
 
     <!-- Preview Modal -->
@@ -663,11 +777,43 @@ watch(showImportModal, (val) => {
     dbTestResult.value = null
   }
 })
+
 const showPreviewModal = ref(false)
 const showRenameModal = ref(false)
 const showExportModal = ref(false)
+const exportTab = ref('file')
 const exportFormat = ref('csv')
 const exportLimit = ref(0)
+
+watch(showExportModal, (val) => {
+  if (!val) {
+    exportTab.value = 'file'
+    exportFormat.value = 'csv'
+    exportLimit.value = 0
+    dbExportForm.table = ''
+    dbExportForm.mode = 'create'
+    dbExportForm.if_exists = 'fail'
+    dbExportTables.value = []
+    dbExportTestResult.value = null
+  }
+})
+
+const dbExportForm = reactive({
+  db_type: 'postgresql',
+  host: 'localhost',
+  port: 5432,
+  database: '',
+  username: '',
+  password: '',
+  sslmode: '',
+  table: '',
+  mode: 'create',
+  if_exists: 'fail'
+})
+const dbExportTesting = ref(false)
+const dbExportTestResult = ref(null)
+const dbExportTables = ref([])
+const dbExporting = ref(false)
 const showProfileModal = ref(false)
 const profileData = ref(null)
 const profileLoading = ref(false)
@@ -1261,6 +1407,84 @@ function downloadExport() {
     .catch(e => { toast.error(e.message) })
 
   showExportModal.value = false
+}
+
+// Update port when db_type changes for export
+watch(() => dbExportForm.db_type, (type) => {
+  const defaultPorts = { postgresql: 5432, mysql: 3306, sqlite: 0, oracle: 1521, mssql: 1433 }
+  dbExportForm.port = defaultPorts[type] || 5432
+  if (type === 'sqlite') dbExportForm.host = ''
+})
+
+async function testDbExportConnection() {
+  dbExportTesting.value = true
+  dbExportTestResult.value = null
+  dbExportTables.value = []
+  dbExportForm.table = ''
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/import/db/test`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(dbExportForm)
+    })
+    if (res.ok) {
+      dbExportTestResult.value = { success: true, message: 'Connected!' }
+      await fetchDbExportTables()
+    } else {
+      const err = await res.json()
+      dbExportTestResult.value = { success: false, message: err.detail || 'Connection failed' }
+    }
+  } catch (e) {
+    dbExportTestResult.value = { success: false, message: e.message }
+  } finally {
+    dbExportTesting.value = false
+  }
+}
+
+async function fetchDbExportTables() {
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/import/db/tables`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(dbExportForm)
+    })
+    if (res.ok) {
+      const data = await res.json()
+      dbExportTables.value = data.tables || []
+    }
+  } catch { /* silent */ }
+}
+
+const dbExportTableOptions = computed(() => [
+  { value: '', text: 'Select table…', disabled: true },
+  ...dbExportTables.value.map(t => ({ value: t, text: t }))
+])
+
+async function handleDbExport() {
+  if (!selectedDataset.value || !dbExportForm.table) return
+  dbExporting.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${selectedDataset.value.id}/export/db`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(dbExportForm)
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || 'Exported successfully')
+      if (data.warnings && data.warnings.length > 0) {
+        data.warnings.forEach(w => toast.warning(w))
+      }
+      showExportModal.value = false
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Export failed')
+    }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    dbExporting.value = false
+  }
 }
 
 function viewDataset(dataset) {
