@@ -1797,3 +1797,113 @@ async def bulk_clone_datasets(
         "cloned_count": cloned_count,
         "errors": errors,
     }
+
+
+class CopyMoveRequest(BaseModel):
+    dataset_ids: list[str]
+    target_project_id: str
+    action: str = "copy"  # "copy" or "move"
+
+
+@router.post("/copy-move", response_model=dict)
+async def copy_move_datasets(
+    request: CopyMoveRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Copy or move datasets to another project.
+    
+    Body: { dataset_ids: [...], target_project_id: "...", action: "copy" | "move" }
+    - copy: Clone datasets to target project (originals remain)
+    - move: Transfer datasets to target project (originals are removed)
+    """
+    dataset_ids = request.dataset_ids
+    target_project_id = request.target_project_id
+    action = request.action
+    
+    if not dataset_ids:
+        raise HTTPException(status_code=400, detail="dataset_ids is required")
+    
+    if len(dataset_ids) > 100:
+        raise HTTPException(status_code=400, detail="Cannot process more than 100 datasets at once")
+    
+    if action not in ("copy", "move"):
+        raise HTTPException(status_code=400, detail="action must be 'copy' or 'move'")
+    
+    # Verify target project ownership
+    target_project_result = await session.execute(
+        select(Project).where(
+            Project.id == target_project_id, Project.user_id == current_user.id
+        )
+    )
+    target_project = target_project_result.scalar_one_or_none()
+    if not target_project:
+        raise HTTPException(status_code=404, detail="Target project not found")
+    
+    processed_count = 0
+    errors = []
+    
+    for dataset_id in dataset_ids:
+        try:
+            result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+            original = result.scalar_one_or_none()
+            
+            if not original:
+                errors.append(f"Dataset {dataset_id} not found")
+                continue
+            
+            # Verify ownership via project
+            source_project_result = await session.execute(
+                select(Project).where(
+                    Project.id == original.project_id, Project.user_id == current_user.id
+                )
+            )
+            source_project = source_project_result.scalar_one_or_none()
+            if not source_project:
+                errors.append(f"Access denied for dataset {dataset_id}")
+                continue
+            
+            if action == "copy":
+                # Create cloned dataset in target project
+                cloned = Dataset(
+                    name=original.name,
+                    description=original.description,
+                    project_id=target_project_id,
+                    file_name=original.file_name,
+                    file_size=original.file_size,
+                    file_type=original.file_type,
+                    columns=original.columns,
+                    preview_data=original.preview_data,
+                    data_json=original.data_json,
+                    row_count=original.row_count,
+                )
+                session.add(cloned)
+                
+                # Update target project stats
+                target_project.row_count = (target_project.row_count or 0) + original.row_count
+                target_project.storage_bytes = (target_project.storage_bytes or 0) + original.file_size
+                
+            else:  # move
+                # Update source project stats
+                source_project.row_count = (source_project.row_count or 0) - original.row_count
+                source_project.storage_bytes = (source_project.storage_bytes or 0) - original.file_size
+                
+                # Update target project stats
+                target_project.row_count = (target_project.row_count or 0) + original.row_count
+                target_project.storage_bytes = (target_project.storage_bytes or 0) + original.file_size
+                
+                # Move dataset to target project
+                original.project_id = target_project_id
+            
+            processed_count += 1
+        except Exception as e:
+            errors.append(f"Failed to process {dataset_id}: {str(e)}")
+    
+    await session.commit()
+    
+    return {
+        "status": "success",
+        "action": action,
+        "processed_count": processed_count,
+        "errors": errors,
+    }

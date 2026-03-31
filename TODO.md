@@ -21,6 +21,16 @@ Track tasks and improvements for the project.
 - `docs/features/ai-providers.md` - Provider comparison table
 - `AGENTS.md` - Default models reference
 
+
+### Pivot Tables
+- [ ] Provide a multple and flexible ways to display a pivot tables
+- [ ] Provide a checkbox option to enable/disable including None values.
+
+### Improve AI Agent Capabilities
+- [ ] Support different type of memories
+- [ ] Support uploading a file.
+
+
 ---
 
 ### Export Features
@@ -50,6 +60,14 @@ Track tasks and improvements for the project.
   - Add multi-select checkboxes to dataset cards
   - Add bulk delete action with confirmation
   - Update existing multi-check UI from merge feature
+
+- [x] **Copy/Move Datasets to Another Project**
+  - Add "Copy to Project" and "Move to Project" buttons in selection bar
+  - Modal to select target project from dropdown
+  - Backend endpoint `/api/datasets/copy-move` with copy/move actions
+  - Updates project stats (row_count, storage_bytes) for both source and target
+  - Copy: clones datasets to target project (originals remain)
+  - Move: transfers datasets to target project (originals removed)
 
 ---
 

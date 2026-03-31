@@ -81,6 +81,12 @@
             <BButton size="sm" variant="outline-primary" @click="confirmBulkClone">
               <i class="bi bi-copy me-1"></i>Clone
             </BButton>
+            <BButton size="sm" variant="outline-info" @click="openCopyMoveModal('copy')">
+              <i class="bi bi-folder-symlink me-1"></i>Copy to Project
+            </BButton>
+            <BButton size="sm" variant="outline-warning" @click="openCopyMoveModal('move')">
+              <i class="bi bi-folder-move me-1"></i>Move to Project
+            </BButton>
             <BButton v-if="selectedDatasetIds.length >= 2" size="sm" variant="primary" @click="openMergeModal">
               <i class="bi bi-arrows-collapse me-1"></i>Merge
             </BButton>
@@ -811,6 +817,27 @@
         <BButton variant="primary" @click="showOpDetailsModal = false">Close</BButton>
       </template>
     </BModal>
+
+    <!-- Copy/Move to Project Modal -->
+    <BModal v-model="showCopyMoveModal" :title="copyMoveAction === 'copy' ? 'Copy to Project' : 'Move to Project'" size="md">
+      <div class="alert alert-info py-2 small mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        {{ copyMoveAction === 'copy' ? 'Copy' : 'Move' }} {{ selectedDatasetIds.length }} dataset(s) to another project.
+      </div>
+      <BFormGroup label="Select target project" label-size="sm">
+        <BFormSelect v-model="targetProjectId" size="sm" :options="targetProjectOptions"></BFormSelect>
+      </BFormGroup>
+      <div class="small text-muted mt-2">
+        Selected: {{ selectedDatasetIds.map(id => datasets.find(d => d.id === id)?.name || id).join(', ') }}
+      </div>
+      <template #footer>
+        <BButton variant="outline-secondary" @click="showCopyMoveModal = false">Cancel</BButton>
+        <BButton :variant="copyMoveAction === 'copy' ? 'info' : 'warning'" :loading="copyMoving" :disabled="!targetProjectId" @click="executeCopyMove">
+          <i :class="copyMoveAction === 'copy' ? 'bi bi-folder-symlink me-1' : 'bi bi-folder-move me-1'"></i>
+          {{ copyMoveAction === 'copy' ? 'Copy' : 'Move' }}
+        </BButton>
+      </template>
+    </BModal>
   </div>
 </template>
 
@@ -905,6 +932,11 @@ const deletingBulk = ref(false)
 const showBulkCloneModal = ref(false)
 const cloningBulk = ref(false)
 const cloneNamePrefix = ref('Copy of')
+const showCopyMoveModal = ref(false)
+const copyMoveAction = ref('copy')
+const targetProjectId = ref(null)
+const copyMoving = ref(false)
+const allProjects = ref([])
 const renameDatasetId = ref(null)
 const renameDatasetName = ref('')
 const renameDatasetDesc = ref('')
@@ -1033,6 +1065,13 @@ const dbImportForm = reactive({
 const dbTableOptions = computed(() => [
   { value: '', text: 'Select table…', disabled: true },
   ...dbTables.value.map(t => ({ value: t, text: t }))
+])
+
+const targetProjectOptions = computed(() => [
+  { value: null, text: 'Select a project…', disabled: true },
+  ...allProjects.value
+    .filter(p => p.id !== projectId)
+    .map(p => ({ value: p.id, text: p.name }))
 ])
 
 // Update port when db_type changes
@@ -1826,6 +1865,60 @@ function confirmBulkDelete() {
 function confirmBulkClone() {
   cloneNamePrefix.value = 'Copy of'
   showBulkCloneModal.value = true
+}
+
+async function openCopyMoveModal(action) {
+  copyMoveAction.value = action
+  targetProjectId.value = null
+  showCopyMoveModal.value = true
+  
+  // Fetch all projects for the dropdown
+  try {
+    const res = await fetch(`${apiUrl}/api/projects`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      allProjects.value = data.projects || data || []
+    }
+  } catch (e) {
+    console.error('Failed to fetch projects:', e)
+  }
+}
+
+async function executeCopyMove() {
+  if (!targetProjectId.value || selectedDatasetIds.value.length === 0) return
+  
+  copyMoving.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/copy-move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({
+        dataset_ids: selectedDatasetIds.value,
+        target_project_id: targetProjectId.value,
+        action: copyMoveAction.value
+      })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      const actionText = copyMoveAction.value === 'copy' ? 'Copied' : 'Moved'
+      toast.success(`${actionText} ${data.processed_count} dataset(s)`)
+      if (data.errors && data.errors.length > 0) {
+        data.errors.forEach(err => toast.warning(err))
+      }
+      showCopyMoveModal.value = false
+      selectedDatasetIds.value = []
+      await fetchDatasets()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || `${copyMoveAction.value === 'copy' ? 'Copy' : 'Move'} failed`)
+    }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    copyMoving.value = false
+  }
 }
 
 async function cloneDataset(dataset) {
