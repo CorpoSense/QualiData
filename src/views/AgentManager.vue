@@ -428,6 +428,10 @@ let selectedAgentId = null;
 const createForm = ref(null);
 const editForm = ref(null);
 
+// Reactive counters to force form validation re-computation
+const createFormDirty = ref(0);
+const editFormDirty = ref(0);
+
 const agentFields = computed(() => [
   { key: 'name', label: 'Name', sortable: true },
   {
@@ -454,6 +458,9 @@ const providerOptions = [
 const providersWithBaseUrl = ['openai', 'huggingface', 'ollama', 'groq', 'deepseek'];
 
 const createFormValid = computed(() => {
+  // Depend on dirty counter to force re-evaluation
+  createFormDirty.value;
+  
   // Check basic validity from our model first
   const hasName = !!createAgent.value.name;
   const tempValid = createAgent.value.temperature >= 0 && createAgent.value.temperature <= 2;
@@ -468,6 +475,9 @@ const createFormValid = computed(() => {
 });
 
 const editFormValid = computed(() => {
+  // Depend on dirty counter to force re-evaluation
+  editFormDirty.value;
+  
   // Check basic validity from our model first
   const hasName = !!editAgent.value.name;
   const tempValid = editAgent.value.temperature >= 0 && editAgent.value.temperature <= 2;
@@ -611,6 +621,37 @@ onMounted(() => {
 watch(() => createAgent.value.provider, (p) => { if (p) fetchModels(p, createAgent.value.api_key) })
 watch(() => createAgent.value.api_key, (k) => { if (k && createAgent.value.provider) fetchModels(createAgent.value.provider, k) })
 watch(() => editAgent.value.provider, (p) => { if (p) fetchModels(p) })
+
+// Watch form fields to force validation re-computation
+watch(
+  () => [
+    createAgent.value.name,
+    createAgent.value.description,
+    createAgent.value.provider,
+    createAgent.value.model,
+    createAgent.value.api_key,
+    createAgent.value.base_url,
+    createAgent.value.system_prompt,
+    createAgent.value.prompt_template,
+    createAgent.value.temperature,
+  ],
+  () => { createFormDirty.value++ }
+)
+
+watch(
+  () => [
+    editAgent.value.name,
+    editAgent.value.description,
+    editAgent.value.provider,
+    editAgent.value.model,
+    editAgent.value.api_key,
+    editAgent.value.base_url,
+    editAgent.value.system_prompt,
+    editAgent.value.prompt_template,
+    editAgent.value.temperature,
+  ],
+  () => { editFormDirty.value++ }
+)
 
 watch(
   () => agents.value,
