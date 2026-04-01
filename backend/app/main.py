@@ -30,6 +30,7 @@ from app.routers import (
     notifications,
     operations,
     operations_extra,
+    pivot,
     profiling,
     projects,
     rate_limit,
@@ -166,6 +167,7 @@ def create_app() -> FastAPI:
     app.include_router(structural_ops.router, prefix="/api")
     app.include_router(ai_operations.router, prefix="/api")
     app.include_router(batch_ops.router, prefix="/api")
+    app.include_router(pivot.router, prefix="/api")
     app.include_router(profiling.router, prefix="/api")
     app.include_router(notifications.router, prefix="/api")
     app.include_router(comparison.router, prefix="/api")

@@ -23,6 +23,9 @@
             <BButton size="sm" variant="info" @click="showProfile = true">
               <i class="bi bi-bar-chart me-1"></i> Profile
             </BButton>
+            <BButton size="sm" variant="primary" @click="showPivotModal = true" :disabled="!selectedColumns.length">
+              <i class="bi bi-table me-1"></i> Pivot
+            </BButton>
             <BButton size="sm" variant="success" @click="showCompare = true">
               <i class="bi bi-columns-gap me-1"></i> Compare
             </BButton>
@@ -1107,6 +1110,16 @@
       </template>
     </BModal>
 
+    <!-- Pivot Table Modal -->
+    <PivotModal
+      v-model="showPivotModal"
+      :dataset-id="datasetId"
+      :dataset-name="dataset?.name"
+      :columns="columns"
+      :selected-columns="selectedColumns"
+      @close="showPivotModal = false"
+    />
+
     <!-- History Sidebar -->
     <div v-if="showHistory" class="history-sidebar">
       <div class="d-flex justify-content-between align-items-center mb-3">
@@ -1191,6 +1204,7 @@ import DataTable from '@/components/DataTable.vue'
 import PromptModal from '@/components/PromptModal.vue'
 import OperationConfirmModal from '@/components/OperationConfirmModal.vue'
 import AiCleanModal from '@/components/AiCleanModal.vue'
+import PivotModal from '@/components/PivotModal.vue'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
@@ -1350,6 +1364,7 @@ let confirmResolve = null
 const showProfile = ref(false)
 const showCompare = ref(false)
 const showHistory = ref(false)
+const showPivotModal = ref(false)
 const exportZip = ref(false)
 const importText = ref('')
 const importFile = ref(null)
