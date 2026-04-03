@@ -37,6 +37,7 @@
               class="form-control"
               placeholder="your@email.com"
               required
+              autofocus
             >
           </div>
 
@@ -69,7 +70,7 @@
         </form>
 
         <!-- OAuth Options -->
-        <div v-show="activeTab === 'login'" class="mt-4">
+        <!-- div v-show="activeTab === 'login'" class="mt-4">
           <p class="text-center text-muted small mb-2">Or continue with</p>
           <div class="d-flex justify-content-center gap-2">
             <button 
@@ -89,7 +90,7 @@
               <span class="ms-2">GitHub</span>
             </button>
           </div>
-        </div>
+        </div -->
 
         <!-- Register Form -->
         <form v-show="activeTab === 'register'" @submit.prevent="handleRegister">
