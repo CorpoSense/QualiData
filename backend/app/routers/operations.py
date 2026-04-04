@@ -1601,7 +1601,12 @@ async def fuzzy_dedupe(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Fuzzy deduplication based on column similarity."""
+    """Fuzzy deduplication based on column similarity.
+    
+    Supports multiple matching algorithms and action modes:
+    - matching_type: "standard" (SequenceMatcher), "permutation" (word order insensitive), "levenshtein" (edit distance)
+    - mode: "delete" (remove rows), "merge_first" (update to first), "merge_most_frequent" (consolidate to most common)
+    """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.preview_data:
         raise HTTPException(status_code=400, detail="No data to operate on")
@@ -1609,28 +1614,125 @@ async def fuzzy_dedupe(
     df = pd.DataFrame(dataset.preview_data)
     column = request.get('column')
     threshold = request.get('threshold', 0.8)
+    matching_type = request.get('matching_type', 'standard')  # standard, permutation, levenshtein
+    mode = request.get('mode', 'delete')  # delete, merge_first, merge_most_frequent
 
+    # Validate inputs
     if not column or column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column {column} not found")
+    if matching_type not in ('standard', 'permutation', 'levenshtein'):
+        raise HTTPException(status_code=400, detail=f"Invalid matching_type: {matching_type}. Must be 'standard', 'permutation', or 'levenshtein'.")
+    if mode not in ('delete', 'merge_first', 'merge_most_frequent'):
+        raise HTTPException(status_code=400, detail=f"Invalid mode: {mode}. Must be 'delete', 'merge_first', or 'merge_most_frequent'.")
 
     from difflib import SequenceMatcher
-    rows = df[column].astype(str).tolist()
-    to_keep = []
-    for row in rows:
-        is_duplicate = False
-        for kept in to_keep:
-            if SequenceMatcher(None, row, kept).ratio() > threshold:
-                is_duplicate = True
-                break
-        if not is_duplicate:
-            to_keep.append(row)
 
-    df = df[df[column].astype(str).isin(to_keep)].reset_index(drop=True)
+    # Get column values as strings
+    rows = df[column].astype(str).tolist()
+    
+    def normalize_for_matching(s, matching_type):
+        """Normalize string based on matching algorithm."""
+        if matching_type == 'permutation':
+            # Sort words alphabetically for permutation matching
+            return ' '.join(sorted(s.split()))
+        elif matching_type == 'levenshtein':
+            # For Levenshtein, we use the original string but compare character-level
+            return s.lower()
+        else:  # standard
+            return s.lower()
+
+    def calculate_similarity(s1, s2, matching_type):
+        """Calculate similarity between two strings."""
+        from difflib import SequenceMatcher
+        if matching_type == 'levenshtein':
+            # Use Levenshtein distance (character-level edit distance)
+            return SequenceMatcher(None, s1.lower(), s2.lower()).ratio()
+        elif matching_type == 'permutation':
+            # Compare sorted word versions
+            return SequenceMatcher(None, normalize_for_matching(s1, 'permutation'), normalize_for_matching(s2, 'permutation')).ratio()
+        else:  # standard
+            return SequenceMatcher(None, s1.lower(), s2.lower()).ratio()
+
+    # Find clusters of similar values
+    cluster_map = {}  # index -> canonical index
+    processed = set()
+    
+    for i, row in enumerate(rows):
+        if i in processed:
+            continue
+        # This row is the canonical for its cluster
+        canonical_idx = i
+        cluster = [i]
+        
+        for j in range(i + 1, len(rows)):
+            if j in processed:
+                continue
+            similarity = calculate_similarity(row, rows[j], matching_type)
+            if similarity > threshold:
+                cluster.append(j)
+                processed.add(j)
+                cluster_map[j] = canonical_idx
+        
+        processed.add(i)
+        cluster_map[i] = canonical_idx
+
+    # Apply mode
+    if mode == 'delete':
+        # Keep only rows where index is the canonical (not in cluster_map as value)
+        canonical_indices = set(cluster_map.values())
+        to_keep = [i for i in range(len(rows)) if cluster_map.get(i, i) == i or i in canonical_indices]
+        df = df.iloc[to_keep].reset_index(drop=True)
+        removed = len(rows) - len(to_keep)
+        msg = f"Removed {removed} fuzzy duplicates"
+    
+    elif mode == 'merge_first':
+        # For each cluster, set all to the first occurrence value
+        canonical_values = {}
+        for i, row in enumerate(rows):
+            canonical_idx = cluster_map.get(i, i)
+            if canonical_idx not in canonical_values:
+                canonical_values[canonical_idx] = row
+        
+        # Update values based on cluster mapping
+        new_col = []
+        for i in range(len(rows)):
+            canonical_idx = cluster_map.get(i, i)
+            new_col.append(canonical_values.get(canonical_idx, rows[i]))
+        
+        df[column] = new_col
+        removed = sum(1 for i, row in enumerate(rows) if cluster_map.get(i, i) != i)
+        msg = f"Merged {removed} values to first occurrence"
+    
+    elif mode == 'merge_most_frequent':
+        # For each cluster, find most frequent value and use it
+        # First, count all values in each cluster
+        cluster_values = {}
+        for i, row in enumerate(rows):
+            canonical_idx = cluster_map.get(i, i)
+            if canonical_idx not in cluster_values:
+                cluster_values[canonical_idx] = {}
+            val = row
+            cluster_values[canonical_idx][val] = cluster_values[canonical_idx].get(val, 0) + 1
+        
+        # Find most frequent for each cluster
+        canonical_values = {}
+        for canonical_idx, value_counts in cluster_values.items():
+            most_frequent = max(value_counts.keys(), key=lambda k: value_counts[k])
+            canonical_values[canonical_idx] = most_frequent
+        
+        # Update values
+        new_col = []
+        for i in range(len(rows)):
+            canonical_idx = cluster_map.get(i, i)
+            new_col.append(canonical_values.get(canonical_idx, rows[i]))
+        
+        df[column] = new_col
+        removed = sum(1 for i, row in enumerate(rows) if cluster_map.get(i, i) != i)
+        msg = f"Merged {removed} values to most frequent"
 
     from app.routers.datasets import detect_columns, get_preview_data
     before_count = dataset.row_count
     before_snapshot = {"columns": dataset.columns, "row_count": before_count, "preview_data": dataset.preview_data}
-    removed = before_count - len(df)
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
@@ -1639,7 +1741,7 @@ async def fuzzy_dedupe(
     await save_operation(dataset_id, "fuzzy_dedupe", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
-    return {"status": "success", "message": f"Removed {removed} fuzzy duplicates", "columns": dataset.columns, "row_count": dataset.row_count}
+    return {"status": "success", "message": msg, "columns": dataset.columns, "row_count": dataset.row_count}
 
 
 # Numeric operations (round, normalize, outliers)

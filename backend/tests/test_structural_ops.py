@@ -1024,6 +1024,161 @@ class TestFuzzyDedupeRequiresColumn:
         assert exc_info.value.status_code == 400
 
 
+class TestFuzzyDedupeNewParameters:
+    """Test the new matching_type and mode parameters for fuzzy-dedupe."""
+
+    @pytest.mark.asyncio
+    async def test_fuzzy_dedupe_invalid_matching_type_raises(self):
+        """Invalid matching_type should raise 400."""
+        from app.routers.operations import fuzzy_dedupe
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset([{"name": "Alice"}, {"name": "Bob"}])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await fuzzy_dedupe(
+                    dataset_id="test-ds-id",
+                    request={"column": "name", "threshold": 0.8, "matching_type": "invalid"},
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+        assert exc_info.value.status_code == 400
+        assert "matching_type" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_fuzzy_dedupe_invalid_mode_raises(self):
+        """Invalid mode should raise 400."""
+        from app.routers.operations import fuzzy_dedupe
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset([{"name": "Alice"}, {"name": "Bob"}])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await fuzzy_dedupe(
+                    dataset_id="test-ds-id",
+                    request={"column": "name", "threshold": 0.8, "mode": "invalid"},
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+        assert exc_info.value.status_code == 400
+        assert "mode" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_fuzzy_dedupe_permutation_matching(self):
+        """Permutation matching should match word order differences."""
+        from app.routers.operations import fuzzy_dedupe
+
+        dataset = _make_mock_dataset([
+            {"name": "John Smith"},
+            {"name": "Smith John"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await fuzzy_dedupe(
+                dataset_id="test-ds-id",
+                request={"column": "name", "threshold": 0.5, "matching_type": "permutation", "mode": "delete"},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result["status"] == "success"
+        # One row should be removed (they're similar under permutation matching)
+        assert result["row_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_fuzzy_dedupe_merge_first_mode(self):
+        """Merge first mode should keep all rows but update values to first occurrence."""
+        from app.routers.operations import fuzzy_dedupe
+
+        dataset = _make_mock_dataset([
+            {"name": "John"},
+            {"name": "John"},
+            {"name": "jon"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await fuzzy_dedupe(
+                dataset_id="test-ds-id",
+                request={"column": "name", "threshold": 0.8, "matching_type": "standard", "mode": "merge_first"},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result["status"] == "success"
+        # All rows kept, but values merged to first
+        assert result["row_count"] == 3
+        names = [r["name"] for r in dataset.preview_data]
+        assert all(n == "John" for n in names)
+
+    @pytest.mark.asyncio
+    async def test_fuzzy_dedupe_merge_most_frequent_mode(self):
+        """Merge most frequent mode should consolidate to most common value."""
+        from app.routers.operations import fuzzy_dedupe
+
+        # Use similar strings that will cluster together
+        dataset = _make_mock_dataset([
+            {"name": "John"},  # This will be clustered with the others
+            {"name": "Jon"},   # Similar to John
+            {"name": "John"},  # This is the most frequent
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await fuzzy_dedupe(
+                dataset_id="test-ds-id",
+                request={"column": "name", "threshold": 0.8, "matching_type": "standard", "mode": "merge_most_frequent"},
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result["status"] == "success"
+        # All 3 rows kept, but values merged to most frequent (which was "John" at index 2)
+        assert result["row_count"] == 3
+        names = [r["name"] for r in dataset.preview_data]
+        # Most frequent in cluster was "John", so all should be "John"
+        assert all(n == "John" for n in names)
+
+    
+    @pytest.mark.asyncio
+    async def test_fuzzy_dedupe_default_parameters(self):
+        """Default parameters should be 'standard' matching_type and 'delete' mode."""
+        from app.routers.operations import fuzzy_dedupe
+        
+        dataset = _make_mock_dataset([
+            {"name": "Alice"},
+            {"name": "Alice"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                    side_effect=_make_owner_check(dataset)), \
+             _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await fuzzy_dedupe(
+                dataset_id="test-ds-id",
+                request={"column": "name", "threshold": 0.8},  # No matching_type or mode
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+        assert result["status"] == "success"
+        # Should delete the duplicate (default mode='delete')
+        assert result["row_count"] == 1
+
+
 class TestEncodingOperations:
     """Test ML/feature engineering encoding operations."""
 

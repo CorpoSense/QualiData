@@ -2062,7 +2062,7 @@ const OP_CONFIGS = {
   'numeric-outliers': { title: 'Handle Outliers', description: 'Detects and handles statistical outliers using the IQR method. Outliers are capped to the fence values.', operation: 'numeric', params: { operation: 'outliers' }, options: [] },
   // Dedupe
   'remove-duplicates': { title: 'Remove Duplicates', description: 'Removes duplicate rows from the dataset. By default, considers all columns to determine duplicates.', operation: 'remove-duplicates', params: {}, options: [{ key: 'keep', label: 'Keep', type: 'select', choices: [{ value: 'first', text: 'First occurrence' }, { value: 'last', text: 'Last occurrence' }], hint: 'Which duplicate to keep when multiple exist' }] },
-  'fuzzy-dedupe': { title: 'Fuzzy Match — Deduplication', description: 'Finds and removes approximate duplicate rows using string similarity. Useful for catching near-duplicates with typos or formatting differences.', operation: 'fuzzy-dedupe', params: { threshold: 85 }, options: [{ key: 'threshold', label: 'Similarity threshold (%)', type: 'range', min: 50, max: 100, step: 5, hint: 'Higher = stricter matching. 100 = exact match only. Recommended: 80-90.' }] },
+  'fuzzy-dedupe': { title: 'Fuzzy Match', description: 'Finds similar values and either removes duplicates or merges them. Useful for catching near-duplicates with typos or case differences.', operation: 'fuzzy-dedupe', params: { threshold: 85, matching_type: 'standard', mode: 'delete' }, options: [{ key: 'matching_type', label: 'Algorithm', type: 'select', choices: [{ value: 'standard', text: 'Standard (SequenceMatcher)' }, { value: 'permutation', text: 'Permutation (word order insensitive)' }, { value: 'levenshtein', text: 'Levenshtein (edit distance)' }], hint: 'Standard for typos, Permutation for word swaps, Levenshtein for short strings' }, { key: 'threshold', label: 'Similarity threshold (%)', type: 'range', min: 50, max: 100, step: 5, hint: 'Higher = stricter matching. 100 = exact only. Recommended: 80-90.' }, { key: 'mode', label: 'Action', type: 'select', choices: [{ value: 'delete', text: 'Delete duplicates' }, { value: 'merge_first', text: 'Merge to first' }, { value: 'merge_most_frequent', text: 'Merge to most frequent' }], hint: 'Delete removes rows; Merge keeps all rows but updates values' }] },
 }
 
 function showOpConfirmModal(opId) {
@@ -2105,7 +2105,12 @@ async function onOpConfirmApply(params) {
       body = mergedParams
     } else if (config.operation === 'fuzzy-dedupe') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/fuzzy-dedupe`
-      body = { column: selectedColumns.value[0] || null, threshold: (mergedParams.threshold || 85) / 100 }
+      body = { 
+        column: selectedColumns.value[0] || null, 
+        threshold: (mergedParams.threshold || 85) / 100,
+        matching_type: mergedParams.matching_type || 'standard',
+        mode: mergedParams.mode || 'delete'
+      }
     } else if (config.operation === 'string-operations') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/string-operations`
       body = { columns: selectedColumns.value, ...mergedParams }
