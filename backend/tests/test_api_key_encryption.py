@@ -60,7 +60,7 @@ class TestAgentCreateEncryption:
         mock_session.refresh = AsyncMock()
 
         agent_in = MagicMock()
-        agent_in.dict.return_value = {
+        agent_in.model_dump.return_value = {
             "name": "Test Agent",
             "provider": "openai",
             "model": "gpt-4o-mini",
@@ -116,7 +116,7 @@ class TestAgentCreateEncryption:
         mock_session.refresh = AsyncMock()
 
         agent_in = MagicMock()
-        agent_in.dict.return_value = {
+        agent_in.model_dump.return_value = {
             "name": "No Key Agent",
             "provider": "openai",
             "model": "gpt-4o-mini",
@@ -164,11 +164,8 @@ class TestAgentUpdateEncryption:
         mock_session.execute = AsyncMock(return_value=mock_result)
 
         agent_in = MagicMock()
-        agent_in.dict.return_value = {"api_key": "sk-new-plaintext-key"}
-        agent_in.dict.return_value = {"api_key": "sk-new-plaintext-key"}
-
-        # Make dict(exclude_unset=True) work
-        agent_in.dict = MagicMock(return_value={"api_key": "sk-new-plaintext-key"})
+        # Make model_dump(exclude_unset=True) work
+        agent_in.model_dump = MagicMock(return_value={"api_key": "sk-new-plaintext-key"})
 
         with patch("app.routers.agents.get_settings") as mock_settings:
             mock_settings.return_value.secret_key = "test-secret"

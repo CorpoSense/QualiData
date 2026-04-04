@@ -85,7 +85,7 @@ async def fill_na(
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
 
-    save_operation(dataset_id, "fillna", request.dict(), before, after, session)
+    save_operation(dataset_id, "fillna", request.model_dump(), before, after, session)
     await session.commit()
 
     return OperationResponse(

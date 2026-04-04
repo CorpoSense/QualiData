@@ -104,7 +104,7 @@ async def add_column(
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
-    await save_operation(dataset_id, "add_column", request.dict(), before, after, session)
+    await save_operation(dataset_id, "add_column", request.model_dump(), before, after, session)
     await session.commit()
     return OperationResponse(
         status="success",
@@ -137,7 +137,7 @@ async def remove_columns(
     dataset.preview_data = get_preview_data(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
-    await save_operation(dataset_id, "remove_columns", request.dict(), before, after, session)
+    await save_operation(dataset_id, "remove_columns", request.model_dump(), before, after, session)
     await session.commit()
     return OperationResponse(
         status="success",
@@ -170,7 +170,7 @@ async def rename_column(
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    await save_operation(dataset_id, "rename_column", request.dict(), before, after, session)
+    await save_operation(dataset_id, "rename_column", request.model_dump(), before, after, session)
     await session.commit()
     return OperationResponse(
         status="success",
@@ -204,7 +204,9 @@ async def merge_columns(
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    await save_operation(dataset_id, "merge_columns", request.dict(), before, after, session)
+    # PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    # await save_operation(dataset_id, "merge_columns", request.dict(), before, after, session)
+    await save_operation(dataset_id, "merge_columns", request.model_dump(), before, after, session)
     await session.commit()
     return OperationResponse(
         status="success",
@@ -241,7 +243,9 @@ async def split_column(
     dataset.columns = detect_columns(df)
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
-    await save_operation(dataset_id, "split_column", request.dict(), before, after, session)
+    # PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    # await save_operation(dataset_id, "split_column", request.dict(), before, after, session)
+    await save_operation(dataset_id, "split_column", request.model_dump(), before, after, session)
     await session.commit()
     return OperationResponse(
         status="success",
@@ -276,7 +280,7 @@ async def duplicate_column(
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
     await save_operation(
-        dataset_id, "duplicate_column", request.dict(), before, after, session
+        dataset_id, "duplicate_column", request.model_dump(), before, after, session
     )
     await session.commit()
     return OperationResponse(
@@ -310,7 +314,9 @@ async def reorder_columns(
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
     await save_operation(
-        dataset_id, "reorder_columns", request.dict(), before, after, session
+        # PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+        # dataset_id, "reorder_columns", request.dict(), before, after, session
+        dataset_id, "reorder_columns", request.model_dump(), before, after, session
     )
     await session.commit()
     return OperationResponse(
@@ -394,7 +400,9 @@ async def reorder_rows(
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
     await save_operation(
-        dataset_id, "reorder_rows", request.dict(), before, after, session
+        # PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+        # dataset_id, "reorder_rows", request.dict(), before, after, session
+        dataset_id, "reorder_rows", request.model_dump(), before, after, session
     )
     await session.commit()
     return OperationResponse(

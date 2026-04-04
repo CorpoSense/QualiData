@@ -10,7 +10,7 @@ from app.db.models import Agent, User
 from app.routers.auth import get_current_active_user
 from app.config import get_settings
 from app.utils.crypto import encrypt_value
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -62,8 +62,7 @@ class AgentResponse(BaseModel):
     updated_at: datetime
     has_api_key: bool = False
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 def _agent_to_response(agent: Agent) -> dict:
     """Convert Agent model to response dict, masking api_key."""
@@ -102,7 +101,7 @@ async def create_agent(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    data = agent_in.dict()
+    data = agent_in.model_dump()
     if data.get("api_key"):
         data["api_key"] = encrypt_value(data["api_key"], get_settings().secret_key)
     agent = Agent(user_id=current_user.id, **data)
@@ -136,7 +135,7 @@ async def update_agent(
     agent = result.scalar_one_or_none()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    for field, value in agent_in.dict(exclude_unset=True).items():
+    for field, value in agent_in.model_dump(exclude_unset=True).items():
         if field == "api_key" and value:
             value = encrypt_value(value, get_settings().secret_key)
         setattr(agent, field, value)

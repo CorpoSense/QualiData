@@ -130,7 +130,7 @@ async def filter_rows(
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
 
-    await save_operation(dataset_id, "filter_rows", request.dict(), before, after, session)
+    await save_operation(dataset_id, "filter_rows", request.model_dump(), before, after, session)
     await session.commit()
 
     return OperationResponse(
@@ -172,7 +172,7 @@ async def sort_data(
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
 
-    await save_operation(dataset_id, "sort_data", request.dict(), before, after, session)
+    await save_operation(dataset_id, "sort_data", request.model_dump(), before, after, session)
     await session.commit()
 
     return OperationResponse(
@@ -217,7 +217,7 @@ async def remove_duplicates(
     after = {"columns": dataset.columns, "row_count": len(df)}
 
     await save_operation(
-        dataset_id, "remove_duplicates", request.dict(), before, after, session
+        dataset_id, "remove_duplicates", request.model_dump(), before, after, session
     )
     await session.commit()
 
@@ -273,7 +273,7 @@ async def find_replace(
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
 
-    await save_operation(dataset_id, "find_replace", request.dict(), before, after, session)
+    await save_operation(dataset_id, "find_replace", request.model_dump(), before, after, session)
     await session.commit()
 
     return OperationResponse(
@@ -333,7 +333,7 @@ async def change_type(
     dataset.preview_data = get_preview_data(df)
     after = {"columns": dataset.columns}
 
-    await save_operation(dataset_id, "change_type", request.dict(), before, after, session)
+    await save_operation(dataset_id, "change_type", request.model_dump(), before, after, session)
     await session.commit()
 
     return OperationResponse(
