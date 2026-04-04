@@ -279,7 +279,6 @@ watch(
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  resize: both;
 }
 
 .pivot-modal-header {

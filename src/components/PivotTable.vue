@@ -226,6 +226,35 @@
           </small>
         </div>
 
+        <!-- Totals Options -->
+        <div class="config-section">
+          <label class="form-label small fw-bold">
+            <i class="bi bi-calculator me-1"></i>Totals
+          </label>
+          <div class="form-check form-switch mb-1">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              v-model="config.showRowTotals"
+              id="show-row-totals"
+            >
+            <label class="form-check-label small" for="show-row-totals">
+              Show row totals
+            </label>
+          </div>
+          <div class="form-check form-switch">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              v-model="config.showColumnTotals"
+              id="show-column-totals"
+            >
+            <label class="form-check-label small" for="show-column-totals">
+              Show column totals
+            </label>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -261,11 +290,23 @@
             <span v-if="pivotData.summary.binned_columns.length" class="badge bg-info">
               Binned: {{ pivotData.summary.binned_columns.join(', ') }}
             </span>
+            <div class="form-check form-switch">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              v-model="showExport"
+              id="show-export-options"
+            >
+            <label class="form-check-label small" for="show-export-options">
+              Show export
+            </label>
+          </div>
           </div>
         </div>
-
+        
         <!-- Export Buttons -->
-        <div class="d-flex gap-2 mb-3">
+        <div v-if="showExport" class="d-flex gap-2 mb-3">
+          
           <BButton size="sm" variant="outline-secondary" @click="exportCSV">
             <i class="bi bi-download me-1"></i>CSV
           </BButton>
@@ -285,6 +326,9 @@
                 <th v-for="col in pivotData.columns" :key="col" class="text-nowrap">
                   {{ col }}
                 </th>
+                <th v-if="config.showRowTotals" class="text-nowrap table-secondary">
+                  Total
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -292,8 +336,21 @@
                 <td v-for="col in pivotData.columns" :key="col">
                   {{ formatValue(row[col]) }}
                 </td>
+                <td v-if="config.showRowTotals" class="table-secondary fw-bold">
+                  {{ formatValue(getRowSum(row)) }}
+                </td>
               </tr>
             </tbody>
+            <tfoot v-if="config.showColumnTotals">
+              <tr class="table-secondary fw-bold">
+                <td v-for="col in pivotData.columns" :key="col">
+                  {{ pivotData.pivot.reduce((sum, row) => sum + (typeof row[col] === 'number' ? row[col] : 0), 0) }}
+                </td>
+                <td class="table-info">
+                  {{ pivotData.pivot.reduce((sum, row) => sum + getRowSum(row), 0) }}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -338,6 +395,7 @@ const loading = ref(false)
 const error = ref(null)
 const pivotData = ref(null)
 const showSidebar = ref(true)
+const showExport = ref(false)
 const columnTypes = ref({ categorical: [], continuous: [], datetime: [] })
 
 // Configuration
@@ -351,7 +409,9 @@ const defaultConfig = {
   binningStrategy: 'equal_width',
   includeNulls: false,
   uniqueThreshold: 20,
-  autoReload: false
+  autoReload: false,
+  showRowTotals: false,
+  showColumnTotals: false
 }
 
 const config = ref({ ...defaultConfig })
@@ -388,6 +448,52 @@ const canApply = computed(() => {
     config.value.columnColumns.length > 0 &&
     config.value.valueColumn
   )
+})
+
+// Calculate row totals
+const rowTotals = computed(() => {
+  if (!pivotData.value || !config.value.showRowTotals) return null
+  
+  const pivot = pivotData.value.pivot
+  const columns = pivotData.value.columns
+  const totals = {}
+  
+  // Initialize totals for all columns
+  columns.forEach(col => {
+    totals[col] = 0
+  })
+  
+  // Sum each column
+  pivot.forEach(row => {
+    columns.forEach(col => {
+      const val = row[col]
+      if (typeof val === 'number') {
+        totals[col] = (totals[col] || 0) + val
+      }
+    })
+  })
+  
+  return totals
+})
+
+// Calculate column totals (grand total)
+const columnTotals = computed(() => {
+  if (!pivotData.value || !config.value.showColumnTotals) return null
+  
+  const pivot = pivotData.value.pivot
+  const columns = pivotData.value.columns
+  let grandTotal = 0
+  
+  pivot.forEach(row => {
+    columns.forEach(col => {
+      const val = row[col]
+      if (typeof val === 'number') {
+        grandTotal += val
+      }
+    })
+  })
+  
+  return grandTotal
 })
 
 // Debounce timer for auto-reload
@@ -521,6 +627,18 @@ function formatValue(value) {
     return Number.isInteger(value) ? value : value.toFixed(2)
   }
   return String(value)
+}
+
+function getRowSum(row) {
+  const columns = pivotData.value?.columns || []
+  let sum = 0
+  columns.forEach(col => {
+    const val = row[col]
+    if (typeof val === 'number') {
+      sum += val
+    }
+  })
+  return sum
 }
 
 function exportCSV() {
