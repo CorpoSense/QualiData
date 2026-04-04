@@ -373,51 +373,10 @@
     </div>
 
     <!-- Profile Modal -->
-    <BModal v-model="showProfile" title="Data Profile" size="lg">
-      <div v-if="profileData">
-        <div class="row g-3">
-          <div class="col-md-4">
-            <div class="card">
-              <div class="card-body text-center">
-                <h3>{{ profileData.total_rows || 0 }}</h3>
-                <p class="text-muted mb-0">Total Rows</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card">
-              <div class="card-body text-center">
-                <h3>{{ profileData.total_columns || 0 }}</h3>
-                <p class="text-muted mb-0">Columns</p>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card">
-              <div class="card-body text-center">
-                <h3>{{ nullCount }}</h3>
-                <p class="text-muted mb-0">Null Values</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="mt-4">
-          <h5>Column Profiles</h5>
-          <div v-for="col in profileData.columns" :key="col.name" class="mb-3">
-            <div class="d-flex justify-content-between mb-1">
-              <strong>{{ col.name }}</strong>
-              <span class="text-muted">{{ col.dtype }}</span>
-            </div>
-            <div class="progress" style="height: 6px;">
-              <div class="progress-bar" :style="{ width: (col.null_count / profileData.total_rows * 100) + '%' }"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <BButton variant="primary" @click="showProfile = false">Close</BButton>
-      </template>
-    </BModal>
+    <ProfileModal
+      v-model="showProfile"
+      :profile-data="profileData"
+    />
 
 
 
@@ -1204,7 +1163,7 @@ import DataTable from '@/components/DataTable.vue'
 import PromptModal from '@/components/PromptModal.vue'
 import OperationConfirmModal from '@/components/OperationConfirmModal.vue'
 import AiCleanModal from '@/components/AiCleanModal.vue'
-import PivotModal from '@/components/PivotModal.vue'
+import ProfileModal from '@/components/ProfileModal.vue'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
