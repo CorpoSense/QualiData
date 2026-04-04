@@ -27,9 +27,9 @@ Track tasks and improvements for the project.
 
 ### Fix bugs:
 - [x] Display correct number of dataset in each project.
-- [ ] Profile is only showing 500 rows!
+- [x] Profile is only showing 500 rows!
 - [ ] Pivot need some improvments:
-  - [ ] Ability to select columns (display list of columns with the ability to drag a column to either "rows" or "columns" section which both accept drop)
+  - [x] Ability to select columns (display list of columns with the ability to drag a column to either "rows" or "columns" section which both accept drop)
   - [ ] Fix resize issue it get's reset to default width after resizing
 
 ## Improvments:

@@ -16,28 +16,79 @@
       <div v-if="showSidebar" class="sidebar-content">
 
         <!-- Action Buttons -->
-        <div class="config-section mt-3">
+        <div class="config-section mt-2">
+          <BButton
+            variant="outline-secondary"
+            size="sm"
+            class="w-50"
+            @click="resetToDefaults"
+          >
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+          </BButton>          
           <BButton
             variant="primary"
             size="sm"
-            class="w-100 mb-2"
+            class="w-50"
             @click="applyPivot"
             :loading="loading"
             :disabled="!canApply"
           >
             <i class="bi bi-play-fill me-1"></i>Apply
           </BButton>
-          <BButton
-            variant="outline-secondary"
-            size="sm"
-            class="w-100"
-            @click="resetToDefaults"
-          >
-            <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
-          </BButton>
         </div>
 
+        <!-- Auto-Reload -->
+        <div class="config-section">
+          <div class="form-check form-switch">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              v-model="config.autoReload"
+              id="auto-reload"
+            >
+            <label class="form-check-label small" for="auto-reload">
+              Auto-reload
+            </label>
+          </div>
+        </div>        
 
+        <!-- Include Nulls -->
+        <div class="config-section">
+          <div class="form-check form-switch">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              v-model="config.includeNulls"
+              id="include-nulls"
+            >
+            <label class="form-check-label small" for="include-nulls">
+              Include null values
+            </label>
+          </div>
+        </div>
+                
+        <!-- Available Columns (Drag Source) -->
+        <div class="config-section">
+          <label class="form-label small fw-bold">
+            <i class="bi bi-columns me-1"></i>Available Columns
+          </label>
+          <div class="available-columns">
+            <div
+              v-for="col in availableColumns"
+              :key="col.field"
+              class="column-item"
+              draggable="true"
+              @dragstart="onDragStart($event, col.field, 'available')"
+              :title="col.label || col.field"
+            >
+              <i class="bi bi-grip-vertical me-1 text-muted"></i>
+              {{ col.label || col.field }}
+            </div>
+            <div v-if="availableColumns.length === 0" class="text-muted small">
+              All columns assigned
+            </div>
+          </div>
+        </div>
         
         <!-- Index Columns (Rows) -->
         <div class="config-section">
@@ -173,36 +224,6 @@
           <small class="text-muted">
             Max unique values to consider as categorical
           </small>
-        </div>
-
-        <!-- Include Nulls -->
-        <div class="config-section">
-          <div class="form-check form-switch">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              v-model="config.includeNulls"
-              id="include-nulls"
-            >
-            <label class="form-check-label small" for="include-nulls">
-              Include null values
-            </label>
-          </div>
-        </div>
-
-        <!-- Auto-Reload -->
-        <div class="config-section">
-          <div class="form-check form-switch">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              v-model="config.autoReload"
-              id="auto-reload"
-            >
-            <label class="form-check-label small" for="auto-reload">
-              Auto-reload
-            </label>
-          </div>
         </div>
 
       </div>
@@ -353,6 +374,14 @@ const valueColumnOptions = computed(() => {
   }))
 })
 
+const availableColumns = computed(() => {
+  return props.columns.filter(col => {
+    const field = col.field
+    return !config.value.indexColumns.includes(field) && 
+           !config.value.columnColumns.includes(field)
+  })
+})
+
 const canApply = computed(() => {
   return (
     config.value.indexColumns.length > 0 &&
@@ -360,6 +389,19 @@ const canApply = computed(() => {
     config.value.valueColumn
   )
 })
+
+// Debounce timer for auto-reload
+let applyDebounceTimer = null
+
+function debouncedApply() {
+  if (applyDebounceTimer) {
+    clearTimeout(applyDebounceTimer)
+  }
+  applyDebounceTimer = setTimeout(() => {
+    applyPivot(true) // true = silent mode (no toast)
+    applyDebounceTimer = null
+  }, 300)
+}
 
 // Methods
 function onDragStart(event, column, source) {
@@ -419,7 +461,7 @@ async function fetchColumnTypes() {
   }
 }
 
-async function applyPivot() {
+async function applyPivot(silent = false) {
   if (!canApply.value) return
 
   loading.value = true
@@ -447,15 +489,21 @@ async function applyPivot() {
 
     if (res.ok) {
       pivotData.value = await res.json()
-      toast.success('Pivot table created')
+      if (!silent) {
+        toast.success('Pivot table created')
+      }
     } else {
       const err = await res.json()
       error.value = err.detail || 'Failed to create pivot table'
-      toast.error(error.value)
+      if (!silent) {
+        toast.error(error.value)
+      }
     }
   } catch (e) {
     error.value = e.message
-    toast.error(e.message)
+    if (!silent) {
+      toast.error(e.message)
+    }
   } finally {
     loading.value = false
   }
@@ -523,26 +571,63 @@ function copyAsJSON() {
   toast.success('Copied as JSON')
 }
 
-// Watch for auto-reload
+// Watch for auto-reload with config changes
 watch(
   () => props.selectedColumns,
   (newCols) => {
-    if (config.value.autoReload && newCols.length > 0) {
-      // Auto-populate with selected columns
-      if (newCols.length >= 2 && config.value.indexColumns.length === 0) {
+    if (newCols.length > 0) {
+      // Auto-populate with selected columns (only when not already set)
+      if (newCols.length >= 2) {
         config.value.indexColumns = [newCols[0]]
         config.value.columnColumns = [newCols[1]]
+        if (newCols.length >= 3 && !config.value.valueColumn) {
+          config.value.valueColumn = newCols[2]
+        }
+      }
+      // Trigger auto-reload if enabled
+      if (config.value.autoReload && canApply.value) {
+        debouncedApply()
       }
     }
   },
   { immediate: true }
 )
 
-// Watch unique threshold changes
+// Deep watcher for config changes - triggers auto-reload
 watch(
-  () => config.value.uniqueThreshold,
-  () => {
-    fetchColumnTypes()
+  () => config.value,
+  (newConfig, oldConfig) => {
+    if (!config.value.autoReload) return
+    if (!canApply.value) return
+    
+    // Check if any significant config changed
+    const significantChanges = [
+      newConfig.indexColumns,
+      newConfig.columnColumns,
+      newConfig.valueColumn,
+      newConfig.aggfunc,
+      newConfig.binContinuous,
+      newConfig.bins,
+      newConfig.binningStrategy,
+      newConfig.includeNulls
+    ]
+    
+    // Trigger auto-reload
+    debouncedApply()
+  },
+  { deep: true }
+)
+
+// Watch for dataset changes (e.g., after cleaning operations)
+watch(
+  () => props.datasetId,
+  (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      // Dataset changed, reload if auto-reload is enabled
+      if (config.value.autoReload && canApply.value) {
+        debouncedApply()
+      }
+    }
   }
 )
 
@@ -668,5 +753,40 @@ onMounted(() => {
 
 .pivot-table td {
   white-space: nowrap;
+}
+
+.available-columns {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+}
+
+.column-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  cursor: grab;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.15s;
+}
+
+.column-item:last-child {
+  border-bottom: none;
+}
+
+.column-item:hover {
+  background: #f1f5f9;
+}
+
+.column-item:active {
+  cursor: grabbing;
+  background: #e2e8f0;
+}
+
+.column-item i {
+  font-size: 0.75rem;
 }
 </style>
