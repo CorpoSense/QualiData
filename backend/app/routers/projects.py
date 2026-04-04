@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
-from app.db.models import Project, User
+from app.db.models import Project, User, Dataset
 from app.routers.auth import get_current_active_user
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -31,6 +31,7 @@ class ProjectResponse(BaseModel):
     user_id: str
     row_count: int
     storage_bytes: int
+    datasets_count: int = 0
     created_at: datetime | None
     updated_at: datetime | None
 
@@ -72,8 +73,25 @@ async def list_projects(
     session: AsyncSession = Depends(get_async_session),
 ):
     """List all projects for current user."""
-    # Build query
-    query = select(Project).where(Project.user_id == current_user.id)
+    # Subquery to count datasets per project
+    dataset_count_subquery = (
+        select(
+            Dataset.project_id,
+            func.count(Dataset.id).label("datasets_count")
+        )
+        .group_by(Dataset.project_id)
+        .subquery()
+    )
+
+    # Main query with datasets_count from subquery
+    query = (
+        select(Project, dataset_count_subquery.c.datasets_count)
+        .outerjoin(
+            dataset_count_subquery,
+            Project.id == dataset_count_subquery.c.project_id
+        )
+        .where(Project.user_id == current_user.id)
+    )
 
     if search:
         query = query.where(Project.name.ilike(f"%{search}%"))
@@ -85,10 +103,32 @@ async def list_projects(
 
     # Paginate
     offset = (page - 1) * page_size
-    query = query.offset(offset).limit(page_size).order_by(Project.updated_at.desc())
+    query = (
+        query
+        .order_by(Project.updated_at.desc())
+        .offset(offset)
+        .limit(page_size)
+    )
 
     result = await session.execute(query)
-    projects = result.scalars().all()
+    rows = result.all()
+
+    # Map to ProjectResponse
+    projects = []
+    for row in rows:
+        project = row[0]
+        datasets_count = row[1] or 0
+        projects.append({
+            "id": project.id,
+            "name": project.name,
+            "description": project.description,
+            "user_id": project.user_id,
+            "row_count": project.row_count,
+            "storage_bytes": project.storage_bytes,
+            "datasets_count": datasets_count,
+            "created_at": project.created_at,
+            "updated_at": project.updated_at,
+        })
 
     return {"projects": projects, "total": total, "page": page, "page_size": page_size}
 
@@ -101,19 +141,47 @@ async def get_project(
     session: AsyncSession = Depends(get_async_session),
 ):
     """Get a specific project."""
+    # Subquery to count datasets
+    dataset_count_subquery = (
+        select(
+            Dataset.project_id,
+            func.count(Dataset.id).label("datasets_count")
+        )
+        .group_by(Dataset.project_id)
+        .subquery()
+    )
+
     result = await session.execute(
-        select(Project).where(
+        select(Project, dataset_count_subquery.c.datasets_count)
+        .outerjoin(
+            dataset_count_subquery,
+            Project.id == dataset_count_subquery.c.project_id
+        )
+        .where(
             Project.id == project_id, Project.user_id == current_user.id
         )
     )
-    project = result.scalar_one_or_none()
+    row = result.one_or_none()
 
-    if not project:
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
         )
 
-    return project
+    project = row[0]
+    datasets_count = row[1] or 0
+
+    return {
+        "id": project.id,
+        "name": project.name,
+        "description": project.description,
+        "user_id": project.user_id,
+        "row_count": project.row_count,
+        "storage_bytes": project.storage_bytes,
+        "datasets_count": datasets_count,
+        "created_at": project.created_at,
+        "updated_at": project.updated_at,
+    }
 
 
 @router.put("/{project_id}", response_model=ProjectResponse)

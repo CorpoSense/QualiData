@@ -3,7 +3,7 @@
     <!-- Welcome Section -->
     <div class="welcome-section mb-5">
       <h1 class="h3 fw-bold">Welcome back!</h1>
-      <p class="text-secondary">Here's what's happening with your data today.</p>
+      <p class="text-secondary">Here's what's happening with your data recently.</p>
     </div>
 
     <!-- Stats Cards -->
