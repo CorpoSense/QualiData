@@ -152,8 +152,8 @@
             <BDropdownItem @click="showOpConfirmModal('remove-duplicates')">
               <i class="bi bi-copy me-2"></i>Remove duplicates
             </BDropdownItem>
-            <BDropdownItem @click="showOpConfirmModal('fuzzy-dedupe')">
-              <i class="bi bi-search me-2"></i>Fuzzy match
+            <BDropdownItem @click="showFuzzyMatchModal = true">
+              <i class="bi bi-search me-2"></i>Fuzzy match…
             </BDropdownItem>
           </BDropdown>
 
@@ -493,8 +493,20 @@
       :total-rows="totalRows"
       :operating="operating"
       :batch-progress="batchProgress"
+      :fuzzy-context="fuzzyAiContext"
       @apply="applyDataAiClean"
       @close="closeDataAiModal"
+    />
+
+    <!-- Fuzzy Match Modal -->
+    <FuzzyMatchModal
+      v-model="showFuzzyMatchModal"
+      :columns="columns"
+      :dataset-id="datasetId"
+      :agent-options="agentOptions"
+      :selected-columns="selectedColumns"
+      @apply="onFuzzyMatchApply"
+      @aiHelp="onFuzzyAiHelp"
     />
 
     <!-- Operation Confirm Modal -->
@@ -1163,6 +1175,7 @@ import DataTable from '@/components/DataTable.vue'
 import PromptModal from '@/components/PromptModal.vue'
 import OperationConfirmModal from '@/components/OperationConfirmModal.vue'
 import AiCleanModal from '@/components/AiCleanModal.vue'
+import FuzzyMatchModal from '@/components/FuzzyMatchModal.vue'
 import ProfileModal from '@/components/ProfileModal.vue'
 import { useToast } from '@/composables/useToast'
 
@@ -1334,6 +1347,7 @@ const importError = ref('')
 const showClipboardImport = ref(false)
 const showFillnaModal = ref(false)
 const showStructuralAiModal = ref(false)
+const showFuzzyMatchModal = ref(false)
 const showDataAiModal = ref(false)
 const showExportRecipe = ref(false)
 const showImportRecipe = ref(false)
@@ -1350,6 +1364,7 @@ const nullCount = ref(0)
 const selectedColumns = ref([])  // Selected columns (click on table headers)
 const selectedRows = ref([])  // Selected rows
 const batchProgress = ref(null)
+const fuzzyAiContext = ref(null)
 
 // Computed fields for BTable - disable sorting to allow column selection
 const tableFields = computed(() => {
@@ -2721,6 +2736,47 @@ function closeDataAiModal() {
   showDataAiModal.value = false
   batchProgress.value = null
   operating.value = false
+}
+
+async function onFuzzyMatchApply(payload) {
+  if (!payload.column) { toast.warning('Select a column first'); return }
+  if (!payload.mapping || Object.keys(payload.mapping).length === 0) { toast.warning('No value mapping defined'); return }
+
+  
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/fuzzy-advanced`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({
+        column: payload.column,
+        mapping: payload.mapping,
+        matching_type: payload.matching_type || 'standard',
+        threshold: (payload.threshold || 85) / 100
+      })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || 'Fuzzy match applied')
+      showFuzzyMatchModal.value = false
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Fuzzy match failed')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
+function onFuzzyAiHelp(payload) {
+  // Open the AI modal with pre-filled context for fuzzy matching
+  fuzzyAiContext.value = {
+    column: payload.column,
+    uniqueValues: payload.uniqueValues,
+    clusters: payload.clusters,
+    mode: payload.mode
+  }
+  showDataAiModal.value = true
 }
 
 async function applyDataAiClean(payload) {

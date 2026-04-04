@@ -267,6 +267,7 @@ async def ai_suggest_preflight(
         {"operation": "find-replace", "label": "Find & Replace", "description": "Find and replace text patterns (with regex support)"},
         {"operation": "extract-json", "label": "Extract JSON", "description": "Extract values from JSON-formatted strings"},
         {"operation": "string-operations", "label": "String Operations", "description": "Transform text (uppercase, lowercase, trim, title case, capitalize)"},
+        {"operation": "fuzzy-match", "label": "Fuzzy Match", "description": "Find and merge similar values using algorithms (standard, permutation, levenshtein)"},
         {"operation": "one-hot-encoding", "label": "One-Hot Encoding", "description": "Create binary columns for each unique category"},
         {"operation": "label-encoding", "label": "Label Encoding", "description": "Map categories to integers"},
         {"operation": "value-mapping", "label": "Value Mapping", "description": "Replace values using a custom dictionary"},
@@ -287,6 +288,13 @@ async def ai_suggest_preflight(
             "description": "Standardize text formats, casing, and patterns",
             "system_prompt": "You are a data formatting expert. Focus on standardizing text formats, fixing casing issues, and normalizing patterns.",
             "user_prompt": "Analyze this dataset for formatting inconsistencies. Suggest operations to standardize text, normalize patterns, and fix casing.",
+        },
+        {
+            "id": "fuzzy-match",
+            "label": "Fuzzy Match",
+            "description": "Find and merge similar text values (typos, case variations, whitespace)",
+            "system_prompt": "You are a data deduplication expert. Focus on identifying similar values that should be merged (typos, case differences, whitespace variations, common abbreviations).",
+            "user_prompt": "Analyze this dataset for fuzzy duplicate values. Suggest which values should be merged together and provide a mapping.",
         },
         {
             "id": "cleanup",

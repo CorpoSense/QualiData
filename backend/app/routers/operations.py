@@ -1744,6 +1744,146 @@ async def fuzzy_dedupe(
     return {"status": "success", "message": msg, "columns": dataset.columns, "row_count": dataset.row_count}
 
 
+
+# Fuzzy match preview endpoint
+@router.get("/datasets/{dataset_id}/operations/fuzzy-preview")
+async def fuzzy_preview(
+    dataset_id: str,
+    column: str,
+    threshold: float = 0.8,
+    matching_type: str = 'standard',
+    limit: int = 50,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Preview unique values and their clustering for fuzzy matching.
+    
+    Returns unique values with frequencies and suggested clusters based on similarity algorithms.
+    """
+    from difflib import SequenceMatcher
+    
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+    
+    df = pd.DataFrame(dataset.preview_data)
+    
+    if not column or column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
+    
+    if matching_type not in ('standard', 'permutation', 'levenshtein'):
+        raise HTTPException(status_code=400, detail=f"Invalid matching_type: {matching_type}. Must be 'standard', 'permutation', or 'levenshtein'.")
+    
+    # Get value frequencies
+    col_series = df[column].astype(str)
+    value_counts = col_series.value_counts()
+    total_unique = len(value_counts)
+    unique_values = value_counts.head(limit).to_dict()
+    
+    # If limit reached and there are more, indicate there are more
+    has_more = total_unique > limit
+    
+    # Calculate clusters for preview (only if we have a small enough set)
+    clusters = []
+    values_list = list(unique_values.keys())
+    
+    def calculate_similarity(s1, s2, matching_type):
+        """Calculate similarity between two strings."""
+        if matching_type == 'levenshtein':
+            return SequenceMatcher(None, s1.lower(), s2.lower()).ratio()
+        elif matching_type == 'permutation':
+            s1_sorted = ' '.join(sorted(s1.lower().split()))
+            s2_sorted = ' '.join(sorted(s2.lower().split()))
+            return SequenceMatcher(None, s1_sorted, s2_sorted).ratio()
+        else:  # standard
+            return SequenceMatcher(None, s1.lower(), s2.lower()).ratio()
+    
+    # Find clusters of similar values
+    if values_list and len(values_list) <= 100:
+        processed = set()
+        for i, val1 in enumerate(values_list):
+            if i in processed:
+                continue
+            cluster = [val1]
+            for j in range(i + 1, len(values_list)):
+                if j in processed:
+                    continue
+                similarity = calculate_similarity(val1, values_list[j], matching_type)
+                if similarity >= threshold:
+                    cluster.append(values_list[j])
+                    processed.add(j)
+            if len(cluster) > 1:
+                clusters.append({"values": cluster, "size": len(cluster)})
+            processed.add(i)
+    
+    return {
+        "status": "success",
+        "column": column,
+        "total_unique": total_unique,
+        "unique_values": [{"value": v, "frequency": int(f)} for v, f in unique_values.items()],
+        "has_more": has_more,
+        "clusters": clusters,
+        "threshold": threshold,
+        "matching_type": matching_type
+    }
+
+
+# Fuzzy advanced endpoint
+@router.post("/datasets/{dataset_id}/operations/fuzzy-advanced")
+async def fuzzy_advanced(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Apply custom value mapping for fuzzy matching with manual control.
+    
+    Body: { "column": "col_name", "mapping": {"value1": "target1", "value2": "target2", ...} }
+    All values not in mapping are kept as-is.
+    """
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.preview_data:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+    
+    df = pd.DataFrame(dataset.preview_data)
+    column = request.get('column')
+    mapping = request.get('mapping', {})
+    
+    if not column or column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
+    if not mapping:
+        raise HTTPException(status_code=400, detail="Mapping dictionary required")
+    
+    # Apply mapping with custom function
+    def apply_mapping(val):
+        str_val = str(val)
+        return mapping.get(str_val, mapping.get(val, val))
+    
+    before_count = len(df)
+    df[column] = df[column].apply(apply_mapping)
+    
+    # Count how many values were changed
+    changed = sum(1 for val in df[column].astype(str) if val in mapping)
+    
+    from app.routers.datasets import detect_columns, get_preview_data
+    before_snapshot = {"columns": dataset.columns, "row_count": before_count, "preview_data": dataset.preview_data}
+    dataset.columns = detect_columns(df)
+    dataset.preview_data = get_preview_data(df)
+    dataset.row_count = len(df)
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+    
+    await save_operation(dataset_id, "fuzzy_advanced", request, before_snapshot, after_snapshot, session)
+    await session.commit()
+    
+    return {
+        "status": "success",
+        "message": f"Mapped {changed} values in column '{column}'",
+        "columns": dataset.columns,
+        "row_count": dataset.row_count,
+        "changed_count": changed
+    }
+
+
 # Numeric operations (round, normalize, outliers)
 @router.post("/datasets/{dataset_id}/operations/numeric")
 async def numeric_operations(

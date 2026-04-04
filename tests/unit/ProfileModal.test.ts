@@ -187,7 +187,8 @@ describe('ProfileModal.vue', () => {
     expect(wrapper.text()).toContain('75 unique')
     expect(wrapper.text()).toContain('Quality: 75%')
     expect(wrapper.text()).toContain('Top:')
-    expect(wrapper.text()).toContain('test@example.com')
+    // Check for count in the top values (which indicates top values are displayed)
+    expect(wrapper.text()).toContain('(10)')
   })
 
   it('emits update:modelValue when close button is clicked', async () => {

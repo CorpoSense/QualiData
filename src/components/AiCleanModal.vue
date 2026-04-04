@@ -281,7 +281,8 @@ const props = defineProps({
   agentOptions: { type: Array, default: () => [] },
   totalRows: { type: Number, default: 0 },
   operating: { type: Boolean, default: false },
-  batchProgress: { type: Object, default: null }
+  batchProgress: { type: Object, default: null },
+  fuzzyContext: { type: Object, default: null }
 })
 
 const emit = defineEmits(['update:modelValue', 'apply', 'close'])
@@ -502,6 +503,15 @@ watch(() => props.modelValue, (val) => {
     batchStartRow.value = 0
     agentConfig.value = null
     error.value = ''
+    
+    // Pre-fill with fuzzy matching context if provided
+    if (props.fuzzyContext) {
+      const ctx = props.fuzzyContext
+      const uniqueList = ctx.uniqueValues?.map(v => `${v.value} (${v.frequency})`).join(', ') || ''
+      const clusterList = ctx.clusters?.map((c, i) => `Group ${i + 1}: ${c.values.join(' → ')}`).join('\n') || ''
+      
+      instruction.value = `Help me decide which values to keep for fuzzy matching on column "${ctx.column}".\n\nUnique values: ${uniqueList}\n\nClusters found:\n${clusterList}\n\nPlease recommend which values to merge based on frequency and similarity. Return a mapping of which values should be merged to which target value.`
+    }
   }
 })
 </script>

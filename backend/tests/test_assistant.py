@@ -341,5 +341,5 @@ class TestPreflightReturnsConsistentOps:
             )
 
         op_names = {o["operation"] for o in result["available_operations"]}
-        expected = {"fillna", "remove-duplicates", "find-replace", "extract-json", "string-operations", "one-hot-encoding", "label-encoding", "value-mapping", "binning"}
+        expected = {"fillna", "remove-duplicates", "find-replace", "extract-json", "string-operations", "fuzzy-match", "one-hot-encoding", "label-encoding", "value-mapping", "binning"}
         assert expected == op_names
