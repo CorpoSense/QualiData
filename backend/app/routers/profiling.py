@@ -30,6 +30,7 @@ class ProfilingResponse(BaseModel):
     status: str
     columns: list[ColumnProfile]
     total_rows: int
+    total_columns: int
 
 
 @router.get("/datasets/{dataset_id}/profile", response_model=ProfilingResponse)
@@ -62,7 +63,8 @@ async def profile_columns(
     import pandas as pd
 
     df = pd.DataFrame(dataset.preview_data)
-    total_rows = len(df)
+    # Use dataset.row_count for total rows, not len(df) which is limited to preview (500 rows)
+    total_rows = dataset.row_count if dataset.row_count else len(df)
 
     profiles = []
 
@@ -166,4 +168,4 @@ async def profile_columns(
             )
         )
 
-    return ProfilingResponse(status="success", columns=profiles, total_rows=total_rows)
+    return ProfilingResponse(status="success", columns=profiles, total_rows=total_rows, total_columns=len(profiles))
