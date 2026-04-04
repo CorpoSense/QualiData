@@ -21,15 +21,28 @@ Track tasks and improvements for the project.
 - `docs/features/ai-providers.md` - Provider comparison table
 - `AGENTS.md` - Default models reference
 
-
 ### Pivot Tables
-- [ ] Provide a multple and flexible ways to display a pivot tables
-- [ ] Provide a checkbox option to enable/disable including None values.
+- [x] Provide a multple and flexible ways to display a pivot tables
+- [x] Provide a checkbox option to enable/disable including None values.
 
-### Improve AI Agent Capabilities
+### Fix bugs:
+- [x] Display correct number of dataset in each project.
+- [ ] Profile is only showing 500 rows!
+- [ ] Pivot need some improvments:
+  - [ ] Ability to select columns (display list of columns with the ability to drag a column to either "rows" or "columns" section which both accept drop)
+  - [ ] Fix resize issue it get's reset to default width after resizing
+
+## Improvments:
+
+#### Improve fuzzy matching
+- [ ] Add the ability to merge similar values instead of deleting them with a visual selection and AI suggestion
+
+#### Improve moving columns
+- [ ] Dispaly a modal with all existing columns and the ability to move up/down any selected column(s)
+
+#### Improve AI Agent Capabilities
 - [ ] Support different type of memories
 - [ ] Support uploading a file.
-
 
 ---
 
