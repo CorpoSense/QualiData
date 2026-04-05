@@ -36,7 +36,10 @@ Track tasks and improvements for the project.
 ## Improvments:
 
 #### Improve fuzzy matching
-- [ ] Add the ability to merge similar values instead of deleting them with a visual selection and AI suggestion
+- [ ] Add the footer option to the data table.
+
+#### Improve fuzzy matching
+- [x] Add the ability to merge similar values instead of deleting them with a visual selection and AI suggestion
 
 #### Improve moving columns
 - [ ] Display a modal with all existing columns and the ability to move up/down any selected column(s)
@@ -44,6 +47,9 @@ Track tasks and improvements for the project.
 #### Improve AI Agent Capabilities
 - [ ] Support different type of memories
 - [ ] Support uploading a file.
+
+#### Improve Database schema
+- [ ] Consider reviewing the database structure (the `preview_data` looks redandunt, why there is an empty `data_json`...)
 
 ---
 

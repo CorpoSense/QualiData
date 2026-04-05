@@ -86,7 +86,7 @@ async def profile_columns(
         null_percent = (null_count / total_rows) * 100 if total_rows > 0 else 0
         unique_percent = (unique_count / total_rows) * 100 if total_rows > 0 else 0
 
-        # Quality score: lower nulls = higher score,适度 unique is good
+        # Quality score: lower nulls = higher score, moderately unique is good
         quality_score = 100 - null_percent
         if pd.api.types.is_numeric_dtype(col_data):
             # Numeric columns get bonus for having some variety but not too much
