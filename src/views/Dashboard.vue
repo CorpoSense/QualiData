@@ -1,13 +1,13 @@
 <template>
   <div class="dashboard">
     <!-- Welcome Section -->
-    <div class="welcome-section mb-5">
+    <div class="welcome-section mb-2">
       <h1 class="h3 fw-bold">Welcome back!</h1>
       <p class="text-secondary">Here's what's happening with your data recently.</p>
     </div>
 
     <!-- Stats Cards -->
-    <div class="row g-4 mb-5">
+    <div class="row g-4 mb-2">
       <div class="col-6 col-lg-3">
         <div class="stat-card h-100">
           <div class="stat-icon" style="background: rgba(79, 70, 229, 0.1);">
