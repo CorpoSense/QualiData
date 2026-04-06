@@ -54,12 +54,12 @@ function formatNumber(num) {
   border-radius: 16px;
   border: 1px solid rgba(0, 0, 0, 0.05);
   cursor: pointer;
-  transition: all 0.3s ease;
+  /* transition: all 0.3s ease; */
   height: 100%;
 }
 
 .dataset-card:hover {
-  transform: translateY(-4px);
+  /* transform: translateY(-4px); */
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
   border-color: rgba(79, 70, 229, 0.2);
 }

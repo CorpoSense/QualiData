@@ -1967,15 +1967,6 @@ async function deleteSelectedDatasets() {
 </script>
 
 <style scoped>
-.dataset-card {
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.dataset-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
 /* Operations List */
 .operations-list {
   display: flex;
