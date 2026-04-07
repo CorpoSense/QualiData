@@ -290,7 +290,7 @@
       />
 
       <!-- Pagination Footer -->
-      <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+      <div class="d-flex justify-content-between align-items-center m-2 flex-wrap gap-2">
         <small class="text-muted">
           Showing {{ startRow }} - {{ endRow }} of {{ totalRows }}
         </small>
@@ -303,7 +303,7 @@
             @click="goToPage(1)"
             title="First page"
           >
-            «
+            <i class="bi bi-chevron-double-left"></i>
           </BButton>
           <!-- Previous Page Button -->
           <BButton
@@ -313,7 +313,7 @@
             @click="goToPrev"
             title="Previous page"
           >
-            ‹
+            <i class="bi bi-chevron-left"></i>
           </BButton>
           
           <!-- Page Numbers -->
@@ -337,7 +337,7 @@
             @click="goToNext"
             title="Next page"
           >
-            ›
+            <i class="bi bi-chevron-right"></i>
           </BButton>
           <!-- Last Page Button -->
           <BButton
@@ -347,7 +347,7 @@
             @click="goToPage(totalPages)"
             title="Last page"
           >
-            »
+            <i class="bi bi-chevron-double-right"></i>
           </BButton>
           
           <!-- Jump to Page -->
@@ -359,7 +359,7 @@
               min="1"
               :max="totalPages"
               size="sm"
-              style="width: 60px;"
+              style="width: 70px;"
               @keyup.enter="goToPage(jumpToPage)"
               placeholder="Page"
             />
@@ -372,6 +372,7 @@
               Go
             </BButton>
           </div>
+
         </div>
       </div>
     </div>
