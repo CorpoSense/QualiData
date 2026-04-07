@@ -108,7 +108,7 @@
                           <span class="stat-label">null:</span> {{ getColumnStats(field.key).stats.null_count ?? 0 }}
                         </span>
                         <span class="footer-stat">
-                          <span class="stat-label">unique:</span> {{ getColumnStats(field.key).stats.unique_count ?? '-' }}
+                          <span class="stat-label">unique:</span> {{ getColumnStats(field.key).stats.unique ?? '-' }}
                         </span>
                         <span class="footer-stat">
                           <span class="stat-label">min:</span> {{ getColumnStats(field.key).stats.min_length ?? '-' }}
@@ -142,7 +142,7 @@ const props = defineProps({
   // Footer props
   showFooter: { type: Boolean, default: false },
   footerStats: { type: Object, default: () => ({}) },
-  footerConfig: { type: Object, default: () => ({}) },
+  // footerConfig: { type: Object, default: () => ({}) },
 })
 
 const emit = defineEmits(['row-clicked', 'head-clicked', 'row-selected', 'toggle-all', 'sort-changed', 'cell-dblclick', 'footer-config-changed'])

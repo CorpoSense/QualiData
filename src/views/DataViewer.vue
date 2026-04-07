@@ -282,13 +282,11 @@
         :multi-sort="multiSort"
         :show-footer="showFooter"
         :footer-stats="footerStats"
-        :footer-config="footerConfig"
         @row-clicked="onRowClicked"
         @head-clicked="onHeadClicked"
         @row-selected="toggleRowSelection"
         @toggle-all="toggleAllRows"
         @cell-dblclick="openCellEditor"
-        @footer-config-changed="onFooterConfigChange"
       />
 
       <!-- Pagination Footer -->
@@ -1243,7 +1241,7 @@ const showRowIndex = ref(false)
 const multiSort = ref(false)
 const showFooter = ref(false)
 const footerStats = ref({})
-const footerConfig = ref({})
+// const footerConfig = ref({})
 const fetchingStats = ref(false)
 
 function onRowSelectToggle() {
@@ -1269,18 +1267,19 @@ async function fetchFooterStats() {
         const statsObj = {}
         for (const col of data.columns || []) {
           const dtype = col?.dtype || ''
-          const isNumeric = dtype.startsWith('int') || dtype.startsWith('float') || dtype === 'int64' || dtype === 'float64'
+          const isNumeric = dtype.startsWith('int') || dtype.startsWith('float')
           statsObj[col.name] = {
             is_numeric: isNumeric,
             stats: {
               null_count: col.null_count ?? 0,
+              unique: col.unique_count || 0,
               ...col.stats
             }
           }
         }
         footerStats.value = statsObj
         // Initialize footer config with default enabled stats for each column
-        footerConfig.value = {}
+        /*footerConfig.value = {}
         for (const col of columns.value) {
           const colStats = footerStats.value[col.field]
           if (colStats) {
@@ -1292,7 +1291,7 @@ async function fetchFooterStats() {
             }
             footerConfig.value[col.field] = defaultStats
           }
-        }
+        }*/
       }
     } else {
       toast.error('Failed to load footer stats')
@@ -1307,7 +1306,7 @@ async function fetchFooterStats() {
   }
 }
 
-function onFooterConfigChange({ column, stat, visible }) {
+/*function onFooterConfigChange({ column, stat, visible }) {
   if (!footerConfig.value[column]) {
     const colStats = footerStats.value[column]
     if (colStats?.is_numeric) {
@@ -1324,7 +1323,7 @@ function onFooterConfigChange({ column, stat, visible }) {
     const idx = footerConfig.value[column].indexOf(stat)
     if (idx >= 0) footerConfig.value[column].splice(idx, 1)
   }
-}
+}*/
 
 const ENCODING_CONFIGS = {
   one_hot: { title: 'One-Hot Encoding', description: 'Creates binary (0/1) columns for each unique value in the selected column. Useful for categorical features in ML models.', defaults: { prefix: '' } },
