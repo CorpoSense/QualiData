@@ -57,13 +57,25 @@ async def profile_columns(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if not dataset.preview_data:
+    if not dataset.preview_data and not dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to profile")
 
     import pandas as pd
+    import logging
 
-    df = pd.DataFrame(dataset.preview_data)
-    # Use dataset.row_count for total rows, not len(df) which is limited to preview (500 rows)
+    logger = logging.getLogger(__name__)
+
+    # Use data_json for full dataset profiling when available, otherwise fall back to preview_data
+    if dataset.data_json and "data" in dataset.data_json:
+        full_data = dataset.data_json["data"]
+        df = pd.DataFrame(full_data)
+        logger.info(f"Profiling using data_json for dataset {dataset_id}: {len(full_data)} rows")
+    else:
+        # Fall back to preview_data for backward compatibility
+        df = pd.DataFrame(dataset.preview_data)
+        logger.warning(f"Profiling using preview_data for dataset {dataset_id} (data_json not available)")
+
+    # Use dataset.row_count for total rows (actual row count, not limited preview)
     total_rows = dataset.row_count if dataset.row_count else len(df)
 
     profiles = []

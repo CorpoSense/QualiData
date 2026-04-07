@@ -31,11 +31,11 @@ interface BreadcrumbItem {
   icon?: string
 }
 
-const props = defineProps<{
+/*const props = */defineProps<{
   items: BreadcrumbItem[]
 }>()
 
-const route = useRoute()
+/*const route = useRoute()
 
 // Allow dynamic items override from props or compute from route
 const breadcrumbItems = computed(() => {
@@ -43,7 +43,7 @@ const breadcrumbItems = computed(() => {
     return props.items
   }
   return []
-})
+})*/
 </script>
 
 <style scoped>
