@@ -72,6 +72,57 @@
             </td>
           </tr>
         </tbody>
+        <!-- Smart Footer -->
+        <tfoot v-if="showFooter" class="smart-footer">
+          <tr>
+            <td v-if="showIndex" class="text-muted small text-center"></td>
+            <td v-if="selectable"></td>
+            <td v-for="field in fields" :key="field.key" class="footer-cell">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="footer-stats">
+                  <template v-if="getColumnStats(field.key)">
+                    <!-- Numeric stats -->
+                    <template v-if="getColumnStats(field.key).is_numeric">
+                        <span class="footer-stat">
+                          <span class="stat-label">null:</span> {{ getColumnStats(field.key).stats.null_count ?? 0 }}
+                        </span>
+                        <span class="footer-stat">
+                          <span class="stat-label">min:</span> {{ getColumnStats(field.key).stats.min ?? '-' }}
+                        </span>
+                        <span class="footer-stat">
+                          <span class="stat-label">max:</span> {{ getColumnStats(field.key).stats.max ?? '-' }}
+                        </span>
+                        <span class="footer-stat">
+                          <span class="stat-label">mean:</span> {{ getColumnStats(field.key).stats.mean?.toFixed(2) ?? '-' }}
+                        </span>
+                        <span class="footer-stat">
+                          <span class="stat-label">median:</span> {{ getColumnStats(field.key).stats.median?.toFixed(2) ?? '-' }}
+                        </span>
+                        <span class="footer-stat">
+                          <span class="stat-label">std:</span> {{ getColumnStats(field.key).stats.std?.toFixed(2) ?? '-' }}
+                        </span>
+                    </template>
+                    <!-- Non-numeric stats -->
+                    <template v-else>
+                        <span class="footer-stat">
+                          <span class="stat-label">null:</span> {{ getColumnStats(field.key).stats.null_count ?? 0 }}
+                        </span>
+                        <span class="footer-stat">
+                          <span class="stat-label">unique:</span> {{ getColumnStats(field.key).stats.unique_count ?? '-' }}
+                        </span>
+                        <span class="footer-stat">
+                          <span class="stat-label">min:</span> {{ getColumnStats(field.key).stats.min_length ?? '-' }}
+                        </span>
+                        <span class="footer-stat">
+                          <span class="stat-label">max:</span> {{ getColumnStats(field.key).stats.max_length ?? '-' }}
+                        </span>
+                    </template>
+                  </template>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tfoot>
       </table>
     </div>
   </div>
@@ -88,9 +139,13 @@ const props = defineProps({
   selectedRows: { type: Array, default: () => [] },
   showIndex: { type: Boolean, default: false },
   multiSort: { type: Boolean, default: false },
+  // Footer props
+  showFooter: { type: Boolean, default: false },
+  footerStats: { type: Object, default: () => ({}) },
+  footerConfig: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(['row-clicked', 'head-clicked', 'row-selected', 'toggle-all', 'sort-changed', 'cell-dblclick'])
+const emit = defineEmits(['row-clicked', 'head-clicked', 'row-selected', 'toggle-all', 'sort-changed', 'cell-dblclick', 'footer-config-changed'])
 
 // Sort state: array of { key, dir } for multi-sort
 const sortKeys = ref([]) // [{ key: 'name', dir: 'asc' }, ...]
@@ -170,6 +225,14 @@ const sortedItems = computed(() => {
 function isSelected(field) {
   const fieldKey = field.key || field.field
   return props.selectedColumns.includes(fieldKey)
+}
+
+// Footer functions
+function getColumnStats(key) {
+  if (props.footerStats) {
+    return props.footerStats[key] || null
+  }
+  return null
 }
 
 // Column resizing functions
@@ -292,5 +355,49 @@ th:hover .resize-handle {
 /* Prevent text selection during resize */
 .data-table-wrapper:active {
   user-select: none;
+}
+
+/* Smart Footer */
+.smart-footer {
+  background-color: #f8f9fa;
+  border-top: 2px solid #dee2e6;
+}
+
+.smart-footer .footer-cell {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.smart-footer .footer-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex-grow: 1;
+}
+
+.smart-footer .footer-stat {
+  color: #495057;
+  padding: 1px 4px;
+  background: #e9ecef;
+  border-radius: 3px;
+}
+
+.smart-footer .stat-label {
+  color: #6c757d;
+  font-size: 0.7rem;
+}
+
+/* Ensure proper table structure */
+tbody {
+  display: table-row-group;
+}
+
+thead {
+  display: table-header-group;
+}
+
+tfoot {
+  display: table-footer-group;
 }
 </style>

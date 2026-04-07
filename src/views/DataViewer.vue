@@ -6,9 +6,9 @@
         <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <div class="d-flex align-items-center gap-2">
             <!-- Per-page selector -->
-<select v-model="limit" class="form-select form-select-sm" style="width: auto;">
-  <option v-for="opt in limitOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
-</select>
+            <select v-model="limit" class="form-select form-select-sm" style="width: auto;">
+              <option v-for="opt in limitOptions" :key="opt.value" :value="opt.value">{{ opt.text }}</option>
+            </select>
             <span class="text-muted ms-3">{{ totalRows }} total rows</span>
             <BButton size="sm" variant="outline-secondary" @click="refreshData">
               <i class="bi bi-arrow-clockwise me-1"></i> Refresh
@@ -278,11 +278,15 @@
         :selected-rows="selectedRowIndices"
         :show-index="showRowIndex"
         :multi-sort="multiSort"
+        :show-footer="showFooter"
+        :footer-stats="footerStats"
+        :footer-config="footerConfig"
         @row-clicked="onRowClicked"
         @head-clicked="onHeadClicked"
         @row-selected="toggleRowSelection"
         @toggle-all="toggleAllRows"
         @cell-dblclick="openCellEditor"
+        @footer-config-changed="onFooterConfigChange"
       />
 
       <!-- Pagination Footer -->
@@ -708,6 +712,13 @@
           <label class="form-check-label" for="setting-multisort">
             <strong>Multi-column sorting</strong>
             <small class="d-block text-muted">Sort by multiple columns by clicking headers sequentially</small>
+          </label>
+        </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" v-model="showFooter" id="setting-footer" @change="onShowFooterToggle">
+          <label class="form-check-label" for="setting-footer">
+            <strong>Stats footer</strong>
+            <small class="d-block text-muted">Show summary statistics at bottom of each page</small>
           </label>
         </div>
       </div>
@@ -1219,9 +1230,89 @@ const csvText = ref('')
 const jsonText = ref('')
 const showRowIndex = ref(false)
 const multiSort = ref(false)
+const showFooter = ref(false)
+const footerStats = ref({})
+const footerConfig = ref({})
+const fetchingStats = ref(false)
 
 function onRowSelectToggle() {
   if (!rowSelectMode.value) selectedRowIndices.value = []
+}
+
+async function onShowFooterToggle() {
+  if (showFooter.value) {
+    await fetchFooterStats()
+  }
+}
+
+async function fetchFooterStats() {
+  if (fetchingStats.value || !datasetId.value) return
+  fetchingStats.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/profile`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.status === 'success') {
+        const statsObj = {}
+        for (const col of data.columns || []) {
+          const dtype = col?.dtype || ''
+          const isNumeric = dtype.startsWith('int') || dtype.startsWith('float') || dtype === 'int64' || dtype === 'float64'
+          statsObj[col.name] = {
+            is_numeric: isNumeric,
+            stats: {
+              null_count: col.null_count ?? 0,
+              ...col.stats
+            }
+          }
+        }
+        footerStats.value = statsObj
+        // Initialize footer config with default enabled stats for each column
+        footerConfig.value = {}
+        for (const col of columns.value) {
+          const colStats = footerStats.value[col.field]
+          if (colStats) {
+            const defaultStats = []
+            if (colStats.is_numeric) {
+              defaultStats.push('min', 'max', 'mean', 'median', 'std')
+            } else {
+              defaultStats.push('unique_count', 'min_length', 'max_length')
+            }
+            footerConfig.value[col.field] = defaultStats
+          }
+        }
+      }
+    } else {
+      toast.error('Failed to load footer stats')
+      showFooter.value = false
+    }
+  } catch (e) {
+    console.error(e)
+    toast.error('Failed to load footer stats')
+    showFooter.value = false
+  } finally {
+    fetchingStats.value = false
+  }
+}
+
+function onFooterConfigChange({ column, stat, visible }) {
+  if (!footerConfig.value[column]) {
+    const colStats = footerStats.value[column]
+    if (colStats?.is_numeric) {
+      footerConfig.value[column] = ['count', 'mean', 'min', 'max']
+    } else {
+      footerConfig.value[column] = ['count', 'unique', 'top']
+    }
+  }
+  if (visible) {
+    if (!footerConfig.value[column].includes(stat)) {
+      footerConfig.value[column].push(stat)
+    }
+  } else {
+    const idx = footerConfig.value[column].indexOf(stat)
+    if (idx >= 0) footerConfig.value[column].splice(idx, 1)
+  }
 }
 
 const ENCODING_CONFIGS = {
