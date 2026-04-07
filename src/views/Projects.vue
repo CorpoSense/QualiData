@@ -1,5 +1,6 @@
 <template>
   <div class="projects-page">
+    <Breadcrumb :items="breadcrumbItems" />
     <div class="d-flex justify-content-between align-items-center mb-5">
       <h1 class="h3 mb-0">Projects</h1>
       <BButton variant="primary" @click="showCreateModal = true">
@@ -86,6 +87,7 @@ import { getApiUrl } from '@/utils/api'
 import { ref, reactive, onMounted } from 'vue'
 import { BButton, BFormGroup, BFormInput, BFormTextarea, BDropdown, BDropdownItem, BPagination, BModal } from 'bootstrap-vue-next'
 import ProjectCard from '@/components/ProjectCard.vue'
+import Breadcrumb from '@/components/Breadcrumb.vue'
 
 const apiUrl = getApiUrl()
 
@@ -103,6 +105,11 @@ const projectForm = reactive({
   name: '',
   description: ''
 })
+
+const breadcrumbItems = [
+  { label: 'Dashboard', path: '/dashboard', icon: 'bi bi-house' },
+  { label: 'Projects', icon: 'bi bi-folder' }
+]
 
 let searchTimeout = null
 

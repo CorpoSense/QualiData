@@ -1,14 +1,11 @@
 <template>
   <div class="project-detail">
+    <!-- Breadcrumb -->
+    <Breadcrumb :items="breadcrumbItems" />
     <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-5">
-      <div>
-        <BButton variant="link" @click="$router.push('/projects')" class="mb-3 ps-0">
-          <i class="bi bi-arrow-left me-2"></i>Back to Projects
-        </BButton>
-        <h1 class="h3 mb-1">{{ project?.name }}</h1>
-        <p class="text-muted">{{ project?.description || 'No description' }}</p>
-      </div>
+    <div class="mb-4">
+      <h2 class="mb-3">{{ project?.name || 'Project' }}</h2>
+      <p class="text-muted">{{ project?.description || 'No description' }}</p>
       <div class="d-flex gap-2">
         <BButton variant="primary" @click="showImportModal = true">
           <i class="bi bi-upload me-2"></i>Import Data
@@ -820,6 +817,7 @@ import { useToast } from '@/composables/useToast'
 import { BButton, BTab, BTabs, BDropdown, BDropdownItem, BBadge, BModal, BFormGroup, BFormInput, BFormTextarea, BFormFile, BFormSelect, BTable } from 'bootstrap-vue-next'
 import DatasetCard from '@/components/DatasetCard.vue'
 import ProfileModal from '@/components/ProfileModal.vue'
+import Breadcrumb from '@/components/Breadcrumb.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -831,6 +829,12 @@ const loading = ref(true)
 const activeTab = ref(0)
 const project = ref(null)
 const operations = ref([])
+
+// Breadcrumb items
+const breadcrumbItems = computed(() => [
+  { label: 'Projects', path: '/projects', icon: 'bi bi-folder' },
+  { label: project.value?.name || 'Project', icon: 'bi bi-folder2' }
+])
 const showImportModal = ref(false)
 watch(showImportModal, (val) => {
   if (!val) {

@@ -1,5 +1,6 @@
 <template>
   <div class="container py-4">
+    <Breadcrumb :items="breadcrumbItems" />
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h1>User Management</h1>
       <BButton variant="primary" @click="showAddModal = true">
@@ -96,6 +97,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { getApiUrl } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
+import Breadcrumb from '@/components/Breadcrumb.vue'
 
 const apiUrl = getApiUrl()
 const toast = useToast()
@@ -289,6 +291,11 @@ function formatDate(dateStr) {
   if (!dateStr) return '-'
   return new Date(dateStr).toLocaleDateString()
 }
+
+const breadcrumbItems = [
+  { label: 'Dashboard', path: '/dashboard', icon: 'bi bi-house' },
+  { label: 'Users', icon: 'bi bi-people' }
+]
 
 onMounted(() => {
   fetchUsers()

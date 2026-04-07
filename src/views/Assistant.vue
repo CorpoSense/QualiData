@@ -1,5 +1,6 @@
 <template>
   <div class="assistant-page p-3">
+    <Breadcrumb :items="breadcrumbItems" />
     <div class="row g-3">
       <!-- Left: Wizard Steps -->
       <div class="col-md-4">
@@ -375,6 +376,7 @@ import { getApiUrl } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
 import DataTable from '@/components/DataTable.vue'
 import { BFormGroup, BFormSelect, BFormInput, BFormTextarea, BButton, BAlert, BModal } from 'bootstrap-vue-next'
+import Breadcrumb from '@/components/Breadcrumb.vue'
 
 const apiUrl = getApiUrl()
 const route = useRoute()
@@ -449,6 +451,11 @@ const activeOpIndex = ref(null)
 
 const appliedCount = computed(() => pendingOps.value.filter(o => o.applied).length)
 const currentAppliedCount = computed(() => useAiAgent.value ? aiSuggestions.value.filter(s => s.accepted && s.applied).length : pendingOps.value.filter(o => o.applied).length)
+
+const breadcrumbItems = [
+  { label: 'Dashboard', path: '/dashboard', icon: 'bi bi-house' },
+  { label: 'AI Assistant', icon: 'bi bi-robot' }
+]
 
 const projectOptions = computed(() => [
   { value: null, text: 'Select project…', disabled: true },

@@ -1,5 +1,6 @@
 <template>
   <div class="container py-4">
+    <Breadcrumb :items="breadcrumbItems" />
     <div class="row">
       <div class="col-md-8 mx-auto">
         <h1 class="mb-4">Profile Settings</h1>
@@ -74,6 +75,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { getApiUrl } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
+import Breadcrumb from '@/components/Breadcrumb.vue'
 
 const apiUrl = getApiUrl()
 const toast = useToast()
@@ -193,6 +195,11 @@ function formatDate(dateStr) {
   if (!dateStr) return 'Never'
   return new Date(dateStr).toLocaleString()
 }
+
+const breadcrumbItems = [
+  { label: 'Dashboard', path: '/dashboard', icon: 'bi bi-house' },
+  { label: 'Profile', icon: 'bi bi-person' }
+]
 
 onMounted(() => {
   fetchProfile()

@@ -1,5 +1,7 @@
 <template>
   <div class="data-viewer">
+    <!-- Breadcrumb -->
+    <Breadcrumb :items="breadcrumbItems" />
     <!-- Operations Toolbar -->
     <div class="card mb-3">
       <div class="card-body">
@@ -1188,10 +1190,19 @@ import OperationConfirmModal from '@/components/OperationConfirmModal.vue'
 import AiCleanModal from '@/components/AiCleanModal.vue'
 import FuzzyMatchModal from '@/components/FuzzyMatchModal.vue'
 import ProfileModal from '@/components/ProfileModal.vue'
+import Breadcrumb from '@/components/Breadcrumb.vue'
 import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const datasetId = computed(() => route.params.datasetId)
+
+// Breadcrumb items - computed based on project and dataset
+const projectId = computed(() => route.params.id)
+const breadcrumbItems = computed(() => [
+  { label: 'Projects', path: '/projects', icon: 'bi bi-folder' },
+  { label: 'Project', path: `/projects/${projectId.value}`, icon: 'bi bi-folder2' },
+  { label: dataset.value?.name || 'Dataset', icon: 'bi bi-table' }
+])
 
 const apiUrl = getApiUrl()
 const toast = useToast()

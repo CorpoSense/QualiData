@@ -1,5 +1,6 @@
 <template>
   <div class="agent-manager">
+    <Breadcrumb :items="breadcrumbItems" />
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h4 class="mb-0">AI Agents</h4>
       <BButton
@@ -369,6 +370,7 @@ import {
   BButtonGroup,
 } from 'bootstrap-vue-next';
 import { useToast } from '@/composables/useToast';
+import Breadcrumb from '@/components/Breadcrumb.vue';
 
 const toast = useToast();
 
@@ -669,6 +671,11 @@ const onSortChange = (val) => {
     sortDesc.value = val.length > 0 && val[0].order === 'desc';
   }
 };
+
+const breadcrumbItems = [
+  { label: 'Dashboard', path: '/dashboard', icon: 'bi bi-house' },
+  { label: 'Agents', icon: 'bi bi-robot' }
+];
 </script>
 
 <style scoped>
