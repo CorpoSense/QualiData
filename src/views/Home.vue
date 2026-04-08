@@ -1,7 +1,7 @@
 <template>
   <div id="home-page">
     <!-- Hero Section -->
-    <section class="hero-section position-relative overflow-hidden" style="padding-top: 120px; padding-bottom: 80px; background: radial-gradient(circle at top right, rgba(79, 70, 229, 0.08), transparent 40%), radial-gradient(circle at bottom left, rgba(236, 72, 153, 0.05), transparent 40%);">
+    <section class="hero-section position-relative overflow-hidden">
       <div class="container">
         <div class="row align-items-center min-vh-75">
           <div class="col-lg-6 mb-5 mb-lg-0 text-center text-lg-start z-2">
@@ -467,29 +467,29 @@
           <div class="col-6 col-md-3 col-lg-2">
             <h6 class="fw-bold text-white mb-4">Product</h6>
             <ul class="list-unstyled mb-0 d-flex flex-column gap-2 small">
-              <li><a href="#">Features</a></li>
-              <li><a href="#">Integrations</a></li>
+              <li><a href="#features">Features</a></li>
+              <li><a href="#integrations">Integrations</a></li>
               <li><a href="#pricing">Pricing</a></li>
-              <li><a href="#">Changelog</a></li>
-              <li><a href="#">API Docs</a></li>
+              <!-- <li><a href="#">Changelog</a></li> -->
+              <!-- <li><a href="#">API Docs</a></li> -->
             </ul>
           </div>
           <div class="col-6 col-md-3 col-lg-2">
             <h6 class="fw-bold text-white mb-4">Company</h6>
             <ul class="list-unstyled mb-0 d-flex flex-column gap-2 small">
-              <li><a href="#">About Us</a></li>
-              <li><a href="#">Careers</a></li>
-              <li><a href="#">Blog</a></li>
+              <!-- <li><a href="#">About Us</a></li> -->
+              <!-- <li><a href="#">Careers</a></li> -->
+              <!-- <li><a href="#">Blog</a></li> -->
               <li><a href="#">Contact</a></li>
-              <li><a href="#">Partners</a></li>
+              <!-- <li><a href="#">Partners</a></li> -->
             </ul>
           </div>
           <div class="col-6 col-md-3 col-lg-2">
             <h6 class="fw-bold text-white mb-4">Support</h6>
             <ul class="list-unstyled mb-0 d-flex flex-column gap-2 small">
-              <li><a href="#">Help Center</a></li>
+              <!-- <li><a href="#">Help Center</a></li>
               <li><a href="#">Community</a></li>
-              <li><a href="#">Status</a></li>
+              <li><a href="#">Status</a></li> -->
               <li><a href="#">Security</a></li>
             </ul>
           </div>
@@ -497,9 +497,9 @@
             <h6 class="fw-bold text-white mb-4">Legal</h6>
             <ul class="list-unstyled mb-0 d-flex flex-column gap-2 small">
               <li><a href="#">Privacy Policy</a></li>
-              <li><a href="#">Terms of Service</a></li>
+              <!-- <li><a href="#">Terms of Service</a></li>
               <li><a href="#">Cookie Policy</a></li>
-              <li><a href="#">DPA</a></li>
+              <li><a href="#">DPA</a></li> -->
             </ul>
           </div>
         </div>
@@ -565,6 +565,12 @@ function watchDemo() {
 </script>
 
 <style scoped>
+.hero-section {
+  padding-top: 120px;
+  padding-bottom: 80px;
+  background: radial-gradient(circle at top right, rgba(79, 70, 229, 0.08), transparent 40%), radial-gradient(circle at bottom left, rgba(236, 72, 153, 0.05), transparent 40%);
+}
+
 .text-gradient {
   background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
   -webkit-background-clip: text;

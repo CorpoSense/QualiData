@@ -15,7 +15,10 @@
       <div class="collapse navbar-collapse" id="navbarNav">
         <!-- Public Nav Links -->
         <ul v-if="!isAuthenticated" class="navbar-nav ms-auto align-items-lg-center gap-2 gap-lg-4">
-          <li class="nav-item"><router-link class="nav-link" to="/">Home</router-link></li>
+          <li class="nav-item">
+            <a href="#" class="nav-link">Home</a>            
+            <!-- <router-link class="nav-link" to="/">Home</router-link> -->
+          </li>
           <li class="nav-item"><a href="#features" class="nav-link">Features</a></li>
           <li class="nav-item"><a href="#pricing" class="nav-link">Pricing</a></li>
           <li class="nav-item mt-2 mt-lg-0">

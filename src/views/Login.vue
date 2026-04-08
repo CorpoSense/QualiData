@@ -2,7 +2,9 @@
   <div class="login-container">
     <div class="card login-box">
       <div class="card-body">
-        <h1 class="h3 text-center mb-4">MasterDataCleaner</h1>
+        <h1 class="h3 text-center mb-4">
+          <router-link to="/" class="nav-link">Home</router-link>
+        </h1>
         <h2 class="h5 text-center text-muted mb-4">Sign in to your account</h2>
 
         <!-- Tabs -->

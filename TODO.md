@@ -27,6 +27,7 @@ Track tasks and improvements for the project.
 - [x] Add totals for both: rows and columns
 
 ### Fix bugs:
+- [ ] Update a cell's value is not working
 - [x] Display correct number of dataset in each project.
 - [x] Profile is only showing 500 rows!
 - [x] Pivot need some bug fixes:
@@ -50,6 +51,9 @@ Track tasks and improvements for the project.
 
 #### Improve Database schema
 - [ ] Consider reviewing the database structure (the `preview_data` looks redandunt, why there is an empty `data_json`...)
+
+#### Video
+- [ ] Create a video presenation and place it in the home page
 
 ---
 

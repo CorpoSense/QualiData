@@ -9,6 +9,7 @@
       :unread-count="unreadCount"
       @show-notifications="showNotifications = true"
       @logout="logout"
+      v-show="router.currentRoute.value.fullPath!='/login'"
     />
 
     <!-- Main Content -->
