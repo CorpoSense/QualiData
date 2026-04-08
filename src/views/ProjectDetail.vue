@@ -1562,7 +1562,9 @@ async function renameDataset() {
 }
 
 async function deleteDataset(dataset) {
-  try {
+  selectedDatasetIds.value = [dataset.id];
+  confirmBulkDelete()
+  /*try {
     await fetch(`${apiUrl}/api/datasets/${dataset.id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -1570,7 +1572,7 @@ async function deleteDataset(dataset) {
     await fetchDatasets()
   } catch (e) {
     console.error(e)
-  }
+  }*/
 }
 
 function exportDataset(dataset) {
