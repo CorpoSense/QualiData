@@ -242,6 +242,9 @@
       <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRight" @click="reorderColumns('right')" title="Move selected columns one step right">
         <i class="bi bi-arrow-right"></i>
       </BButton>
+      <BButton size="sm" variant="outline-primary" @click="showColumnReorderModal = true" title="Open column reorder dialog">
+        <i class="bi bi-arrow-left-right"></i>
+      </BButton>
       <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowUp" @click="reorderRows('up')" title="Move selected rows one step up">
         <i class="bi bi-arrow-up"></i>
       </BButton>
@@ -1103,6 +1106,14 @@
       @close="showPivotModal = false"
     />
 
+    <!-- Column Reorder Modal -->
+    <ColumnReorderModal
+      v-model="showColumnReorderModal"
+      :columns="columns"
+      :selected-columns="selectedColumns"
+      @apply="applyColumnReorder"
+    />
+
     <!-- History Sidebar -->
     <div v-if="showHistory" class="history-sidebar">
       <div class="d-flex justify-content-between align-items-center mb-3">
@@ -1189,6 +1200,7 @@ import OperationConfirmModal from '@/components/OperationConfirmModal.vue'
 import AiCleanModal from '@/components/AiCleanModal.vue'
 import FuzzyMatchModal from '@/components/FuzzyMatchModal.vue'
 import ProfileModal from '@/components/ProfileModal.vue'
+import ColumnReorderModal from '@/components/ColumnReorderModal.vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
 import { useToast } from '@/composables/useToast'
 
@@ -1449,6 +1461,7 @@ const showProfile = ref(false)
 const showCompare = ref(false)
 const showHistory = ref(false)
 const showPivotModal = ref(false)
+const showColumnReorderModal = ref(false)
 const exportZip = ref(false)
 const importText = ref('')
 const importFile = ref(null)
@@ -2494,6 +2507,27 @@ async function reorderColumns(direction) {
     }
   }
 
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/reorder-columns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ columns: newOrder })
+    })
+    if (res.ok) {
+      toast.success('Columns reordered')
+      selectedColumns.value = []
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Reorder failed')
+    }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
+async function applyColumnReorder(newOrder) {
+  if (!newOrder || newOrder.length === 0) return
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/reorder-columns`, {

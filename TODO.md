@@ -27,7 +27,7 @@ Track tasks and improvements for the project.
 - [x] Add totals for both: rows and columns
 
 ### Fix bugs:
-- [ ] Update a cell's value is not working
+- [x] Update a cell's value is not working
 - [x] Display correct number of dataset in each project.
 - [x] Profile is only showing 500 rows!
 - [x] Pivot need some bug fixes:
@@ -37,20 +37,20 @@ Track tasks and improvements for the project.
 ## Improvments:
 
 #### Improve fuzzy matching
-- [ ] Add the footer option to the data table.
+- [x] Add the footer option to the data table.
 
 #### Improve fuzzy matching
 - [x] Add the ability to merge similar values instead of deleting them with a visual selection and AI suggestion
 
 #### Improve moving columns
-- [ ] Display a modal with all existing columns and the ability to move up/down any selected column(s)
+- [x] Display a modal with all existing columns and the ability to move up/down any selected column(s)
 
 #### Improve AI Agent Capabilities
 - [ ] Support different type of memories
 - [ ] Support uploading a file.
 
 #### Improve Database schema
-- [ ] Consider reviewing the database structure (the `preview_data` looks redandunt, why there is an empty `data_json`...)
+- [x] Consider reviewing the database structure (the `preview_data` looks redandunt, why there is an empty `data_json`...)
 
 #### Video
 - [ ] Create a video presenation and place it in the home page
