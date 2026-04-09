@@ -59,12 +59,12 @@ async def analyze_dataset(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to analyze")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     # Generate insights
     insights = []
@@ -354,10 +354,10 @@ async def ai_suggest_operations(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to analyze")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     # Build context
     column_info = []

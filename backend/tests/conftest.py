@@ -54,7 +54,7 @@ def mock_session():
             mock_dataset.id = "test-dataset-id"
             mock_dataset.project_id = "test-project-id"
             mock_dataset.row_count = 1000
-            mock_dataset.preview_data = [{"id": i, "value": f"row_{i}"} for i in range(500)]
+            mock_dataset.data_json = {"data": [{"id": i, "value": f"row_{i}"} for i in range(500)]}
             mock_dataset.data_json = {"data": [{"id": i, "value": f"row_{i}"} for i in range(1000)]}
             mock_dataset.columns = [{"name": "id", "dtype": "int"}, {"name": "value", "dtype": "str"}]
             result.scalar_one_or_none.return_value = mock_dataset

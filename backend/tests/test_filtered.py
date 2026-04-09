@@ -20,6 +20,8 @@ def _make_mock_dataset(data):
     ds.id = "ds-1"
     ds.project_id = "proj-1"
     ds.preview_data = data
+    # Use data_json as primary source (single source of truth)
+    ds.data_json = {"data": data} if data else None
     ds.row_count = len(data)
     ds.columns = [{"name": k} for k in data[0].keys()] if data else []
     return ds

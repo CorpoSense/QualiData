@@ -317,14 +317,14 @@ class TestPivotAPI:
                 mock_dataset.id = "test-dataset-id"
                 mock_dataset.project_id = "test-project-id"
                 mock_dataset.row_count = 1000
-                mock_dataset.preview_data = [
+                mock_dataset.data_json = {"data": [
                     {"category": "A", "status": "active", "price": 10.5, "quantity": 100, "value": 1050},
                     {"category": "B", "status": "inactive", "price": 20.3, "quantity": 200, "value": 4060},
                     {"category": "A", "status": "active", "price": 15.2, "quantity": 150, "value": 2280},
                     {"category": "B", "status": "active", "price": 25.1, "quantity": 250, "value": 6275},
                     {"category": "C", "status": "inactive", "price": 30.0, "quantity": 300, "value": 9000},
-                ]
-                mock_dataset.data_json = {"data": mock_dataset.preview_data}
+                ]}
+                mock_dataset.data_json = {"data": mock_dataset.data_json["data"]}
                 mock_dataset.columns = [
                     {"name": "category", "dtype": "str"},
                     {"name": "status", "dtype": "str"},
@@ -392,7 +392,7 @@ class TestPivotAPI:
                 mock_dataset.project_id = "test-project-id"
                 mock_dataset.row_count = 1000
                 # Create more rows with varied price values for binning to work
-                mock_dataset.preview_data = [
+                mock_dataset.data_json = {"data": [
                     {"category": "A", "status": "active", "price": 10.5, "quantity": 100, "value": 1050},
                     {"category": "B", "status": "inactive", "price": 20.3, "quantity": 200, "value": 4060},
                     {"category": "A", "status": "active", "price": 15.2, "quantity": 150, "value": 2280},
@@ -403,8 +403,8 @@ class TestPivotAPI:
                     {"category": "A", "status": "active", "price": 18.2, "quantity": 180, "value": 3276},
                     {"category": "B", "status": "active", "price": 28.1, "quantity": 280, "value": 7868},
                     {"category": "C", "status": "inactive", "price": 35.0, "quantity": 350, "value": 12250},
-                ]
-                mock_dataset.data_json = {"data": mock_dataset.preview_data}
+                ]}
+                mock_dataset.data_json = {"data": mock_dataset.data_json["data"]}
                 mock_dataset.columns = [
                     {"name": "category", "dtype": "str"},
                     {"name": "status", "dtype": "str"},
@@ -522,14 +522,14 @@ class TestPivotAPI:
                 mock_dataset.id = "test-dataset-id"
                 mock_dataset.project_id = "test-project-id"
                 mock_dataset.row_count = 1000
-                mock_dataset.preview_data = [
+                mock_dataset.data_json = {"data": [
                     {"category": "A", "status": "active", "price": 10.5, "quantity": 100, "value": 1050},
                     {"category": "B", "status": "inactive", "price": 20.3, "quantity": 200, "value": 4060},
                     {"category": "A", "status": "active", "price": 15.2, "quantity": 150, "value": 2280},
                     {"category": "B", "status": "active", "price": 25.1, "quantity": 250, "value": 6275},
                     {"category": "C", "status": "inactive", "price": 30.0, "quantity": 300, "value": 9000},
-                ]
-                mock_dataset.data_json = {"data": mock_dataset.preview_data}
+                ]}
+                mock_dataset.data_json = {"data": mock_dataset.data_json["data"]}
                 mock_dataset.columns = [
                     {"name": "category", "dtype": "str"},
                     {"name": "status", "dtype": "str"},
@@ -590,14 +590,14 @@ class TestPivotAPI:
                 mock_dataset.id = "test-dataset-id"
                 mock_dataset.project_id = "test-project-id"
                 mock_dataset.row_count = 1000
-                mock_dataset.preview_data = [
+                mock_dataset.data_json = {"data": [
                     {"category": "A", "status": "active", "price": 10.5, "quantity": 100, "value": 1050},
                     {"category": "B", "status": "inactive", "price": 20.3, "quantity": 200, "value": 4060},
                     {"category": "A", "status": "active", "price": 15.2, "quantity": 150, "value": 2280},
                     {"category": "B", "status": "active", "price": 25.1, "quantity": 250, "value": 6275},
                     {"category": "C", "status": "inactive", "price": 30.0, "quantity": 300, "value": 9000},
-                ]
-                mock_dataset.data_json = {"data": mock_dataset.preview_data}
+                ]}
+                mock_dataset.data_json = {"data": mock_dataset.data_json["data"]}
                 mock_dataset.columns = [
                     {"name": "category", "dtype": "str"},
                     {"name": "status", "dtype": "str"},
@@ -655,14 +655,14 @@ class TestPivotAPI:
                 mock_dataset.id = "test-dataset-id"
                 mock_dataset.project_id = "test-project-id"
                 mock_dataset.row_count = 1000
-                mock_dataset.preview_data = [
+                mock_dataset.data_json = {"data": [
                     {"category": "A", "status": "active", "price": 10.5, "quantity": 100, "value": 1050},
                     {"category": "B", "status": "inactive", "price": 20.3, "quantity": 200, "value": 4060},
                     {"category": "A", "status": "active", "price": 15.2, "quantity": 150, "value": 2280},
                     {"category": "B", "status": "active", "price": 25.1, "quantity": 250, "value": 6275},
                     {"category": "C", "status": "inactive", "price": 30.0, "quantity": 300, "value": 9000},
-                ]
-                mock_dataset.data_json = {"data": mock_dataset.preview_data}
+                ]}
+                mock_dataset.data_json = {"data": mock_dataset.data_json["data"]}
                 mock_dataset.columns = [
                     {"name": "category", "dtype": "str"},
                     {"name": "status", "dtype": "str"},
@@ -726,14 +726,14 @@ class TestPivotAPI:
                 mock_dataset.id = "test-dataset-id"
                 mock_dataset.project_id = "test-project-id"
                 mock_dataset.row_count = 1000
-                mock_dataset.preview_data = [
+                mock_dataset.data_json = {"data": [
                     {"category": "A", "status": "active", "price": 10.5, "quantity": 100, "value": 1050},
                     {"category": "B", "status": "inactive", "price": 20.3, "quantity": 200, "value": 4060},
                     {"category": "A", "status": "active", "price": 15.2, "quantity": 150, "value": 2280},
                     {"category": "B", "status": "active", "price": 25.1, "quantity": 250, "value": 6275},
                     {"category": "C", "status": "inactive", "price": 30.0, "quantity": 300, "value": 9000},
-                ]
-                mock_dataset.data_json = {"data": mock_dataset.preview_data}
+                ]}
+                mock_dataset.data_json = {"data": mock_dataset.data_json["data"]}
                 mock_dataset.columns = [
                     {"name": "category", "dtype": "str"},
                     {"name": "status", "dtype": "str"},
@@ -789,14 +789,14 @@ class TestPivotAPI:
                 mock_dataset.id = "test-dataset-id"
                 mock_dataset.project_id = "test-project-id"
                 mock_dataset.row_count = 1000
-                mock_dataset.preview_data = [
+                mock_dataset.data_json = {"data": [
                     {"category": "A", "status": "active", "price": 10.5, "quantity": 100, "value": 1050},
                     {"category": "B", "status": "inactive", "price": 20.3, "quantity": 200, "value": 4060},
                     {"category": "A", "status": "active", "price": 15.2, "quantity": 150, "value": 2280},
                     {"category": "B", "status": "active", "price": 25.1, "quantity": 250, "value": 6275},
                     {"category": "C", "status": "inactive", "price": 30.0, "quantity": 300, "value": 9000},
-                ]
-                mock_dataset.data_json = {"data": mock_dataset.preview_data}
+                ]}
+                mock_dataset.data_json = {"data": mock_dataset.data_json["data"]}
                 mock_dataset.columns = [
                     {"name": "category", "dtype": "str"},
                     {"name": "status", "dtype": "str"},

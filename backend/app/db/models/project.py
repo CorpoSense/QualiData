@@ -80,9 +80,8 @@ class Dataset(Base):
     # Data info
     row_count: Mapped[int] = mapped_column(Integer, default=0)
     columns: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    preview_data: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
-    # Serialized data (JSON format for pandas DataFrame)
+    # Serialized data (JSON format for pandas DataFrame) - single source of truth
     data_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     schema_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 

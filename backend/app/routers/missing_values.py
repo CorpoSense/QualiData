@@ -37,12 +37,12 @@ async def fill_na(
     """Fill missing values in dataset."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     before_count = df.isna().sum().sum()
 
     # Select columns to fill
@@ -77,11 +77,11 @@ async def fill_na(
     after_count = df.isna().sum().sum()
     filled_count = before_count - after_count
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns, "row_count": len(dataset.preview_data)}
+    before = {"columns": dataset.columns, "row_count": len(dataset.data_json["data"])}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
 
@@ -110,12 +110,12 @@ async def drop_na(
     """Drop rows with missing values."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     before_count = len(df)
 
     if thresh:
@@ -125,11 +125,11 @@ async def drop_na(
 
     rows_dropped = before_count - len(df)
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_full_data_json
 
     before = {"columns": dataset.columns, "row_count": before_count}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
 
@@ -165,12 +165,12 @@ async def string_operations(
     """Apply string operations to columns."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
@@ -188,11 +188,11 @@ async def string_operations(
     else:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_full_data_json
 
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
 
     save_operation(

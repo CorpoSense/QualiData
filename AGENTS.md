@@ -248,6 +248,11 @@ async def health_check():
 
 **Connection:** Async SQLAlchemy with connection pooling
 
+**Data Storage:**
+- `datasets.preview_data`: JSON array with ~500 rows for display (limited preview)
+- `datasets.data_json`: Full dataset as `{"data": [...]}` for complete data access
+- **Always update BOTH fields** when modifying data - use `get_preview_data()` and `get_full_data_json()` from `app/routers/datasets.py`
+
 ---
 
 ## API Routers

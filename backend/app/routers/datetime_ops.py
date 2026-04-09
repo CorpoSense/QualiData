@@ -33,12 +33,12 @@ async def parse_datetime(
     """Parse datetime column to standard format."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
@@ -57,11 +57,11 @@ async def parse_datetime(
             status_code=400, detail=f"Failed to parse datetime: {str(e)}"
         )
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
 
     save_operation(
@@ -99,12 +99,12 @@ async def extract_datetime_parts(
     """Extract datetime parts (year, month, day, hour, etc.) into separate columns."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
@@ -147,11 +147,11 @@ async def extract_datetime_parts(
         elif part == "quarter":
             df[f"{column}_quarter"] = dt.dt.quarter
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
 
     save_operation(

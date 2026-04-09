@@ -200,14 +200,16 @@ class TestMergeDatasets:
         ds1 = MagicMock()
         ds1.id = "d1"
         ds1.name = "Dataset 1"
-        ds1.preview_data = [{"name": "Alice", "age": 30}]
+        ds1.preview_data.data_json = {"data": [{"name": "Alice", "age": 30}]}
+        ds1.data_json = {"data": [{"name": "Alice", "age": 30}]}
         ds1.columns = [{"name": "name", "dtype": "string"}, {"name": "age", "dtype": "integer"}]
         ds1.row_count = 1
 
         ds2 = MagicMock()
         ds2.id = "d2"
         ds2.name = "Dataset 2"
-        ds2.preview_data = [{"name": "Bob", "city": "Paris"}]
+        ds2.preview_data.data_json = {"data": [{"name": "Bob", "city": "Paris"}]}
+        ds2.data_json = {"data": [{"name": "Bob", "city": "Paris"}]}
         ds2.columns = [{"name": "name", "dtype": "string"}, {"name": "city", "dtype": "string"}]
         ds2.row_count = 1
 
@@ -254,14 +256,15 @@ class TestMergeDatasets:
         ds1 = MagicMock()
         ds1.id = "d1"
         ds1.name = "DS1"
-        ds1.preview_data = [{"name": "Alice", "age": 30}]
+        ds1.preview_data.data_json = {"data": [{"name": "Alice", "age": 30}]}
+        ds1.data_json = {"data": [{"name": "Alice", "age": 30}]}
         ds1.columns = [{"name": "name"}, {"name": "age"}]
         ds1.row_count = 1
 
         ds2 = MagicMock()
         ds2.id = "d2"
         ds2.name = "DS2"
-        ds2.preview_data = [{"name": "Bob", "age": 25}]
+        ds2.data_json = {"data": [{"name": "Bob", "age": 25}]}
         ds2.columns = [{"name": "name"}, {"name": "age"}]
         ds2.row_count = 1
 
@@ -303,14 +306,16 @@ class TestMergeDatasets:
         ds1 = MagicMock()
         ds1.id = "d1"
         ds1.name = "DS1"
-        ds1.preview_data = [{"name": "Alice", "age": 30}]
+        ds1.preview_data.data_json = {"data": [{"name": "Alice", "age": 30}]}
+        ds1.data_json = {"data": [{"name": "Alice", "age": 30}]}
         ds1.columns = [{"name": "name"}, {"name": "age"}]
         ds1.row_count = 1
 
         ds2 = MagicMock()
         ds2.id = "d2"
         ds2.name = "DS2"
-        ds2.preview_data = [{"name": "Bob", "city": "Paris"}]
+        ds2.preview_data.data_json = {"data": [{"name": "Bob", "city": "Paris"}]}
+        ds2.data_json = {"data": [{"name": "Bob", "city": "Paris"}]}
         ds2.columns = [{"name": "name"}, {"name": "city"}]
         ds2.row_count = 1
 

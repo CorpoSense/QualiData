@@ -62,12 +62,12 @@ async def ai_batch_process(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to process")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     # Validate columns
     for col in request.columns:
@@ -134,7 +134,7 @@ async def ai_cross_row_context(
     """Apply AI with cross-row context (grouped operations)."""
     from sqlalchemy import select
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
@@ -151,12 +151,12 @@ async def ai_cross_row_context(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     if column not in df.columns or group_by not in df.columns:
         raise HTTPException(status_code=400, detail="Invalid columns")
@@ -177,7 +177,7 @@ async def ai_cross_row_context(
 
     # Update dataset
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
 
     await session.commit()
 

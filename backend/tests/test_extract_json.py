@@ -10,7 +10,7 @@ def _make_mock_dataset(data):
     ds = MagicMock()
     ds.id = "ds-1"
     ds.project_id = "proj-1"
-    ds.preview_data = data
+    ds.data_json = {"data": data}
     ds.row_count = len(data)
     ds.columns = [{"name": k} for k in data[0].keys()] if data else []
     return ds
@@ -50,8 +50,8 @@ class TestExtractJsonOperation:
                 session=AsyncMock(),
             )
         assert result["status"] == "success"
-        assert ds.preview_data[0]["country"] == "USA"
-        assert ds.preview_data[1]["country"] == "France"
+        assert ds.data_json["data"][0]["country"] == "USA"
+        assert ds.data_json["data"][1]["country"] == "France"
 
     @pytest.mark.asyncio
     async def test_extract_nested_key(self):
@@ -70,7 +70,7 @@ class TestExtractJsonOperation:
                 session=AsyncMock(),
             )
         assert result["status"] == "success"
-        assert ds.preview_data[0]["info"] == 42
+        assert ds.data_json["data"][0]["info"] == 42
 
     @pytest.mark.asyncio
     async def test_non_json_values_unchanged(self):
@@ -91,9 +91,9 @@ class TestExtractJsonOperation:
                 session=AsyncMock(),
             )
         assert result["status"] == "success"
-        assert ds.preview_data[0]["country"] == "USA"
-        assert ds.preview_data[1]["country"] == "not json"  # unchanged
-        assert ds.preview_data[2]["country"] == ""  # unchanged
+        assert ds.data_json["data"][0]["country"] == "USA"
+        assert ds.data_json["data"][1]["country"] == "not json"  # unchanged
+        assert ds.data_json["data"][2]["country"] == ""  # unchanged
 
     @pytest.mark.asyncio
     async def test_missing_key_unchanged(self):
@@ -112,7 +112,7 @@ class TestExtractJsonOperation:
                 session=AsyncMock(),
             )
         assert result["status"] == "no_changes"
-        assert ds.preview_data[0]["col"] == '{"name": "Alice"}'  # unchanged
+        assert ds.data_json["data"][0]["col"] == '{"name": "Alice"}'  # unchanged
 
     @pytest.mark.asyncio
     async def test_null_values_unchanged(self):
@@ -134,5 +134,5 @@ class TestExtractJsonOperation:
                 session=AsyncMock(),
             )
         assert result["status"] == "success"
-        assert ds.preview_data[0]["col"] == 1
-        assert pd.isna(ds.preview_data[1]["col"])  # None becomes NaN through pandas
+        assert ds.data_json["data"][0]["col"] == 1
+        assert pd.isna(ds.data_json["data"][1]["col"])  # None becomes NaN through pandas

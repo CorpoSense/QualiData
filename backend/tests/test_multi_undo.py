@@ -9,7 +9,7 @@ def _make_mock_dataset():
     ds.id = "ds-1"
     ds.project_id = "proj-1"
     ds.columns = [{"name": "a"}]
-    ds.preview_data = [{"a": 1}]
+    ds.data_json = {"data": [{"a": 1}]}
     ds.row_count = 1
     return ds
 

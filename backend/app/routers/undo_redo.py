@@ -80,11 +80,12 @@ async def undo_operation(
     if operation.before_snapshot:
         if "columns" in operation.before_snapshot:
             dataset.columns = operation.before_snapshot.get("columns")
-        if "preview_data" in operation.before_snapshot:
-            dataset.preview_data = operation.before_snapshot.get("preview_data")
+        # Restore data_json from saved state
+    if "data" in operation.before_snapshot:
+        dataset.data_json = operation.before_snapshot.get("data")
         if "row_count" in operation.before_snapshot:
             dataset.row_count = operation.before_snapshot.get(
-                "row_count", len(dataset.preview_data) if dataset.preview_data else 0
+                "row_count", len(dataset.data_json["data"]) if dataset.data_json and "data" in dataset.data_json else 0
             )
 
     # Mark as undone
@@ -142,11 +143,12 @@ async def redo_operation(
     if operation.after_snapshot:
         if "columns" in operation.after_snapshot:
             dataset.columns = operation.after_snapshot.get("columns")
-        if "preview_data" in operation.after_snapshot:
-            dataset.preview_data = operation.after_snapshot.get("preview_data")
+        # Restore data_json from saved state
+    if "data" in operation.after_snapshot:
+        dataset.data_json = operation.after_snapshot.get("data")
         if "row_count" in operation.after_snapshot:
             dataset.row_count = operation.after_snapshot.get(
-                "row_count", len(dataset.preview_data) if dataset.preview_data else 0
+                "row_count", len(dataset.data_json["data"]) if dataset.data_json and "data" in dataset.data_json else 0
             )
 
     # Mark as applied (not undone)
@@ -203,11 +205,12 @@ async def undo_batch(
     if last_op.before_snapshot:
         if "columns" in last_op.before_snapshot:
             dataset.columns = last_op.before_snapshot.get("columns")
-        if "preview_data" in last_op.before_snapshot:
-            dataset.preview_data = last_op.before_snapshot.get("preview_data")
+        # Restore data_json from saved state
+    if "data" in last_op.before_snapshot:
+        dataset.data_json = last_op.before_snapshot.get("data")
         if "row_count" in last_op.before_snapshot:
             dataset.row_count = last_op.before_snapshot.get(
-                "row_count", len(dataset.preview_data) if dataset.preview_data else 0
+                "row_count", len(dataset.data_json["data"]) if dataset.data_json and "data" in dataset.data_json else 0
             )
 
     undone_ids = []

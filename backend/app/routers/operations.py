@@ -85,9 +85,9 @@ async def add_column(
     session: AsyncSession = Depends(get_async_session),
 ):
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     if request.formula:
         if request.formula.startswith("row_number"):
             df[request.column_name] = range(1, len(df) + 1)
@@ -97,11 +97,11 @@ async def add_column(
             raise HTTPException(status_code=400, detail="Invalid formula")
     else:
         df[request.column_name] = request.default_value or None
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
     await save_operation(dataset_id, "add_column", request.model_dump(), before, after, session)
@@ -123,18 +123,18 @@ async def remove_columns(
     session: AsyncSession = Depends(get_async_session),
 ):
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     missing = [c for c in request.columns if c not in df.columns]
     if missing:
         raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     df = df.drop(columns=request.columns)
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
     await save_operation(dataset_id, "remove_columns", request.model_dump(), before, after, session)
@@ -156,19 +156,19 @@ async def rename_column(
     session: AsyncSession = Depends(get_async_session),
 ):
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     if request.old_name not in df.columns:
         raise HTTPException(
             status_code=400, detail=f"Column '{request.old_name}' not found"
         )
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     df = df.rename(columns={request.old_name: request.new_name})
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
     await save_operation(dataset_id, "rename_column", request.model_dump(), before, after, session)
     await session.commit()
@@ -189,20 +189,20 @@ async def merge_columns(
     session: AsyncSession = Depends(get_async_session),
 ):
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     missing = [c for c in request.columns if c not in df.columns]
     if missing:
         raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     df[request.new_column] = (
         df[request.columns].astype(str).agg(request.delimiter.join, axis=1)
     )
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
     # PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
     # await save_operation(dataset_id, "merge_columns", request.dict(), before, after, session)
@@ -225,23 +225,23 @@ async def split_column(
     session: AsyncSession = Depends(get_async_session),
 ):
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     if request.column not in df.columns:
         raise HTTPException(
             status_code=400, detail=f"Column '{request.column}' not found"
         )
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     split_data = (
         df[request.column].astype(str).str.split(request.delimiter, expand=True)
     )
     for i, col_name in enumerate(request.new_columns):
         df[col_name] = split_data[i] if i < len(split_data.columns) else None
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
     # PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
     # await save_operation(dataset_id, "split_column", request.dict(), before, after, session)
@@ -265,19 +265,19 @@ async def duplicate_column(
     session: AsyncSession = Depends(get_async_session),
 ):
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     if request.source_column not in df.columns:
         raise HTTPException(
             status_code=400, detail=f"Column '{request.source_column}' not found"
         )
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     df[request.new_column] = df[request.source_column]
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
     await save_operation(
         dataset_id, "duplicate_column", request.model_dump(), before, after, session
@@ -301,17 +301,17 @@ async def reorder_columns(
     session: AsyncSession = Depends(get_async_session),
 ):
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     if set(df.columns) != set(request.columns):
         raise HTTPException(status_code=400, detail="Column mismatch")
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     df = df[request.columns]
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
     await save_operation(
         # PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
@@ -341,10 +341,10 @@ async def reorder_rows(
 ):
     """Move selected rows one step up or down."""
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
-    total = len(dataset.preview_data)
+    total = len(dataset.data_json["data"])
     indices = sorted(request.indices)
 
     if not indices:
@@ -352,9 +352,9 @@ async def reorder_rows(
     if any(i < 0 or i >= total for i in indices):
         raise HTTPException(status_code=400, detail="Index out of range")
 
-    before = {"columns": dataset.columns, "preview_data": dataset.preview_data}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
 
-    rows = list(dataset.preview_data)
+    rows = list(dataset.data_json["data"])
 
     # Group adjacent indices into contiguous blocks
     indices_set = set(indices)
@@ -393,11 +393,11 @@ async def reorder_rows(
     else:
         raise HTTPException(status_code=400, detail="Direction must be 'up' or 'down'")
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     df = pd.DataFrame(rows)
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
     await save_operation(
         # PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
@@ -586,10 +586,10 @@ async def string_operations(
     - Batch:  { "columns": ["name", "email"], "operation": "uppercase" }
     """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     # Support both single column and batch (multiple columns)
     column = request.get('column')
@@ -656,10 +656,10 @@ async def string_operations(
     if not successful:
         raise HTTPException(status_code=400, detail=f"No operations succeeded: {results}")
 
-    from app.routers.datasets import detect_columns, get_preview_data
-    before = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+    before = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
@@ -687,10 +687,10 @@ async def extract_json_value(
     import json as json_mod
 
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     column = request.get("column")
     key = request.get("key")
 
@@ -730,10 +730,10 @@ async def extract_json_value(
     if changed == 0:
         return {"status": "no_changes", "message": f"No values extracted. Check that column contains JSON with key '{key}'.", "columns": dataset.columns}
 
-    from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": get_preview_data(df)}
 
     await save_operation(dataset_id, "extract-json", {"column": column, "key": key}, before_snapshot, after_snapshot, session)
@@ -751,10 +751,10 @@ async def find_replace(
 ):
     """Find and replace values in columns. Supports plain text or regex."""
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     columns = request.get("columns", [])
     find_val = request.get("find", "")
     replace_val = request.get("replace", "")
@@ -788,10 +788,10 @@ async def find_replace(
     if changed == 0:
         return {"status": "no_changes", "message": f"No occurrences of '{find_val}' found"}
 
-    from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": get_preview_data(df)}
 
     await save_operation(dataset_id, "find-replace", request, before_snapshot, after_snapshot, session)
@@ -815,10 +815,10 @@ async def datetime_operations(
     - Batch:  { "columns": ["date1", "date2"], "operation": "extract_year" }
     """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     # Support both single column and batch (multiple columns)
     column = request.get('column')
@@ -899,10 +899,10 @@ async def datetime_operations(
     if not successful:
         raise HTTPException(status_code=400, detail=f"No operations succeeded: {results}")
 
-    from app.routers.datasets import detect_columns, get_preview_data
-    before = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+    before = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
@@ -925,10 +925,10 @@ async def fillna_operations(
 ):
     """Fill NA operations."""
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     method = request.get('method')
     fill_value = request.get('fill_value')
     request.get('column')
@@ -975,10 +975,10 @@ async def fillna_operations(
     else:
         raise HTTPException(status_code=400, detail=f"Unknown method: {method}")
 
-    from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
@@ -998,18 +998,18 @@ async def remove_duplicates(
 ):
     """Remove duplicate rows."""
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     before_count = len(df)
     df = df.drop_duplicates()
     after_count = len(df)
 
-    from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": before_count, "preview_data": dataset.preview_data}
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+    before_snapshot = {"columns": dataset.columns, "row_count": before_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": after_count, "preview_data": get_preview_data(df)}
 
@@ -1029,10 +1029,10 @@ async def sort_operations(
 ):
     """Sort by column."""
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     column = request.get('column')
     ascending = request.get('ascending', True)
 
@@ -1041,10 +1041,10 @@ async def sort_operations(
 
     df = df.sort_values(by=column, ascending=ascending)
 
-    from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
@@ -1067,18 +1067,18 @@ async def encoding_operations(
     Body: { column, operation: "one_hot"|"label"|"map"|"bin", ...params }
     """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     column = request.get("column")
     operation = request.get("operation")
 
     if not column or column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
 
-    from app.routers.datasets import detect_columns, get_preview_data
-    before = {"columns": dataset.columns, "row_count": len(df), "preview_data": dataset.preview_data}
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+    before = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     try:
         if operation == "one_hot":
@@ -1123,7 +1123,7 @@ async def encoding_operations(
 
     dataset.columns = detect_columns(df)
     dataset.row_count = len(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns, "row_count": dataset.row_count}
     await save_operation(dataset_id, f"encoding_{operation}", request, before, after, session)
     await session.commit()
@@ -1146,10 +1146,10 @@ async def structural_operations(
     - Rename is single-column only.
     """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     operation = request.get('operation')
     column = request.get('column')
     columns = request.get('columns')
@@ -1218,10 +1218,10 @@ async def structural_operations(
     else:
         raise HTTPException(status_code=400, detail=f"Unknown operation: {operation}")
 
-    from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
@@ -1256,7 +1256,7 @@ async def add_records(
     - csv_text: CSV-formatted string to parse
     """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     if not request.records and not request.csv_text:
@@ -1264,7 +1264,7 @@ async def add_records(
 
     import io as io_mod
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     if request.csv_text:
         csv_df = pd.read_csv(io_mod.StringIO(request.csv_text))
@@ -1285,16 +1285,16 @@ async def add_records(
     if not new_rows:
         raise HTTPException(status_code=400, detail="No records to add")
 
-    before = {"columns": dataset.columns, "row_count": len(df), "preview_data": dataset.preview_data}
+    before = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     new_df = pd.DataFrame(new_rows)
     df = pd.concat([df, new_df], ignore_index=True)
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     dataset.columns = detect_columns(df)
     dataset.row_count = len(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns, "row_count": dataset.row_count}
     await save_operation(
         dataset_id, "add_records", {"count": len(new_rows)}, before, after, session
@@ -1324,17 +1324,17 @@ async def import_recipe(
     Returns per-operation results: [{index, operation, status, message}, ...]
     """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     if not request.operations:
         raise HTTPException(status_code=400, detail="No operations provided")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     existing_columns = set(df.columns)
     results = []
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     for i, op in enumerate(request.operations):
         op_type = op.get("operation", "")
@@ -1510,7 +1510,7 @@ async def import_recipe(
     # Update dataset
     dataset.columns = detect_columns(df)
     dataset.row_count = len(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     await session.commit()
 
     applied = sum(1 for r in results if r["status"] == "success")
@@ -1534,10 +1534,10 @@ async def delete_rows(
 ):
     """Delete rows by mode: first, last, range, or visible (by index)."""
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     total_before = len(df)
     mode = request.get("mode", "")
 
@@ -1580,10 +1580,10 @@ async def delete_rows(
     else:
         raise HTTPException(status_code=400, detail=f"Unknown mode: {mode}")
 
-    from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": total_before, "preview_data": dataset.preview_data}
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+    before_snapshot = {"columns": dataset.columns, "row_count": total_before, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
@@ -1608,10 +1608,10 @@ async def fuzzy_dedupe(
     - mode: "delete" (remove rows), "merge_first" (update to first), "merge_most_frequent" (consolidate to most common)
     """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     column = request.get('column')
     threshold = request.get('threshold', 0.8)
     matching_type = request.get('matching_type', 'standard')  # standard, permutation, levenshtein
@@ -1730,11 +1730,11 @@ async def fuzzy_dedupe(
         removed = sum(1 for i, row in enumerate(rows) if cluster_map.get(i, i) != i)
         msg = f"Merged {removed} values to most frequent"
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
     before_count = dataset.row_count
-    before_snapshot = {"columns": dataset.columns, "row_count": before_count, "preview_data": dataset.preview_data}
+    before_snapshot = {"columns": dataset.columns, "row_count": before_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
@@ -1763,10 +1763,10 @@ async def fuzzy_preview(
     from difflib import SequenceMatcher
     
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
     
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     
     if not column or column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
@@ -1842,10 +1842,10 @@ async def fuzzy_advanced(
     All values not in mapping are kept as-is.
     """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
     
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     column = request.get('column')
     mapping = request.get('mapping', {})
     
@@ -1865,10 +1865,10 @@ async def fuzzy_advanced(
     # Count how many values were changed
     changed = sum(1 for val in df[column].astype(str) if val in mapping)
     
-    from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": before_count, "preview_data": dataset.preview_data}
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+    before_snapshot = {"columns": dataset.columns, "row_count": before_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
     
@@ -1899,10 +1899,10 @@ async def numeric_operations(
     - Batch:  { "columns": ["score", "price", "qty"], "operation": "round" }
     """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     operation = request.get('operation')
 
     # Support both single column and batch (multiple columns)
@@ -1983,10 +1983,10 @@ async def numeric_operations(
     if not successful:
         raise HTTPException(status_code=400, detail=f"No operations succeeded: {results}")
 
-    from app.routers.datasets import detect_columns, get_preview_data
-    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": dataset.preview_data}
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 

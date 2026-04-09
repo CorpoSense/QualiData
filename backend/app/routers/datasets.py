@@ -341,7 +341,6 @@ async def import_single_dataset(
             file_size=file_size,
             file_type=file_type,
             columns=columns,
-            preview_data=preview_data,
             data_json=data_json,
             row_count=row_count,
         )
@@ -620,7 +619,6 @@ async def import_multiple_datasets(
                 file_size=total_file_size,
                 file_type="csv",
                 columns=columns,
-                preview_data=preview_data,
                 data_json=data_json,
                 row_count=row_count,
             )
@@ -671,7 +669,7 @@ async def import_multiple_datasets(
                     file_size=file_size,
                     file_type=file_type,
                     columns=columns,
-                    preview_data=preview_data,
+                    data_json=data_json,
                     row_count=row_count,
                 )
                 session.add(dataset)
@@ -734,22 +732,22 @@ async def preview_dataset(
             status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
         )
 
-    # Use data_json if available for full pagination, otherwise fall back to preview_data
+    # Use data_json for preview - generate on-the-fly
     if dataset.data_json and "data" in dataset.data_json:
         full_data = dataset.data_json["data"]
         start_idx = (page - 1) * limit
         end_idx = start_idx + limit
         preview_data = full_data[start_idx:end_idx]
-        # Use actual data length for row_count to ensure pagination works correctly
         row_count = len(full_data)
     else:
-        # Fall back to preview_data (limited to cached amount)
-        preview_list = dataset.preview_data or []
-        start_idx = (page - 1) * limit
-        end_idx = start_idx + limit
-        preview_data = preview_list[start_idx:end_idx]
-        # Use actual preview_data length for row_count
-        row_count = len(preview_list)
+        # No data available
+        return {
+            "columns": _normalize_columns(dataset.columns),
+            "preview_data": [],
+            "row_count": 0,
+            "page": page,
+            "limit": limit,
+        }
 
     # Normalize columns: handle both dict format and legacy string format
     columns = _normalize_columns(dataset.columns)
@@ -791,8 +789,10 @@ async def filtered_dataset_post(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    preview_list = dataset.preview_data or []
-    if not preview_list:
+    # Use data_json for filtering - generate preview on-the-fly
+    if dataset.data_json and "data" in dataset.data_json:
+        preview_list = dataset.data_json["data"]
+    else:
         return {"columns": _normalize_columns(dataset.columns), "preview_data": [], "row_count": 0, "total_matching": 0, "page": page, "limit": limit}
 
     # Build active filters (non-empty values only)
@@ -856,10 +856,11 @@ async def export_dataset(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if not dataset.preview_data:
+    # Use data_json for export - generate DataFrame on-the-fly
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to export")
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     # Filter columns if specified
     if columns:
@@ -959,7 +960,7 @@ async def export_to_database(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to export")
 
     # Validate required fields
@@ -993,7 +994,7 @@ async def export_to_database(
         raise HTTPException(status_code=400, detail=f"Connection failed: {str(e)}")
 
     # Load dataset into DataFrame
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     # Convert datetime columns to strings for compatibility
     for col in df.columns:
@@ -1485,7 +1486,6 @@ async def import_from_database(
             file_type="csv",
             row_count=row_count,
             columns=columns,
-            preview_data=preview_data,
             data_json=data_json,
         )
 
@@ -1538,7 +1538,7 @@ async def merge_datasets(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Fetch all datasets
+    # Fetch all datasets - use data_json for data access
     dfs = []
     all_columns = set()
     for ds_id in dataset_ids:
@@ -1546,9 +1546,9 @@ async def merge_datasets(
         ds = result.scalar_one_or_none()
         if not ds:
             raise HTTPException(status_code=404, detail=f"Dataset {ds_id} not found")
-        if not ds.preview_data:
+        if not ds.data_json or "data" not in ds.data_json:
             raise HTTPException(status_code=400, detail=f"Dataset '{ds.name}' has no data")
-        df = pd.DataFrame(ds.preview_data)
+        df = pd.DataFrame(ds.data_json["data"])
         dfs.append(df)
         all_columns.update(df.columns)
 
@@ -1607,6 +1607,7 @@ async def merge_datasets(
     try:
         columns = detect_columns(merged_df)
         preview_data = get_preview_data(merged_df)
+        data_json = get_full_data_json(merged_df)
         row_count = len(merged_df)
     except Exception as e:
         logger.exception("Failed to process merged DataFrame")
@@ -1625,7 +1626,7 @@ async def merge_datasets(
             file_type="csv",
             row_count=row_count,
             columns=columns,
-            preview_data=preview_data,
+            data_json=data_json,
         )
         session.add(dataset)
         await session.commit()
@@ -1701,7 +1702,6 @@ async def clone_dataset(
             file_size=original.file_size,
             file_type=original.file_type,
             columns=original.columns,
-            preview_data=original.preview_data,
             data_json=original.data_json,
             row_count=original.row_count,
         )
@@ -1776,7 +1776,6 @@ async def bulk_clone_datasets(
                 file_size=original.file_size,
                 file_type=original.file_type,
                 columns=original.columns,
-                preview_data=original.preview_data,
                 data_json=original.data_json,
                 row_count=original.row_count,
             )
@@ -1873,7 +1872,6 @@ async def copy_move_datasets(
                     file_size=original.file_size,
                     file_type=original.file_type,
                     columns=original.columns,
-                    preview_data=original.preview_data,
                     data_json=original.data_json,
                     row_count=original.row_count,
                 )

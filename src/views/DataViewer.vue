@@ -1405,6 +1405,12 @@ function openCellEditor({ row, column, value }) {
 }
 
 async function saveCellEdit() {
+  console.log('[CELL_EDIT] Saving cell edit:', {
+    row_index: cellEdit.value.row,
+    column: cellEdit.value.column,
+    value: cellEdit.value.value,
+    datasetId: datasetId.value
+  })
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/update-cell`, {
@@ -1412,8 +1418,9 @@ async function saveCellEdit() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify({ row_index: cellEdit.value.row, column: cellEdit.value.column, value: cellEdit.value.value })
     })
+    const data = await res.json()
+    console.log('[CELL_EDIT] Response:', res.status, data)
     if (res.ok) {
-      const data = await res.json()
       if (data.status === 'failed') {
         toast.error(data.message || 'Update failed — check the value format')
       } else {
@@ -1425,7 +1432,10 @@ async function saveCellEdit() {
       const err = await res.json()
       toast.error(err.detail || 'Update failed')
     }
-  } catch (e) { toast.error(e.message) }
+  } catch (e) { 
+    console.error('[CELL_EDIT] Error:', e)
+    toast.error(e.message) 
+  }
   finally { operating.value = false }
 }
 const selectedRowIndices = ref([])

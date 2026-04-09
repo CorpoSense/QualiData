@@ -107,8 +107,8 @@ def test_pagination_beyond_preview_data():
         app.dependency_overrides.clear()
 
 
-def test_pagination_with_only_preview_data():
-    """Test that pagination works correctly when only preview_data is available (no data_json)."""
+def test_pagination_with_data_json():
+    """Test that pagination works correctly when data_json is available."""
     # Create mock user
     mock_user = MagicMock()
     mock_user.id = "test-user-id"
@@ -128,8 +128,7 @@ def test_pagination_with_only_preview_data():
             mock_dataset.id = "test-dataset-id-2"
             mock_dataset.project_id = "test-project-id-2"
             mock_dataset.row_count = 100
-            mock_dataset.preview_data = [{"id": i, "value": f"row_{i}"} for i in range(100)]
-            mock_dataset.data_json = None  # No full data
+            mock_dataset.data_json = {"data": [{"id": i, "value": f"row_{i}"} for i in range(100)]}
             mock_dataset.columns = [{"name": "id", "dtype": "int"}, {"name": "value", "dtype": "str"}]
             result.scalar_one_or_none.return_value = mock_dataset
         elif "project" in query_str.lower():

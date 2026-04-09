@@ -21,10 +21,10 @@ def mock_dataset():
         {"field": "last_name", "label": "last_name", "dtype": "object"},
         {"field": "age", "label": "age", "dtype": "int64"},
     ]
-    ds.preview_data = [
+    ds.data_json = {"data": [
         {"first_name": "John", "last_name": "Doe", "age": 30},
         {"first_name": "Jane", "last_name": "Smith", "age": 25},
-    ]
+    ]}
     ds.row_count = 2
     return ds
 
@@ -73,7 +73,7 @@ class TestAiStructuralClean:
         """Verify rename operation doesn't raise NameError for dataset_id."""
         import pandas as pd
 
-        df = pd.DataFrame(mock_dataset.preview_data)
+        df = pd.DataFrame(mock_dataset.data_json["data"])
         with _LLM_PATCH('{"operation": "rename", "renames": {"first_name": "fname"}}'), \
              _SAVE_PATCH:
             result = await _ai_structural_clean(
@@ -90,7 +90,7 @@ class TestAiStructuralClean:
         """Verify drop operation doesn't raise NameError."""
         import pandas as pd
 
-        df = pd.DataFrame(mock_dataset.preview_data)
+        df = pd.DataFrame(mock_dataset.data_json["data"])
         with _LLM_PATCH('{"operation": "drop", "columns": ["age"]}'), _SAVE_PATCH:
             result = await _ai_structural_clean(
                 df=df, dataset=mock_dataset, columns=["age"],
@@ -105,7 +105,7 @@ class TestAiStructuralClean:
         """AI using 'action' instead of 'operation' should still work."""
         import pandas as pd
 
-        df = pd.DataFrame(mock_dataset.preview_data)
+        df = pd.DataFrame(mock_dataset.data_json["data"])
         with _LLM_PATCH('{"action": "rename", "renames": {"first_name": "fname"}}'), \
              _SAVE_PATCH:
             result = await _ai_structural_clean(
@@ -121,7 +121,7 @@ class TestAiStructuralClean:
         """Unknown operation type should return no_changes, not crash."""
         import pandas as pd
 
-        df = pd.DataFrame(mock_dataset.preview_data)
+        df = pd.DataFrame(mock_dataset.data_json["data"])
         with _LLM_PATCH('{"operation": "sort_by_magic"}'), _SAVE_PATCH:
             result = await _ai_structural_clean(
                 df=df, dataset=mock_dataset, columns=["first_name"],
@@ -137,7 +137,7 @@ class TestAiStructuralClean:
         """Multiple operations in one response."""
         import pandas as pd
 
-        df = pd.DataFrame(mock_dataset.preview_data)
+        df = pd.DataFrame(mock_dataset.data_json["data"])
         content = '{"operations": [{"operation": "rename", "renames": {"first_name": "fname"}}, {"operation": "astype", "columns": ["age"], "dtype": "float"}]}'
         with _LLM_PATCH(content), _SAVE_PATCH:
             result = await _ai_structural_clean(
@@ -154,7 +154,7 @@ class TestAiStructuralClean:
         """Add a new column copied from an existing one."""
         import pandas as pd
 
-        df = pd.DataFrame(mock_dataset.preview_data)
+        df = pd.DataFrame(mock_dataset.data_json["data"])
         original_cols = list(df.columns)
 
         content = '{"operation": "add_column", "column": "full_name", "source": "first_name"}'
@@ -178,7 +178,7 @@ class TestAiStructuralClean:
         """Add a new column with a default value."""
         import pandas as pd
 
-        df = pd.DataFrame(mock_dataset.preview_data)
+        df = pd.DataFrame(mock_dataset.data_json["data"])
 
         content = '{"operation": "add_column", "column": "country", "default": "Unknown"}'
         with _LLM_PATCH(content), _SAVE_PATCH:
@@ -202,7 +202,7 @@ class TestAiDataClean:
         """Verify data clean doesn't raise NameError for dataset_id."""
         import pandas as pd
 
-        df = pd.DataFrame(mock_dataset.preview_data)
+        df = pd.DataFrame(mock_dataset.data_json["data"])
         content = '{"rows": [{"first_name": "JOHN", "last_name": "DOE", "age": 30}]}'
         with _LLM_PATCH(content), _SAVE_PATCH:
             result = await _ai_data_clean(
@@ -271,7 +271,7 @@ class TestAiDataClean:
         """If AI returns same values, status is no_changes."""
         import pandas as pd
 
-        df = pd.DataFrame(mock_dataset.preview_data)
+        df = pd.DataFrame(mock_dataset.data_json["data"])
         # AI returns exact same data
         content = json.dumps({"rows": df.head(10).to_dict("records")}, default=str)
         with _LLM_PATCH(content), _SAVE_PATCH:

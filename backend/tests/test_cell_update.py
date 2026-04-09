@@ -8,7 +8,7 @@ import pandas as pd
 def _make_mock_dataset(data):
     ds = MagicMock()
     ds.id = "test-ds-id"
-    ds.preview_data = data
+    ds.data_json = {"data": data}
     ds.row_count = len(data)
     ds.columns = list(data[0].keys()) if data else []
     return ds
@@ -74,7 +74,7 @@ class TestCellUpdateTypeCoercion:
         mock_session.execute = AsyncMock(return_value=mock_result)
 
         for null_val in ['', 'null', 'None', 'NaN']:
-            dataset.preview_data = [{"name": "Alice", "score": 85.5}]
+            dataset.data_json = {"data": [{"name": "Alice", "score": 85.5}]}
             result = await update_cell(
                 dataset_id="test-ds-id",
                 update=CellUpdate(row_index=0, column="score", value=null_val),
@@ -130,4 +130,4 @@ class TestCellUpdateTypeCoercion:
         assert result["status"] == "success"
         # Verify no NaN in the saved data
         import json
-        json.dumps(dataset.preview_data)  # Should not raise
+        json.dumps(dataset.data_json["data"])  # Should not raise

@@ -112,21 +112,21 @@ async def filter_rows(
     session: AsyncSession = Depends(get_async_session),
 ):
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     before_row_count = len(df)
 
     df = apply_filter(df, request.column, request.operator, request.value)
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     before = {"columns": dataset.columns, "row_count": before_row_count}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
 
@@ -151,12 +151,12 @@ async def sort_data(
     session: AsyncSession = Depends(get_async_session),
 ):
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     if request.column not in df.columns:
         raise HTTPException(
@@ -165,11 +165,11 @@ async def sort_data(
 
     df = df.sort_values(by=request.column, ascending=request.ascending)
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
 
     await save_operation(dataset_id, "sort_data", request.model_dump(), before, after, session)
@@ -193,12 +193,12 @@ async def remove_duplicates(
     session: AsyncSession = Depends(get_async_session),
 ):
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
     before_count = len(df)
 
     if request.columns:
@@ -208,11 +208,11 @@ async def remove_duplicates(
 
     duplicates_removed = before_count - len(df)
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     before = {"columns": dataset.columns, "row_count": before_count}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
     after = {"columns": dataset.columns, "row_count": len(df)}
 
@@ -239,12 +239,12 @@ async def find_replace(
     session: AsyncSession = Depends(get_async_session),
 ):
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     if request.column not in df.columns:
         raise HTTPException(
@@ -266,11 +266,11 @@ async def find_replace(
             .str.replace(request.find, request.replace, regex=False)
         )
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
 
     await save_operation(dataset_id, "find_replace", request.model_dump(), before, after, session)
@@ -293,12 +293,12 @@ async def change_type(
     session: AsyncSession = Depends(get_async_session),
 ):
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     if request.column not in df.columns:
         raise HTTPException(
@@ -326,11 +326,11 @@ async def change_type(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Conversion failed: {str(e)}")
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
 
     await save_operation(dataset_id, "change_type", request.model_dump(), before, after, session)

@@ -13,7 +13,7 @@ def _make_mock_dataset(data: list[dict]):
     ds = MagicMock()
     ds.id = "test-ds-id"
     ds.project_id = "test-project-id"
-    ds.preview_data = data
+    ds.data_json = {"data": data}
     ds.row_count = len(data)
     ds.columns = [{"field": k, "label": k} for k in data[0].keys()] if data else []
     return ds

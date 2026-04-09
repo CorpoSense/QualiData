@@ -31,12 +31,12 @@ async def fix_case(
     """Fix case inconsistencies in a column."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
@@ -52,11 +52,11 @@ async def fix_case(
     else:
         raise HTTPException(status_code=400, detail=f"Invalid case: {case}")
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
 
     save_operation(
@@ -84,12 +84,12 @@ async def trim_whitespace(
     """Trim whitespace from string columns."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     cols = columns if columns else df.columns.tolist()
     trimmed_cols = []
@@ -100,11 +100,11 @@ async def trim_whitespace(
                 df[col] = df[col].astype(str).str.strip()
                 trimmed_cols.append(col)
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
 
     save_operation(
@@ -132,12 +132,12 @@ async def fix_typos(
     """Fix typos using a mapping dictionary."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
@@ -145,11 +145,11 @@ async def fix_typos(
     # Apply mappings
     df[column] = df[column].astype(str).replace(mappings)
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
 
     save_operation(
@@ -180,12 +180,12 @@ async def standardize_values(
     """Standardize common value variations."""
     dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
@@ -221,11 +221,11 @@ async def standardize_values(
     if any(v in mappings for v in unique_vals):
         df[column] = df[column].astype(str).replace(mappings)
 
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
     before = {"columns": dataset.columns}
     dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     after = {"columns": dataset.columns}
 
     save_operation(

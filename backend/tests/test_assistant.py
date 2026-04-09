@@ -165,7 +165,7 @@ class TestAiSuggestCustomPrompts:
         mock_dataset = MagicMock()
         mock_dataset.id = "ds-1"
         mock_dataset.project_id = "proj-1"
-        mock_dataset.preview_data = [{"name": "Alice"}, {"name": "Bob"}]
+        mock_dataset.data_json = {"data": [{"name": "Alice"}, {"name": "Bob"}]}
         mock_dataset.columns = [{"name": "name"}]
         mock_dataset.description = None
 
@@ -226,7 +226,7 @@ class TestAiSuggestCustomPrompts:
         mock_dataset = MagicMock()
         mock_dataset.id = "ds-1"
         mock_dataset.project_id = "proj-1"
-        mock_dataset.preview_data = [{"name": "Alice"}]
+        mock_dataset.data_json = {"data": [{"name": "Alice"}]}
         mock_dataset.columns = [{"name": "name"}]
         mock_dataset.description = None
 

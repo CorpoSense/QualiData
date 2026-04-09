@@ -34,7 +34,7 @@ class TestProfilingTotalRows:
         mock_dataset = MagicMock(spec=Dataset)
         mock_dataset.id = "test-dataset-id"
         mock_dataset.project_id = "test-project-id"
-        mock_dataset.preview_data = [{"id": i, "value": f"row_{i}"} for i in range(500)]  # Only 500 preview rows
+        mock_dataset.data_json = {"data": [{"id": i, "value": f"row_{i}"} for i in range(500)]}
         mock_dataset.row_count = 1000  # Actual row count is 1000
         mock_dataset.columns = [{"name": "id", "dtype": "int"}, {"name": "value", "dtype": "str"}]
         
@@ -71,7 +71,7 @@ class TestProfilingTotalRows:
         
         # Assert: total_rows should be 1000 (from dataset.row_count), not 500 (from preview_data)
         assert response.total_rows == 1000, f"Expected total_rows=1000, got {response.total_rows}"
-        assert response.total_rows != len(mock_dataset.preview_data), "total_rows should not equal preview_data length"
+        assert response.total_rows != len(mock_dataset.data_json["data"]), "total_rows should not equal preview_data length"
         
         # Also verify each column profile has correct total_rows
         for col in response.columns:
@@ -90,7 +90,7 @@ class TestProfilingTotalRows:
         mock_dataset = MagicMock(spec=Dataset)
         mock_dataset.id = "test-dataset-id"
         mock_dataset.project_id = "test-project-id"
-        mock_dataset.preview_data = [{"id": 1}]  # Has some preview data
+        mock_dataset.data_json = {"data": [{"id": 1}]}
         mock_dataset.row_count = 0  # But row_count says 0
         mock_dataset.columns = [{"name": "id", "dtype": "int"}]
         

@@ -11,7 +11,7 @@ def _make_mock_dataset(data: list[dict]):
     ds = MagicMock()
     ds.id = "test-ds-id"
     ds.project_id = "test-project-id"
-    ds.preview_data = data
+    ds.data_json = {"data": data}
     ds.row_count = len(data)
     ds.columns = [{"field": k, "label": k} for k in data[0].keys()] if data else []
     return ds
@@ -61,7 +61,7 @@ class TestAddColumnOperation:
             )
 
         assert result["status"] == "success"
-        preview = dataset.preview_data
+        preview = dataset.data_json["data"]
         assert "country" in preview[0]
         assert all(row["country"] == "Unknown" for row in preview)
 
@@ -84,7 +84,7 @@ class TestAddColumnOperation:
             )
 
         assert result["status"] == "success"
-        preview = dataset.preview_data
+        preview = dataset.data_json["data"]
         assert "country" in preview[0]
         assert preview[0]["country"] == "Paris"
         assert preview[0]["city"] == "Paris"
@@ -151,7 +151,7 @@ class TestAddColumnOperation:
             )
 
         assert result["status"] == "success"
-        preview = dataset.preview_data
+        preview = dataset.data_json["data"]
         assert "notes" in preview[0]
         assert preview[0]["notes"] == ""
 
@@ -177,8 +177,8 @@ class TestExistingStructuralOps:
             )
 
         assert result["status"] == "success"
-        assert "full_name" in dataset.preview_data[0]
-        assert "name" not in dataset.preview_data[0]
+        assert "full_name" in dataset.data_json["data"][0]
+        assert "name" not in dataset.data_json["data"][0]
 
 
 class TestReorderColumnsOperation:
@@ -203,7 +203,7 @@ class TestReorderColumnsOperation:
             )
 
         assert result.status == "success"
-        assert list(dataset.preview_data[0].keys()) == ["name", "city", "age"]
+        assert list(dataset.data_json["data"][0].keys()) == ["name", "city", "age"]
 
     @pytest.mark.asyncio
     async def test_reorder_shifts_selected_one_step_right(self):
@@ -224,7 +224,7 @@ class TestReorderColumnsOperation:
             )
 
         assert result.status == "success"
-        assert list(dataset.preview_data[0].keys()) == ["age", "name", "city"]
+        assert list(dataset.data_json["data"][0].keys()) == ["age", "name", "city"]
 
     @pytest.mark.asyncio
     async def test_reorder_preserves_data(self):
@@ -245,7 +245,7 @@ class TestReorderColumnsOperation:
             )
 
         assert result.status == "success"
-        row = dataset.preview_data[0]
+        row = dataset.data_json["data"][0]
         assert row["name"] == "Alice"
         assert row["age"] == 30
         assert row["city"] == "Paris"
@@ -297,7 +297,7 @@ class TestReorderRowsOperation:
             )
 
         assert result.status == "success"
-        names = [r["name"] for r in dataset.preview_data]
+        names = [r["name"] for r in dataset.data_json["data"]]
         assert names == ["A", "C", "B", "D"]
 
     @pytest.mark.asyncio
@@ -321,7 +321,7 @@ class TestReorderRowsOperation:
             )
 
         assert result.status == "success"
-        names = [r["name"] for r in dataset.preview_data]
+        names = [r["name"] for r in dataset.data_json["data"]]
         assert names == ["A", "C", "B", "D"]
 
     @pytest.mark.asyncio
@@ -346,7 +346,7 @@ class TestReorderRowsOperation:
             )
 
         assert result.status == "success"
-        names = [r["name"] for r in dataset.preview_data]
+        names = [r["name"] for r in dataset.data_json["data"]]
         assert names == ["A", "C", "B", "E", "D"]
 
     @pytest.mark.asyncio
@@ -371,7 +371,7 @@ class TestReorderRowsOperation:
             )
 
         assert result.status == "success"
-        names = [r["name"] for r in dataset.preview_data]
+        names = [r["name"] for r in dataset.data_json["data"]]
         assert names == ["B", "A", "D", "C", "E"]
 
     @pytest.mark.asyncio
@@ -395,7 +395,7 @@ class TestReorderRowsOperation:
             )
 
         assert result.status == "success"
-        names = [r["name"] for r in dataset.preview_data]
+        names = [r["name"] for r in dataset.data_json["data"]]
         assert names == ["A", "B", "C"]
 
     @pytest.mark.asyncio
@@ -419,7 +419,7 @@ class TestReorderRowsOperation:
             )
 
         assert result.status == "success"
-        names = [r["name"] for r in dataset.preview_data]
+        names = [r["name"] for r in dataset.data_json["data"]]
         assert names == ["A", "B", "C"]
 
     @pytest.mark.asyncio
@@ -444,7 +444,7 @@ class TestReorderRowsOperation:
             )
 
         assert result.status == "success"
-        names = [r["name"] for r in dataset.preview_data]
+        names = [r["name"] for r in dataset.data_json["data"]]
         assert names == ["B", "C", "A", "D"]
 
     @pytest.mark.asyncio
@@ -470,7 +470,7 @@ class TestReorderRowsOperation:
             )
 
         assert result.status == "success"
-        row = dataset.preview_data[1]
+        row = dataset.data_json["data"][1]
         assert row["name"] == "Carol"
         assert row["age"] == 35
 
@@ -540,8 +540,8 @@ class TestAddRecordsOperation:
 
         assert result.status == "success"
         assert "1 record(s)" in result.message
-        assert len(dataset.preview_data) == 3
-        assert dataset.preview_data[2]["name"] == "Carol"
+        assert len(dataset.data_json["data"]) == 3
+        assert dataset.data_json["data"][2]["name"] == "Carol"
 
     @pytest.mark.asyncio
     async def test_add_multiple_records(self):
@@ -566,7 +566,7 @@ class TestAddRecordsOperation:
 
         assert result.status == "success"
         assert "2 record(s)" in result.message
-        assert len(dataset.preview_data) == 4
+        assert len(dataset.data_json["data"]) == 4
 
     @pytest.mark.asyncio
     async def test_add_record_from_csv(self):
@@ -590,7 +590,7 @@ class TestAddRecordsOperation:
 
         assert result.status == "success"
         assert "2 record(s)" in result.message
-        assert len(dataset.preview_data) == 4
+        assert len(dataset.data_json["data"]) == 4
 
     @pytest.mark.asyncio
     async def test_add_record_missing_columns_filled_with_none(self):
@@ -611,7 +611,7 @@ class TestAddRecordsOperation:
             )
 
         assert result.status == "success"
-        row = dataset.preview_data[2]
+        row = dataset.data_json["data"][2]
         assert row["name"] == "Carol"
         assert row.get("age") is None
         assert row.get("city") is None
@@ -635,7 +635,7 @@ class TestAddRecordsOperation:
             )
 
         assert result.status == "success"
-        row = dataset.preview_data[2]
+        row = dataset.data_json["data"][2]
         assert "country" not in row
 
     @pytest.mark.asyncio
@@ -736,7 +736,7 @@ class TestImportRecipeOperation:
 
         assert result["status"] == "success"
         assert result["results"][0]["status"] == "success"
-        assert dataset.preview_data[0]["name"] == "Alice"
+        assert dataset.data_json["data"][0]["name"] == "Alice"
 
     @pytest.mark.asyncio
     async def test_import_unsupported_operation_skipped(self):
@@ -802,7 +802,7 @@ class TestImportRecipeOperation:
 
         assert result["results"][0]["status"] == "skipped"
         assert result["results"][1]["status"] == "success"
-        assert dataset.preview_data[0]["name"] == "ALICE"
+        assert dataset.data_json["data"][0]["name"] == "ALICE"
 
     @pytest.mark.asyncio
     async def test_import_recipe_snapshot_uses_dicts_not_strings(self):
@@ -861,9 +861,9 @@ class TestMergeColumnsOperation:
             )
 
         assert result.status == "success"
-        assert "full_name" in dataset.preview_data[0]
-        assert dataset.preview_data[0]["full_name"] == "John Doe"
-        assert dataset.preview_data[1]["full_name"] == "Jane Smith"
+        assert "full_name" in dataset.data_json["data"][0]
+        assert dataset.data_json["data"][0]["full_name"] == "John Doe"
+        assert dataset.data_json["data"][1]["full_name"] == "Jane Smith"
 
     @pytest.mark.asyncio
     async def test_merge_columns_no_delimiter(self):
@@ -885,7 +885,7 @@ class TestMergeColumnsOperation:
             )
 
         assert result.status == "success"
-        assert dataset.preview_data[0]["phone"] == "5551234"
+        assert dataset.data_json["data"][0]["phone"] == "5551234"
 
     @pytest.mark.asyncio
     async def test_merge_columns_missing_raises(self):
@@ -931,10 +931,10 @@ class TestSplitColumnOperation:
             )
 
         assert result.status == "success"
-        assert dataset.preview_data[0]["first"] == "John"
-        assert dataset.preview_data[0]["last"] == "Doe"
-        assert dataset.preview_data[1]["first"] == "Jane"
-        assert dataset.preview_data[1]["last"] == "Smith"
+        assert dataset.data_json["data"][0]["first"] == "John"
+        assert dataset.data_json["data"][0]["last"] == "Doe"
+        assert dataset.data_json["data"][1]["first"] == "Jane"
+        assert dataset.data_json["data"][1]["last"] == "Smith"
 
     @pytest.mark.asyncio
     async def test_split_column_missing_raises(self):
@@ -976,8 +976,8 @@ class TestSplitColumnOperation:
             )
 
         assert result.status == "success"
-        assert dataset.preview_data[0]["first"] == "John"
-        assert dataset.preview_data[0]["last"] is None
+        assert dataset.data_json["data"][0]["first"] == "John"
+        assert dataset.data_json["data"][0]["last"] is None
 
 
 class TestFuzzyDedupeRequiresColumn:
@@ -1119,7 +1119,7 @@ class TestFuzzyDedupeNewParameters:
         assert result["status"] == "success"
         # All rows kept, but values merged to first
         assert result["row_count"] == 3
-        names = [r["name"] for r in dataset.preview_data]
+        names = [r["name"] for r in dataset.data_json["data"]]
         assert all(n == "John" for n in names)
 
     @pytest.mark.asyncio
@@ -1148,7 +1148,7 @@ class TestFuzzyDedupeNewParameters:
         assert result["status"] == "success"
         # All 3 rows kept, but values merged to most frequent (which was "John" at index 2)
         assert result["row_count"] == 3
-        names = [r["name"] for r in dataset.preview_data]
+        names = [r["name"] for r in dataset.data_json["data"]]
         # Most frequent in cluster was "John", so all should be "John"
         assert all(n == "John" for n in names)
 
@@ -1204,9 +1204,9 @@ class TestEncodingOperations:
             )
 
         assert result.status == "success"
-        assert "color_blue" in dataset.preview_data[0]
-        assert "color_red" in dataset.preview_data[0]
-        assert dataset.preview_data[0]["color_red"] == 1
+        assert "color_blue" in dataset.data_json["data"][0]
+        assert "color_red" in dataset.data_json["data"][0]
+        assert dataset.data_json["data"][0]["color_red"] == 1
 
     @pytest.mark.asyncio
     async def test_label_encoding(self):
@@ -1230,10 +1230,10 @@ class TestEncodingOperations:
             )
 
         assert result.status == "success"
-        assert "grade_encoded" in dataset.preview_data[0]
+        assert "grade_encoded" in dataset.data_json["data"][0]
         # A=0, B=1, C=2 (sorted)
-        assert dataset.preview_data[0]["grade_encoded"] == 0  # A
-        assert dataset.preview_data[1]["grade_encoded"] == 2  # C
+        assert dataset.data_json["data"][0]["grade_encoded"] == 0  # A
+        assert dataset.data_json["data"][1]["grade_encoded"] == 2  # C
 
     @pytest.mark.asyncio
     async def test_value_mapping(self):
@@ -1256,8 +1256,8 @@ class TestEncodingOperations:
             )
 
         assert result.status == "success"
-        assert dataset.preview_data[0]["status"] == "Yes"
-        assert dataset.preview_data[1]["status"] == "No"
+        assert dataset.data_json["data"][0]["status"] == "Yes"
+        assert dataset.data_json["data"][1]["status"] == "No"
 
     @pytest.mark.asyncio
     async def test_binning(self):
@@ -1281,7 +1281,7 @@ class TestEncodingOperations:
             )
 
         assert result.status == "success"
-        assert "score_binned" in dataset.preview_data[0]
+        assert "score_binned" in dataset.data_json["data"][0]
 
     @pytest.mark.asyncio
     async def test_encoding_missing_column_raises(self):
@@ -1322,7 +1322,7 @@ class TestDeleteRowsOperation:
             )
         assert result["status"] == "success"
         assert result["row_count"] == 1
-        assert dataset.preview_data[0]["name"] == "Bob"
+        assert dataset.data_json["data"][0]["name"] == "Bob"
 
     @pytest.mark.asyncio
     async def test_delete_last_n(self):
@@ -1340,7 +1340,7 @@ class TestDeleteRowsOperation:
             )
         assert result["status"] == "success"
         assert result["row_count"] == 1
-        assert dataset.preview_data[0]["name"] == "Alice"
+        assert dataset.data_json["data"][0]["name"] == "Alice"
 
     @pytest.mark.asyncio
     async def test_delete_range(self):
@@ -1360,7 +1360,7 @@ class TestDeleteRowsOperation:
             )
         assert result["status"] == "success"
         assert result["row_count"] == 2
-        names = [r["name"] for r in dataset.preview_data]
+        names = [r["name"] for r in dataset.data_json["data"]]
         assert names == ["A", "E"]
 
     @pytest.mark.asyncio
@@ -1381,7 +1381,7 @@ class TestDeleteRowsOperation:
             )
         assert result["status"] == "success"
         assert result["row_count"] == 2
-        names = [r["name"] for r in dataset.preview_data]
+        names = [r["name"] for r in dataset.data_json["data"]]
         assert names == ["B", "D"]
 
     @pytest.mark.asyncio
@@ -1457,7 +1457,7 @@ class TestDeleteRowsOperation:
             )
         assert result["status"] == "success"
         assert result["row_count"] == 3
-        names = [r["name"] for r in dataset.preview_data]
+        names = [r["name"] for r in dataset.data_json["data"]]
         assert names == ["A", "C", "E"]
 
     @pytest.mark.asyncio
@@ -1479,5 +1479,5 @@ class TestDeleteRowsOperation:
             )
         assert result["status"] == "success"
         assert result["row_count"] == 2
-        names = [r["name"] for r in dataset.preview_data]
+        names = [r["name"] for r in dataset.data_json["data"]]
         assert names == ["B", "D"]

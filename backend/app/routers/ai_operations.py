@@ -148,7 +148,7 @@ async def ai_clean_column(
     session: AsyncSession = Depends(get_async_session),
 ):
     """Apply AI cleaning to data based on natural language instruction."""
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
     from app.routers.operations import save_operation
 
     # Validate that at least one column is provided
@@ -174,12 +174,12 @@ async def ai_clean_column(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     # Validate all columns exist
     for col in columns_to_clean:
@@ -209,7 +209,7 @@ async def _ai_structural_clean(
     provider: AIProvider, agent_config: dict, session: AsyncSession,
 ) -> AICleaningResponse:
     """Use AI to perform structural operations (rename, drop, change types)."""
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
     from app.routers.operations import save_operation
 
     # Build the prompt
@@ -363,17 +363,16 @@ Respond with JSON only. Use one of these formats:
     before_snapshot = {
         "columns": dataset.columns,
         "row_count": dataset.row_count,
-        "preview_data": dataset.preview_data,
+        "data": dataset.data_json["data"],
     }
 
-    dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
 
     after_snapshot = {
         "columns": dataset.columns,
         "row_count": dataset.row_count,
-        "preview_data": dataset.preview_data,
+        "data": dataset.data_json["data"],
     }
 
     await save_operation(
@@ -400,7 +399,7 @@ async def _ai_data_clean(
     session: AsyncSession,
 ) -> AICleaningResponse:
     """Use AI to clean data values. Shows full rows for context-aware derivation."""
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
     from app.routers.operations import save_operation
 
     # Build prompt: show full rows so AI can derive values from context
@@ -505,16 +504,15 @@ You may change any column based on the instruction and other columns' context.""
     before_snapshot = {
         "columns": dataset.columns,
         "row_count": dataset.row_count,
-        "preview_data": dataset.preview_data,
+        "data": dataset.data_json["data"],
     }
 
-    dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
 
     after_snapshot = {
         "columns": dataset.columns,
         "row_count": dataset.row_count,
-        "preview_data": dataset.preview_data,
+        "data": dataset.data_json["data"],
     }
 
     await save_operation(
@@ -560,12 +558,12 @@ async def ai_analyze_column(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to analyze")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
@@ -630,12 +628,12 @@ async def ai_clean_json(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data")
 
     import pandas as pd
 
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
@@ -660,10 +658,9 @@ async def ai_clean_json(
     df[out_col] = df[column].apply(lambda x: str(x).strip().lower() if x else "")
 
     # Update dataset
-    from app.routers.datasets import detect_columns, get_preview_data
+    from app.routers.datasets import detect_columns, get_full_data_json
 
-    dataset.columns = detect_columns(df)
-    dataset.preview_data = get_preview_data(df)
+    dataset.data_json = get_full_data_json(df)
 
     await session.commit()
 
@@ -715,11 +712,11 @@ async def start_ai_batch(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if not dataset.preview_data:
+    if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     import pandas as pd
-    df = pd.DataFrame(dataset.preview_data)
+    df = pd.DataFrame(dataset.data_json["data"])
 
     for col in columns_to_clean:
         if col not in df.columns:
@@ -786,12 +783,12 @@ async def stream_ai_batch(
             return
 
         import pandas as pd
-        df = pd.DataFrame(dataset.preview_data)
+        df = pd.DataFrame(dataset.data_json["data"])
 
         agent_config = await _get_agent_config(agent_id, current_user.id, session)
         provider = AIProvider(agent_config["provider"])
 
-        from app.routers.datasets import detect_columns, get_preview_data
+        from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
         from app.routers.operations import save_operation
 
         total_rows = len(df)
@@ -862,14 +859,13 @@ async def stream_ai_batch(
                 before_snapshot = {
                     "columns": dataset.columns,
                     "row_count": dataset.row_count,
-                    "preview_data": dataset.preview_data,
+                    "data": dataset.data_json["data"],
                 }
-                dataset.columns = detect_columns(df)
-                dataset.preview_data = get_preview_data(df)
+                dataset.data_json = get_full_data_json(df)
                 after_snapshot = {
                     "columns": dataset.columns,
                     "row_count": dataset.row_count,
-                    "preview_data": dataset.preview_data,
+                    "data": dataset.data_json["data"],
                 }
                 await save_operation(
                     dataset.id,

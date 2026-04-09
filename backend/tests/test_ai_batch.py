@@ -76,7 +76,7 @@ class TestBatchEndpoint:
         mock_session = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = MagicMock(
-            id="ds-1", project_id="proj-1", preview_data=[{"a": 1}], columns=[]
+            id="ds-1", project_id="proj-1", data_json={"data": [{"a": 1}]}, columns=[]
         )
         mock_session.execute = AsyncMock(return_value=mock_result)
 

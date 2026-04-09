@@ -313,11 +313,6 @@ class TestDatasetModelFieldsComplete:
         from app.db.models.project import Dataset
         assert hasattr(Dataset, 'columns')
 
-    def test_dataset_has_preview_data(self):
-        """Dataset must have preview_data field."""
-        from app.db.models.project import Dataset
-        assert hasattr(Dataset, 'preview_data')
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
