@@ -48,7 +48,7 @@
           </div>
           <div class="stat-content">
             <p class="text-secondary small mb-1">Storage Used</p>
-            <p class="h3 fw-bold mb-0">{{ formatBytes(stats.storage) }}</p>
+            <p class="h3 fw-bold mb-0">{{ formatFileSize(stats.storage) }}</p>
           </div>
         </div>
       </div>
@@ -207,6 +207,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getApiUrl } from '@/utils/api'
+import { formatFileSize } from '@/utils/file'
 
 const router = useRouter()
 const apiUrl = getApiUrl()
@@ -304,14 +305,6 @@ function formatNumber(num) {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
   return num.toString()
-}
-
-function formatBytes(bytes) {
-  if (!bytes) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
 function formatDate(dateStr) {

@@ -33,6 +33,8 @@
 </template>
 
 <script setup>
+import { formatFileSize } from '@/utils/file'
+
 const props = defineProps({
   project: {
     type: Object,
@@ -62,17 +64,9 @@ function formatDate(dateStr) {
   return date.toLocaleDateString()
 }
 
-function formatBytes(bytes) {
-  if (!bytes) return ''
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
-
 function formatMeta(project) {
   if (project.storage_bytes) {
-    return formatBytes(project.storage_bytes)
+    return formatFileSize(project.storage_bytes)
   }
   return formatDate(project.created_at)
 }

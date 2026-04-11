@@ -38,7 +38,7 @@
         <div class="card text-center">
           <div class="card-body">
             <p class="text-muted small text-uppercase">Storage</p>
-            <p class="h3 mb-0">{{ formatBytes(project?.storage_bytes || 0) }}</p>
+            <p class="h3 mb-0">{{ formatFileSize(project?.storage_bytes || 0) }}</p>
           </div>
         </div>
       </div>
@@ -741,6 +741,20 @@
       </template>
     </BModal>
 
+    <!-- Delete Confirmation Modal -->
+    <BModal v-model="showDeleteModal" title="Delete Dataset" size="md">
+      <div class="alert alert-danger py-2 small mb-3">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Are you sure you want to delete {{ selectedDataset?.name || 'Dataset' }} ? This action cannot be undone.
+      </div>
+      <template #footer>
+        <BButton variant="outline-secondary" @click="showDeleteModal = false">Cancel</BButton>
+        <BButton variant="danger" @click="deleteSelectedDataset">
+          <i class="bi bi-trash me-1"></i>Delete
+        </BButton>
+      </template>
+    </BModal>
+
     <!-- Bulk Delete Confirmation Modal -->
     <BModal v-model="showBulkDeleteModal" title="Delete Datasets" size="md">
       <div class="alert alert-danger py-2 small mb-3">
@@ -818,6 +832,7 @@ import { BButton, BTab, BTabs, BDropdown, BDropdownItem, BBadge, BModal, BFormGr
 import DatasetCard from '@/components/DatasetCard.vue'
 import ProfileModal from '@/components/ProfileModal.vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
+import { formatFileSize } from '@/utils/file'
 
 const route = useRoute()
 const router = useRouter()
@@ -903,6 +918,7 @@ const selectedDatasetIds = ref([])
 const mergeName = ref('Merged Dataset')
 const mergeStrategy = ref('union')
 const merging = ref(false)
+const showDeleteModal = ref(false)
 const showBulkDeleteModal = ref(false)
 const deletingBulk = ref(false)
 const showBulkCloneModal = ref(false)
@@ -1313,14 +1329,6 @@ function clearFiles() {
   importForm.sheetName = ''
 }
 
-function formatFileSize(bytes) {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
-
 async function handleImport() {
   if (importForm.files.length === 0) return
   
@@ -1562,17 +1570,8 @@ async function renameDataset() {
 }
 
 async function deleteDataset(dataset) {
-  selectedDatasetIds.value = [dataset.id];
-  confirmBulkDelete()
-  /*try {
-    await fetch(`${apiUrl}/api/datasets/${dataset.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    })
-    await fetchDatasets()
-  } catch (e) {
-    console.error(e)
-  }*/
+  selectedDataset.value = dataset;
+  showDeleteModal.value = true;
 }
 
 function exportDataset(dataset) {
@@ -1736,14 +1735,6 @@ function formatNumber(num) {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
   return num.toString()
-}
-
-function formatBytes(bytes) {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
 function formatDate(dateStr) {
@@ -1945,6 +1936,28 @@ async function cloneSelectedDatasets() {
     toast.error(e.message)
   } finally {
     cloningBulk.value = false
+  }
+}
+
+async function deleteSelectedDataset() {
+  if (selectedDataset.value && selectedDataset.value.id) {
+      try {
+      const res = await fetch(`${apiUrl}/api/datasets/${selectedDataset.value.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      })
+      if (res.ok){
+        toast.success(`Dataset deleted.`)
+        showDeleteModal.value = false
+        await fetchDatasets()
+      } else {
+        toast.error(res.statusText || 'Delete failed')
+      }
+    } catch (e) {
+      toast.error(e)
+    } finally {
+      selectedDataset.value = null
+    }
   }
 }
 
