@@ -64,7 +64,7 @@ class DatasetResponse(BaseModel):
     file_type: str | None
     row_count: int
     columns: list | None
-    preview_data: list | None
+    # preview_data: list | None
     created_at: datetime | None
 
     model_config = {"from_attributes": True}
@@ -239,7 +239,7 @@ async def import_single_dataset(
         )
 
     # Save uploaded file to temp file for smart importer
-    filename = file.filename or "data.csv"
+    filename = file.filename or f"data_{int(time.time())}.csv"
     content = await file.read()
     file_size = len(content)
     
