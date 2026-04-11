@@ -1417,12 +1417,6 @@ function openCellEditor({ row, column, value }) {
 }
 
 async function saveCellEdit() {
-  console.log('[CELL_EDIT] Saving cell edit:', {
-    row_index: cellEdit.value.row,
-    column: cellEdit.value.column,
-    value: cellEdit.value.value,
-    datasetId: datasetId.value
-  })
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/update-cell`, {
@@ -1431,7 +1425,6 @@ async function saveCellEdit() {
       body: JSON.stringify({ row_index: cellEdit.value.row, column: cellEdit.value.column, value: cellEdit.value.value })
     })
     const data = await res.json()
-    console.log('[CELL_EDIT] Response:', res.status, data)
     if (res.ok) {
       if (data.status === 'failed') {
         toast.error(data.message || 'Update failed — check the value format')
@@ -1445,7 +1438,6 @@ async function saveCellEdit() {
       toast.error(err.detail || 'Update failed')
     }
   } catch (e) { 
-    console.error('[CELL_EDIT] Error:', e)
     toast.error(e.message) 
   }
   finally { operating.value = false }
@@ -1820,9 +1812,6 @@ async function loadComparison() {
   }
   finally { comparing.value = false }
 }
-
-function handleRowClick(row) { console.log('Row clicked:', row) }
-function handleCellClick(row, col) { console.log('Cell clicked:', row, col) }
 
 async function applyOperation(endpoint, params) {
   if (!selectedColumns.value || selectedColumns.value.length === 0) {
