@@ -82,10 +82,11 @@ async def undo_operation(
             dataset.columns = operation.before_snapshot.get("columns")
         # Restore data_json from saved state
     if "data" in operation.before_snapshot:
-        dataset.data_json = operation.before_snapshot.get("data")
+        # Wrap data in proper format {"data": [...]} as expected by other endpoints
+        dataset.data_json = {"data": operation.before_snapshot.get("data")}
         if "row_count" in operation.before_snapshot:
             dataset.row_count = operation.before_snapshot.get(
-                "row_count", len(dataset.data_json["data"]) if dataset.data_json and "data" in dataset.data_json else 0
+                "row_count", len(operation.before_snapshot.get("data", []))
             )
 
     # Mark as undone
@@ -145,10 +146,11 @@ async def redo_operation(
             dataset.columns = operation.after_snapshot.get("columns")
         # Restore data_json from saved state
     if "data" in operation.after_snapshot:
-        dataset.data_json = operation.after_snapshot.get("data")
+        # Wrap data in proper format {"data": [...]} as expected by other endpoints
+        dataset.data_json = {"data": operation.after_snapshot.get("data")}
         if "row_count" in operation.after_snapshot:
             dataset.row_count = operation.after_snapshot.get(
-                "row_count", len(dataset.data_json["data"]) if dataset.data_json and "data" in dataset.data_json else 0
+                "row_count", len(operation.after_snapshot.get("data", []))
             )
 
     # Mark as applied (not undone)
@@ -207,10 +209,11 @@ async def undo_batch(
             dataset.columns = last_op.before_snapshot.get("columns")
         # Restore data_json from saved state
     if "data" in last_op.before_snapshot:
-        dataset.data_json = last_op.before_snapshot.get("data")
+        # Wrap data in proper format {"data": [...]} as expected by other endpoints
+        dataset.data_json = {"data": last_op.before_snapshot.get("data")}
         if "row_count" in last_op.before_snapshot:
             dataset.row_count = last_op.before_snapshot.get(
-                "row_count", len(dataset.data_json["data"]) if dataset.data_json and "data" in dataset.data_json else 0
+                "row_count", len(last_op.before_snapshot.get("data", []))
             )
 
     undone_ids = []
