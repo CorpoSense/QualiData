@@ -198,6 +198,21 @@
             </BDropdownItem>
           </BDropdown>
 
+          <!-- Row Scope Selector -->
+          <div class="d-flex align-items-center gap-1 ms-2" title="Apply operations to selected rows only">
+            <small class="text-muted">Scope:</small>
+            <BFormSelect 
+              v-model="operationRowScope" 
+              size="sm" 
+              :options="[
+                { value: 'all', text: 'All rows' },
+                { value: 'selected', text: 'Selected (' + selectedRowIndices.length + ')' }
+              ]"
+              :disabled="operationRowScope === 'selected' && selectedRowIndices.length === 0"
+              style="width: auto; min-width: 120px;"
+            ></BFormSelect>
+          </div>
+
           <BDropdown text="AI Clean" size="sm">
             <BDropdownItem @click="showStructuralAiModal = true">
               <i class="bi bi-list-task me-2"></i> Structural (Columns)
@@ -1236,6 +1251,7 @@ const searchQuery = ref('')
 const showRowFilterModal = ref(false)
 const rowFilters = ref({})
 const rowSelectMode = ref(false)
+const operationRowScope = ref('all') // 'all' | 'selected'
 const showTableSettings = ref(false)
 const showCellEdit = ref(false)
 const cellEdit = ref({ row: 0, column: '', value: '' })
@@ -1841,10 +1857,15 @@ async function applyStringOp(operation) {
   }
   operating.value = true
   try {
+    const body = { 
+      columns: selectedColumns.value, 
+      operation,
+      row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined
+    }
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/string-operations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ columns: selectedColumns.value, operation })
+      body: JSON.stringify(body)
     })
     if (res.ok) { 
       const data = await res.json()
@@ -2019,6 +2040,7 @@ async function applyFindReplace() {
         replace: replaceValue.value,
         regex: findReplaceRegex.value,
         case_sensitive: findReplaceCaseSensitive.value,
+        row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined,
       })
     })
     if (res.ok) {
@@ -2037,10 +2059,15 @@ async function applyDatetimeOp(operation) {
   }
   operating.value = true
   try {
+    const body = { 
+      columns: selectedColumns.value, 
+      operation,
+      row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined
+    }
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/datetime-operations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ columns: selectedColumns.value, operation })
+      body: JSON.stringify(body)
     })
     if (res.ok) { 
       const data = await res.json()
@@ -2130,10 +2157,15 @@ async function applyNumericOp(operation) {
   }
   operating.value = true
   try {
+    const body = { 
+      columns: selectedColumns.value, 
+      operation,
+      row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined
+    }
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/numeric`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ columns: selectedColumns.value, operation })
+      body: JSON.stringify(body)
     })
     if (res.ok) { 
       const data = await res.json()
@@ -2228,7 +2260,7 @@ async function onOpConfirmApply(params) {
 
     if (config.operation === 'fillna') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/fillna`
-      body = { columns: selectedColumns.value.length ? selectedColumns.value : undefined, ...mergedParams }
+      body = { columns: selectedColumns.value.length ? selectedColumns.value : undefined, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
     } else if (config.operation === 'remove-duplicates') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/remove-duplicates`
       body = mergedParams
@@ -2242,13 +2274,13 @@ async function onOpConfirmApply(params) {
       }
     } else if (config.operation === 'string-operations') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/string-operations`
-      body = { columns: selectedColumns.value, ...mergedParams }
+      body = { columns: selectedColumns.value, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
     } else if (config.operation === 'datetime-operations') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/datetime-operations`
-      body = { columns: selectedColumns.value, ...mergedParams }
+      body = { columns: selectedColumns.value, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
     } else if (config.operation === 'numeric') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/numeric`
-      body = { columns: selectedColumns.value, ...mergedParams }
+      body = { columns: selectedColumns.value, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
     } else {
       toast.warning(`Unknown operation: ${config.operation}`)
       return

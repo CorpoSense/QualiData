@@ -21,11 +21,6 @@ Track tasks and improvements for the project.
 - `docs/features/ai-providers.md` - Provider comparison table
 - `AGENTS.md` - Default models reference
 
-### Pivot Tables
-- [x] Provide a multple and flexible ways to display a pivot tables
-- [x] Provide a checkbox option to enable/disable including None values.
-- [x] Add totals for both: rows and columns
-
 ### Fix bugs:
 - [x] Update a cell's value is not working
 - [x] Display correct number of dataset in each project.
@@ -36,25 +31,40 @@ Track tasks and improvements for the project.
 
 ## Improvments:
 
-#### Improve fuzzy matching
-- [x] Add the footer option to the data table.
+#### Hide columns
+- [ ] The user is able to hide some columns to save some screen space and work easily on the visible columns.
+- [ ] The invisible columns should not be effected (we may need to reflect on that).
 
-#### Improve fuzzy matching
-- [x] Add the ability to merge similar values instead of deleting them with a visual selection and AI suggestion
+#### Apply on selected rows/columns
+- The user is able to apply any operation to any selected combination of: rows, columns or rows and columns.
+- It's okay if some features or operations wont be available in the mode when the user select both a set of rows and columns.
 
-#### Improve moving columns
-- [x] Display a modal with all existing columns and the ability to move up/down any selected column(s)
-
-#### Improve AI Agent Capabilities
+#### AI Agent Capabilities
 - [ ] Support different type of memories
 - [ ] Support uploading a file.
 
-#### Improve Database schema
+#### Fuzzy matching
+- [x] Add the footer option to the data table.
+
+#### Fuzzy matching
+- [x] Add the ability to merge similar values instead of deleting them with a visual selection and AI suggestion
+
+#### Moving columns
+- [x] Display a modal with all existing columns and the ability to move up/down any selected column(s)
+
+
+#### Database schema
 - [x] Consider reviewing the database structure (the `preview_data` looks redandunt, why there is an empty `data_json`...)
 
 #### Video
 - [ ] Create a video presenation and place it in the home page
 
+---
+
+### Pivot Tables
+- [x] Provide a multple and flexible ways to display a pivot tables
+- [x] Provide a checkbox option to enable/disable including None values.
+- [x] Add totals for both: rows and columns
 ---
 
 ### Export Features

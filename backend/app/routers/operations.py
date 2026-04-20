@@ -74,6 +74,74 @@ async def get_dataset_with_owner_check(dataset_id: str, user_id: str, session: A
 from app.utils.operations import save_operation
 
 
+def filter_df_by_indices(df: pd.DataFrame, indices: list[int] | None) -> pd.DataFrame:
+    """Filter DataFrame to include only specified row indices.
+    
+    Args:
+        df: Input DataFrame
+        indices: List of row indices to keep. If None, returns original df.
+    
+    Returns:
+        DataFrame filtered to specified indices
+    """
+    if not indices:
+        return df
+    # Validate indices are within range
+    valid_indices = [i for i in indices if 0 <= i < len(df)]
+    if not valid_indices:
+        return df
+    return df.iloc[valid_indices].copy()
+
+
+def apply_operation_to_filtered_rows(
+    df: pd.DataFrame,
+    indices: list[int] | None,
+    operation_fn: callable
+) -> tuple[pd.DataFrame, int]:
+    """Apply an operation to filtered rows only, then merge back.
+    
+    Args:
+        df: Full DataFrame
+        indices: List of row indices to apply operation to. If None, applies to all.
+        operation_fn: Function that takes df and returns modified df
+    
+    Returns:
+        Tuple of (modified DataFrame, count of modified rows)
+    """
+    if not indices:
+        # Apply to all rows
+        modified_df = operation_fn(df)
+        return modified_df, len(df)
+    
+    # Validate indices
+    valid_indices = [i for i in indices if 0 <= i < len(df)]
+    if not valid_indices:
+        return df, 0
+    
+    # Split into filtered and non-filtered
+    filtered_df = df.iloc[valid_indices].copy()
+    non_filtered_indices = [i for i in range(len(df)) if i not in valid_indices]
+    non_filtered_df = df.iloc[non_filtered_indices].copy() if non_filtered_indices else pd.DataFrame()
+    
+    # Apply operation to filtered only
+    modified_filtered = operation_fn(filtered_df)
+    
+    # Merge back - preserve original order
+    result_rows = []
+    for i in range(len(df)):
+        if i in valid_indices:
+            # Find this index in valid_indices to get corresponding modified row
+            idx_pos = valid_indices.index(i)
+            result_rows.append(modified_filtered.iloc[idx_pos])
+        else:
+            result_rows.append(df.iloc[i])
+    
+    result_df = pd.DataFrame(result_rows)
+    result_df = result_df.reset_index(drop=True)
+    
+    return result_df, len(valid_indices)
+
+
 # Routes
 @router.post(
     "/datasets/{dataset_id}/operations/add-column", response_model=OperationResponse
@@ -584,6 +652,9 @@ async def string_operations(
     Supports both single-column and batch (multi-column) mode:
     - Single: { "column": "name", "operation": "uppercase" }
     - Batch:  { "columns": ["name", "email"], "operation": "uppercase" }
+    
+    Supports row filtering:
+    - { "columns": ["name"], "operation": "upper", "row_indices": [0, 1, 2] }
     """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.data_json or "data" not in dataset.data_json:
@@ -595,6 +666,8 @@ async def string_operations(
     column = request.get('column')
     columns = request.get('columns')
     operation = request.get('operation')
+    # New: support row filtering
+    row_indices = request.get('row_indices')  # Optional list of row indices
 
     # Determine target columns
     if columns and isinstance(columns, list):
@@ -612,44 +685,89 @@ async def string_operations(
     # Track results
     results = []
 
-    # Apply operation to each column
-    for col in target_columns:
-        # Check if column is string-compatible
-        try:
-            df[col] = df[col].astype(str)
-        except Exception:
-            results.append({"column": col, "status": "skipped", "reason": "cannot convert to string"})
-            continue
+    # Apply operation using helper function if row_indices provided
+    if row_indices:
+        # Use helper to apply operation only to selected rows
+        def op_func(filtered_df):
+            for col in target_columns:
+                # Check if column is string-compatible
+                try:
+                    filtered_df[col] = filtered_df[col].astype(str)
+                except Exception:
+                    results.append({"column": col, "status": "skipped", "reason": "cannot convert to string"})
+                    continue
 
-        # Normalize operation names
-        op_map = {
-            'upper': 'uppercase',
-            'lower': 'lowercase',
-            'strip': 'trim',
-            'title': 'titlecase',
-        }
-        op = op_map.get(operation, operation)
+                # Normalize operation names
+                op_map = {
+                    'upper': 'uppercase',
+                    'lower': 'lowercase',
+                    'strip': 'trim',
+                    'title': 'titlecase',
+                }
+                op = op_map.get(operation, operation)
 
-        try:
-            if op == 'uppercase':
-                df[col] = df[col].astype(str).str.upper()
-            elif op == 'lowercase':
-                df[col] = df[col].astype(str).str.lower()
-            elif op == 'trim':
-                df[col] = df[col].astype(str).str.strip()
-            elif op == 'titlecase':
-                df[col] = df[col].astype(str).str.title()
-            elif op == 'capitalize':
-                df[col] = df[col].astype(str).str.capitalize()
-            elif op == 'remove_whitespace':
-                df[col] = df[col].astype(str).str.replace(r'\s+', '', regex=True)
-            else:
-                results.append({"column": col, "status": "skipped", "reason": f"unknown operation: {operation}"})
+                try:
+                    if op == 'uppercase':
+                        filtered_df[col] = filtered_df[col].astype(str).str.upper()
+                    elif op == 'lowercase':
+                        filtered_df[col] = filtered_df[col].astype(str).str.lower()
+                    elif op == 'trim':
+                        filtered_df[col] = filtered_df[col].astype(str).str.strip()
+                    elif op == 'titlecase':
+                        filtered_df[col] = filtered_df[col].astype(str).str.title()
+                    elif op == 'capitalize':
+                        filtered_df[col] = filtered_df[col].astype(str).str.capitalize()
+                    elif op == 'remove_whitespace':
+                        filtered_df[col] = filtered_df[col].astype(str).str.replace(r'\s+', '', regex=True)
+                    else:
+                        results.append({"column": col, "status": "skipped", "reason": f"unknown operation: {operation}"})
+                        continue
+
+                    results.append({"column": col, "status": "success", "operation": op})
+                except Exception as e:
+                    results.append({"column": col, "status": "error", "reason": str(e)})
+            return filtered_df
+        
+        df, modified_count = apply_operation_to_filtered_rows(df, row_indices, op_func)
+    else:
+        # Original logic - apply to all rows
+        for col in target_columns:
+            # Check if column is string-compatible
+            try:
+                df[col] = df[col].astype(str)
+            except Exception:
+                results.append({"column": col, "status": "skipped", "reason": "cannot convert to string"})
                 continue
 
-            results.append({"column": col, "status": "success", "operation": op})
-        except Exception as e:
-            results.append({"column": col, "status": "error", "reason": str(e)})
+            # Normalize operation names
+            op_map = {
+                'upper': 'uppercase',
+                'lower': 'lowercase',
+                'strip': 'trim',
+                'title': 'titlecase',
+            }
+            op = op_map.get(operation, operation)
+
+            try:
+                if op == 'uppercase':
+                    df[col] = df[col].astype(str).str.upper()
+                elif op == 'lowercase':
+                    df[col] = df[col].astype(str).str.lower()
+                elif op == 'trim':
+                    df[col] = df[col].astype(str).str.strip()
+                elif op == 'titlecase':
+                    df[col] = df[col].astype(str).str.title()
+                elif op == 'capitalize':
+                    df[col] = df[col].astype(str).str.capitalize()
+                elif op == 'remove_whitespace':
+                    df[col] = df[col].astype(str).str.replace(r'\s+', '', regex=True)
+                else:
+                    results.append({"column": col, "status": "skipped", "reason": f"unknown operation: {operation}"})
+                    continue
+
+                results.append({"column": col, "status": "success", "operation": op})
+            except Exception as e:
+                results.append({"column": col, "status": "error", "reason": str(e)})
 
     # Check if any operations succeeded
     successful = [r for r in results if r.get('status') == 'success']
@@ -667,7 +785,9 @@ async def string_operations(
     await session.commit()
 
     success_count = len(successful)
-    msg = f"Applied {operation} to {success_count} column(s)"
+    # Update message based on scope
+    scope_msg = f" to {len(row_indices)} row(s)" if row_indices else ""
+    msg = f"Applied {operation} to {success_count} column(s){scope_msg}"
 
     return {"status": "success", "message": msg, "columns": dataset.columns, "results": results}
 
@@ -749,7 +869,11 @@ async def find_replace(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Find and replace values in columns. Supports plain text or regex."""
+    """Find and replace values in columns. Supports plain text or regex.
+    
+    Supports row filtering:
+    - { "columns": ["name"], "find": "foo", "replace": "bar", "row_indices": [0, 1, 2] }
+    """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
@@ -760,6 +884,7 @@ async def find_replace(
     replace_val = request.get("replace", "")
     use_regex = request.get("regex", False)
     case_sensitive = request.get("case_sensitive", True)
+    row_indices = request.get("row_indices")  # Optional row filtering
 
     if not find_val:
         raise HTTPException(status_code=400, detail="'find' value is required")
@@ -771,19 +896,44 @@ async def find_replace(
         raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
 
     changed = 0
-    for col in columns:
-        before_count = df[col].astype(str).str.contains(
-            find_val, regex=use_regex, case=case_sensitive, na=False
-        ).sum()
-        if use_regex:
-            df[col] = df[col].astype(str).str.replace(
-                find_val, replace_val, regex=True, case=case_sensitive
-            )
-        else:
-            df[col] = df[col].astype(str).str.replace(
-                find_val, replace_val, regex=False, case=case_sensitive
-            )
-        changed += before_count
+    
+    # Apply find/replace using helper function if row_indices provided
+    if row_indices:
+        def op_func(filtered_df):
+            nonlocal changed
+            local_changed = 0
+            for col in columns:
+                before_count = filtered_df[col].astype(str).str.contains(
+                    find_val, regex=use_regex, case=case_sensitive, na=False
+                ).sum()
+                if use_regex:
+                    filtered_df[col] = filtered_df[col].astype(str).str.replace(
+                        find_val, replace_val, regex=True, case=case_sensitive
+                    )
+                else:
+                    filtered_df[col] = filtered_df[col].astype(str).str.replace(
+                        find_val, replace_val, regex=False, case=case_sensitive
+                    )
+                local_changed += before_count
+            changed = local_changed
+            return filtered_df
+        
+        df, _ = apply_operation_to_filtered_rows(df, row_indices, op_func)
+    else:
+        # Original logic - apply to all rows
+        for col in columns:
+            before_count = df[col].astype(str).str.contains(
+                find_val, regex=use_regex, case=case_sensitive, na=False
+            ).sum()
+            if use_regex:
+                df[col] = df[col].astype(str).str.replace(
+                    find_val, replace_val, regex=True, case=case_sensitive
+                )
+            else:
+                df[col] = df[col].astype(str).str.replace(
+                    find_val, replace_val, regex=False, case=case_sensitive
+                )
+            changed += before_count
 
     if changed == 0:
         return {"status": "no_changes", "message": f"No occurrences of '{find_val}' found"}
