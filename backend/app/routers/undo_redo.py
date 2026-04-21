@@ -125,17 +125,33 @@ async def redo_operation(
     if not project_result.scalar_one_or_none():
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Find the last undone operation for this dataset
-    op_result = await session.execute(
-        select(OperationHistory)
-        .where(
-            cast(OperationHistory.dataset_id, String) == dataset_id,
-            OperationHistory.is_undone == True,
+    # Find the operation to redo
+    operation_id = (request or {}).get("operation_id")
+    
+    if operation_id:
+        op_result = await session.execute(
+            select(OperationHistory).where(
+                OperationHistory.id == operation_id,
+                cast(OperationHistory.dataset_id, String) == dataset_id,
+            )
         )
-        .order_by(OperationHistory.created_at.desc())
-        .limit(1)
-    )
-    operation = op_result.scalar_one_or_none()
+        operation = op_result.scalar_one_or_none()
+        if not operation:
+            raise HTTPException(status_code=404, detail="Operation not found")
+        if not operation.is_undone:
+            raise HTTPException(status_code=400, detail="Operation not undone")
+    else:
+        # Find the last undone operation for this dataset
+        op_result = await session.execute(
+            select(OperationHistory)
+            .where(
+                cast(OperationHistory.dataset_id, String) == dataset_id,
+                OperationHistory.is_undone == True,
+            )
+            .order_by(OperationHistory.created_at.desc())
+            .limit(1)
+        )
+        operation = op_result.scalar_one_or_none()
 
     if not operation:
         return {"status": "success", "message": "No operations to redo"}
@@ -227,4 +243,73 @@ async def undo_batch(
         "status": "success",
         "message": f"Undone {len(undone_ids)} operation(s)",
         "undone": undone_ids,
+    }
+
+
+@router.post("/datasets/{dataset_id}/operations/redo-batch")
+async def redo_batch(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Redo multiple operations by ID. Processes in chronological order."""
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    project_result = await session.execute(
+        select(Project).where(
+            Project.id == dataset.project_id, Project.user_id == current_user.id
+        )
+    )
+    if not project_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    operation_ids = request.get("operation_ids", [])
+    if not operation_ids:
+        raise HTTPException(status_code=400, detail="operation_ids is required")
+
+    # Fetch all requested operations, ordered oldest first (chronological order)
+    ops_result = await session.execute(
+        select(OperationHistory)
+        .where(
+            OperationHistory.id.in_(operation_ids),
+            cast(OperationHistory.dataset_id, String) == dataset_id,
+            OperationHistory.is_undone == True,
+        )
+        .order_by(OperationHistory.created_at.asc())
+    )
+    operations = ops_result.scalars().all()
+
+    if not operations:
+        return {"status": "success", "message": "No operations to redo", "redone": []}
+
+    # Redo in chronological order
+    # The first operation's after_snapshot becomes the dataset state
+    first_op = operations[0]  # oldest (first in asc order)
+    if first_op.after_snapshot:
+        if "columns" in first_op.after_snapshot:
+            dataset.columns = first_op.after_snapshot.get("columns")
+        # Restore data_json from saved state
+    if "data" in first_op.after_snapshot:
+        # Wrap data in proper format {"data": [...]} as expected by other endpoints
+        dataset.data_json = {"data": first_op.after_snapshot.get("data")}
+        if "row_count" in first_op.after_snapshot:
+            dataset.row_count = first_op.after_snapshot.get(
+                "row_count", len(first_op.after_snapshot.get("data", []))
+            )
+
+    redone_ids = []
+    for op in operations:
+        op.is_undone = False
+        redone_ids.append(op.id)
+
+    await session.commit()
+
+    return {
+        "status": "success",
+        "message": f"Redone {len(redone_ids)} operation(s)",
+        "redone": redone_ids,
     }

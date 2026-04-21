@@ -148,9 +148,9 @@ class TestDatabaseMigrations:
         undo_routes = [r for r in routes if 'undo' in r and 'operations' in r]
         redo_routes = [r for r in routes if 'redo' in r and 'operations' in r]
 
-        # Should be 2 undo routes (undo + undo-batch) and 1 redo (from undo_redo.py)
+        # Should be 2 undo routes (undo + undo-batch) and 2 redo (redo + redo-batch) from undo_redo.py
         assert len(undo_routes) == 2, f"Found {len(undo_routes)} undo routes: {undo_routes}"
-        assert len(redo_routes) == 1, f"Found {len(redo_routes)} redo routes: {redo_routes}"
+        assert len(redo_routes) == 2, f"Found {len(redo_routes)} redo routes: {redo_routes}"
 
     def test_operations_save_data_json_for_undo(self):
         """Verify all operations save data_json in snapshots for undo to work."""

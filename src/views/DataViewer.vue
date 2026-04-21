@@ -881,9 +881,9 @@
           </div>
         </div>
         <div class="mt-2">
-          <button class="btn btn-sm btn-outline-secondary" @click="addAnotherRow">
+          <BButton size="sm" variant="outline-secondary" @click="addAnotherRow">
             <i class="bi bi-plus me-1"></i>Add another row
-          </button>
+          </BButton>
           <span v-if="pendingRows.length" class="ms-2 text-muted small">{{ pendingRows.length }} row(s) ready</span>
         </div>
       </div>
@@ -1156,12 +1156,17 @@
             <input class="form-check-input" type="checkbox" id="select-all-ops" :checked="allOpsSelected" @change="toggleAllOps">
             <label class="form-check-label small" for="select-all-ops">Select all</label>
           </div>
-          <BButton v-if="undoableSelectedCount > 0" size="sm" variant="outline-warning" @click="undoSelectedOps">
-            <i class="bi bi-arrow-counterclockwise me-1"></i>Undo {{ undoableSelectedCount }}
-          </BButton>
-          <BButton v-if="deletableSelectedCount > 0" size="sm" variant="outline-danger" @click="deleteSelectedOps" title="Delete selected undone operations">
-            <i class="bi bi-trash me-1"></i>Delete {{ deletableSelectedCount }}
-          </BButton>
+          <div class="d-flex gap-1">
+            <BButton v-if="redoableSelectedCount > 0" size="sm" variant="outline-success" @click="redoSelectedOps">
+              <i class="bi bi-arrow-clockwise me-1"></i>Redo {{ redoableSelectedCount }}
+            </BButton>
+            <BButton v-if="undoableSelectedCount > 0" size="sm" variant="outline-warning" @click="undoSelectedOps">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>Undo {{ undoableSelectedCount }}
+            </BButton>
+            <BButton v-if="deletableSelectedCount > 0" size="sm" variant="outline-danger" @click="deleteSelectedOps" title="Delete selected undone operations">
+              <i class="bi bi-trash me-1"></i>Delete {{ deletableSelectedCount }}
+            </BButton>
+          </div>
         </div>
         <div v-for="op in operations" :key="op.id" class="card mb-2">
           <div class="card-body py-2 px-3">
@@ -1188,8 +1193,11 @@
                 </div>
               </div>
               <div class="d-flex align-items-center gap-1">
-                <BButton v-if="!op.is_undone" size="sm" variant="outline-warning" @click="undoOperation(op.id)">
+                <BButton v-if="!op.is_undone" size="sm" variant="outline-warning" @click="undoOperation(op.id)" title="Undo this operation">
                   Undo
+                </BButton>
+                <BButton v-if="op.is_undone" size="sm" variant="outline-success" @click="redoOperation(op.id)" title="Redo this operation">
+                  <i class="bi bi-arrow-clockwise"></i>
                 </BButton>
                 <BButton v-if="op.is_undone" size="sm" variant="outline-danger" @click="deleteOperation(op.id)" title="Delete this record">
                   <i class="bi bi-trash"></i>
@@ -1543,6 +1551,13 @@ const allOpsSelected = computed(() => {
   return operations.value.length > 0 && operations.value.every(op => selectedOpIds.value.includes(op.id))
 })
 const deletableSelectedCount = computed(() => {
+  return selectedOpIds.value.filter(id => {
+    const op = operations.value.find(o => o.id === id)
+    return op && op.is_undone
+  }).length
+})
+
+const redoableSelectedCount = computed(() => {
   return selectedOpIds.value.filter(id => {
     const op = operations.value.find(o => o.id === id)
     return op && op.is_undone
@@ -2850,14 +2865,20 @@ async function reorderRows(direction) {
   finally { operating.value = false }
 }
 
-async function redo() {
+async function redo(opId = null) {
   operating.value = true
   try {
+    const body = opId ? { operation_id: opId } : {}
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/redo`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(body)
     })
     if (res.ok) { toast.success('Redo successful'); await refreshData() }
+    else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed to redo')
+    }
   } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
 }
@@ -3183,6 +3204,28 @@ async function undoOperation(opId) {
   }
 }
 
+async function redoOperation(opId) {
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/redo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ operation_id: opId })
+    })
+    if (res.ok) {
+      toast.success('Operation redone')
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed to redo')
+    }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    operating.value = false
+  }
+}
+
 function showOpDetails(op) {
   selectedOp.value = op
   showOpDetailsModal.value = true
@@ -3255,6 +3298,41 @@ async function undoSelectedOps() {
     } else {
       const err = await res.json()
       toast.error(err.detail || 'Failed to undo')
+    }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    operating.value = false
+  }
+}
+
+async function redoSelectedOps() {
+  if (!selectedOpIds.value.length) return
+  // Only redo operations that are already undone
+  const redoable = selectedOpIds.value.filter(id => {
+    const op = operations.value.find(o => o.id === id)
+    return op && op.is_undone
+  })
+  if (!redoable.length) {
+    toast.warning('No operations to redo.')
+    return
+  }
+  if (!(await showConfirm({ title: 'Redo Operations', message: `Redo ${redoable.length} operation(s)?`, variant: 'success', confirmText: 'Redo' }))) return
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/redo-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ operation_ids: redoable })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message)
+      selectedOpIds.value = []
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed to redo')
     }
   } catch (e) {
     toast.error(e.message)
