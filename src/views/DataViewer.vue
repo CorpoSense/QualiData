@@ -198,21 +198,6 @@
             </BDropdownItem>
           </BDropdown>
 
-          <!-- Row Scope Selector -->
-          <div class="d-flex align-items-center gap-1 ms-2" title="Apply operations to selected rows only">
-            <small class="text-muted">Scope:</small>
-            <BFormSelect 
-              v-model="operationRowScope" 
-              size="sm" 
-              :options="[
-                { value: 'all', text: 'All rows' },
-                { value: 'selected', text: 'Selected (' + selectedRowIndices.length + ')' }
-              ]"
-              :disabled="operationRowScope === 'selected' && selectedRowIndices.length === 0"
-              style="width: auto; min-width: 120px;"
-            ></BFormSelect>
-          </div>
-
           <BDropdown text="AI Clean" size="sm">
             <BDropdownItem @click="showStructuralAiModal = true">
               <i class="bi bi-list-task me-2"></i> Structural (Columns)
@@ -236,7 +221,7 @@
 
     <!-- Selection Bar - click columns in table to select -->
     <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
-      <BBadge variant="secondary" pill>{{ data.length }} rows</BBadge>
+      <BBadge :variant="rowSelectMode && selectedRowIndices.length ? 'info' : 'secondary'" pill>{{ (rowSelectMode && selectedRowIndices.length)?selectedRowIndices.length:data.length }} rows</BBadge>
       <BBadge variant="secondary" pill>{{ columns.length }} columns</BBadge>
       <BBadge variant="warning" pill>{{ nullCount }} nulls</BBadge>
       
@@ -278,6 +263,20 @@
       <span v-if="selectedColumns.length === 0" class="text-muted small ms-2">
         <i class="bi bi-info-circle me-1"></i>Click column headers to select
       </span>
+      <!-- Row Scope Selector -->
+      <div v-if="rowSelectMode && selectedRowIndices.length" class="d-flex align-items-center gap-1 ms-2" title="Apply operations to selected rows only">
+        <small class="text-muted">Scope:</small>
+        <BFormSelect 
+          v-model="operationRowScope" 
+          size="sm" 
+          :options="[
+            { value: 'all', text: 'All rows' },
+            { value: 'selected', text: 'Selected (' + selectedRowIndices.length + ')' }
+          ]"
+          :disabled="operationRowScope === 'selected' && selectedRowIndices.length === 0"
+          style="width: auto; min-width: 120px;"
+        ></BFormSelect>
+      </div>      
     </div>
 
     <!-- Loading -->
@@ -1743,6 +1742,13 @@ watch(showCompare, (val) => {
   if (!val) {
     comparisonResult.value = null
     compareOpId.value = null
+  }
+})
+
+// Auto-switch row scope to 'selected' when rows are selected
+watch(selectedRowIndices, (newVal) => {
+  if (newVal.length > 0 && operationRowScope.value === 'all') {
+    operationRowScope.value = 'selected'
   }
 })
 
