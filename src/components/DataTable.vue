@@ -1,5 +1,7 @@
 <template>
   <div class="data-table-wrapper">
+
+
     <!-- Table -->
     <div class="table-responsive">
       <table class="table table-hover table-striped table-sm">
@@ -16,7 +18,7 @@
               >
             </th>
             <th
-              v-for="field in fields"
+              v-for="(field, index) in visibleFields"
               :key="field.key"
               :class="{ 'table-primary': isSelected(field) }"
               :style="{ width: columnWidths[field.key] ? columnWidths[field.key] + 'px' : 'auto', minWidth: '50px', position: 'relative' }"
@@ -25,18 +27,27 @@
             >
               <span class="d-flex align-items-center justify-content-between">
                 {{ field.label }}
-                <button
-                  class="btn btn-sm btn-outline-secondary border-0 py-0 px-1 sort-btn"
-                  :class="{ active: getSortIndex(field.key) >= 0 }"
-                  @click.stop="toggleSort(field.key)"
-                  :title="sortTitle(field.key)"
-                >
-                  <template v-if="getSortIndex(field.key) >= 0">
-                    <i :class="getSortDir(field.key) === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
-                    <small v-if="multiSort && sortKeys.length > 1" class="ms-0 sort-badge">{{ getSortIndex(field.key) + 1 }}</small>
-                  </template>
-                  <i v-else class="bi bi-arrow-down-up text-muted"></i>
-                </button>
+                <div class="d-flex align-items-center gap-1">
+                  <button
+                    class="btn btn-sm btn-outline-secondary border-0 py-0 px-1"
+                    @click.stop="toggleVisibility(field.key)"
+                    :title="isHidden(field.key) ? 'Show column' : 'Hide column'"
+                  >
+                    <i :class="isHidden(field.key) ? 'bi bi-eye-slash text-muted' : 'bi bi-eye-slash'" style="opacity: 0.4; font-size: 0.65rem;"></i>
+                  </button>
+                  <button
+                    class="btn btn-sm btn-outline-secondary border-0 py-0 px-1 sort-btn"
+                    :class="{ active: getSortIndex(field.key) >= 0 }"
+                    @click.stop="toggleSort(field.key)"
+                    :title="sortTitle(field.key)"
+                  >
+                    <template v-if="getSortIndex(field.key) >= 0">
+                      <i :class="getSortDir(field.key) === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down'"></i>
+                      <small v-if="multiSort && sortKeys.length > 1" class="ms-0 sort-badge">{{ getSortIndex(field.key) + 1 }}</small>
+                    </template>
+                    <i v-else class="bi bi-arrow-down-up text-muted"></i>
+                  </button>
+                </div>
               </span>
               <div
                 class="resize-handle"
@@ -44,6 +55,42 @@
                 @dblclick.stop="autoFitColumn(field.key)"
                 title="Drag to resize, double-click to auto-fit"
               ></div>
+            </th>
+            <!-- Column visibility button in last header column -->
+            <th v-if="visibleFields.length > 0" style="width: 50px; min-width: 50px; position: relative;" class="text-center">
+              <BButton 
+                size="sm" 
+                variant="outline-secondary" 
+                @click.stop="showColumnMenu = !showColumnMenu" 
+                title="Column visibility"
+                class="border-0 p-1"
+              >
+                <i class="bi bi-eye"></i>
+                <span v-if="hiddenColumns.length > 0" class="badge bg-warning ms-1" style="font-size: 0.6rem;">{{ hiddenColumns.length }}</span>
+              </BButton>
+              <div v-if="showColumnMenu" class="column-menu" style="right: 0;">
+                <div class="column-menu-header">
+                  <span class="fw-bold small">Show/Hide Columns</span>
+                  <button class="btn-close btn-close-sm" @click.stop="showColumnMenu = false"></button>
+                </div>
+                <div class="column-menu-list">
+                  <div 
+                    v-for="field in allFields" 
+                    :key="field.key" 
+                    class="column-menu-item"
+                    :class="{ 'text-muted': isHidden(field.key) }"
+                    @click.stop="toggleVisibility(field.key)"
+                  >
+                    <i :class="isHidden(field.key) ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+                    <span class="column-name">{{ field.label }}</span>
+                  </div>
+                </div>
+                <div class="column-menu-footer">
+                  <button class="btn btn-sm btn-outline-secondary w-100" @click.stop="showAllColumns">
+                    Show All
+                  </button>
+                </div>
+              </div>
             </th>
           </tr>
         </thead>
@@ -62,22 +109,22 @@
                 @change="$emit('row-selected', index)"
               >
             </td>
-            <td v-for="field in fields" :key="field.key" @click="selectable && $emit('row-clicked', { item: row, index })" @dblclick="$emit('cell-dblclick', { row: index, column: field.key, value: row[field.key] })">
+            <td v-for="field in visibleFields" :key="field.key" @click="selectable && $emit('row-clicked', { item: row, index })" @dblclick="$emit('cell-dblclick', { row: index, column: field.key, value: row[field.key] })">
               {{ row[field.key] }}
             </td>
           </tr>
-          <tr v-if="sortedItems.length === 0">
-            <td :colspan="fields.length + (selectable ? 1 : 0) + (showIndex ? 1 : 0)" class="text-center text-muted py-4">
-              No data to display
-            </td>
-          </tr>
+           <tr v-if="sortedItems.length === 0">
+             <td :colspan="visibleFields.length + 1 + (selectable ? 1 : 0) + (showIndex ? 1 : 0)" class="text-center text-muted py-4">
+               No data to display
+             </td>
+           </tr>
         </tbody>
         <!-- Smart Footer -->
         <tfoot v-if="showFooter" class="smart-footer">
           <tr>
             <td v-if="showIndex" class="text-muted small text-center"></td>
             <td v-if="selectable"></td>
-            <td v-for="field in fields" :key="field.key" class="footer-cell">
+            <td v-for="field in visibleFields" :key="field.key" class="footer-cell">
               <div class="d-flex align-items-center justify-content-between">
                 <div class="footer-stats">
                   <template v-if="getColumnStats(field.key)">
@@ -129,7 +176,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -145,10 +192,14 @@ const props = defineProps({
   // footerConfig: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(['row-clicked', 'head-clicked', 'row-selected', 'toggle-all', 'sort-changed', 'cell-dblclick', 'footer-config-changed'])
+const emit = defineEmits(['row-clicked', 'head-clicked', 'row-selected', 'toggle-all', 'sort-changed', 'cell-dblclick', 'footer-config-changed', 'hidden-columns-changed'])
 
 // Sort state: array of { key, dir } for multi-sort
 const sortKeys = ref([]) // [{ key: 'name', dir: 'asc' }, ...]
+
+// Hidden columns state
+const hiddenColumns = ref([])
+const showColumnMenu = ref(false)
 
 // Column resizing state
 const columnWidths = ref({}) // { key: width }
@@ -226,6 +277,49 @@ function isSelected(field) {
   const fieldKey = field.key || field.field
   return props.selectedColumns.includes(fieldKey)
 }
+
+// Hidden columns functions
+function isHidden(key) {
+  return hiddenColumns.value.includes(key)
+}
+
+function toggleVisibility(key) {
+  const idx = hiddenColumns.value.indexOf(key)
+  if (idx >= 0) {
+    hiddenColumns.value.splice(idx, 1)
+  } else {
+    hiddenColumns.value.push(key)
+  }
+  emit('hidden-columns-changed', hiddenColumns.value)
+}
+
+function showAllColumns() {
+  hiddenColumns.value = []
+  emit('hidden-columns-changed', hiddenColumns.value)
+}
+
+function hideColumn(key) {
+  if (!isHidden(key)) {
+    hiddenColumns.value.push(key)
+    emit('hidden-columns-changed', hiddenColumns.value)
+  }
+}
+
+function unhideColumn(key) {
+  const idx = hiddenColumns.value.indexOf(key)
+  if (idx >= 0) {
+    hiddenColumns.value.splice(idx, 1)
+    emit('hidden-columns-changed', hiddenColumns.value)
+  }
+}
+
+// All fields (including hidden)
+const allFields = computed(() => props.fields)
+
+// Visible fields (excluding hidden)
+const visibleFields = computed(() => {
+  return props.fields.filter(f => !hiddenColumns.value.includes(f.key))
+})
 
 // Footer functions
 function getColumnStats(key) {
@@ -312,10 +406,22 @@ onUnmounted(() => {
     document.body.style.userSelect = ''
   }
 })
+
+// Expose methods and state to parent
+defineExpose({
+  hiddenColumns,
+  hideColumn,
+  unhideColumn,
+  showAllColumns,
+  isHidden
+})
 </script>
 
 <style scoped>
-.data-table-wrapper { width: 100%; }
+.data-table-wrapper { 
+  width: 100%; 
+  position: relative;
+}
 .table-responsive { max-height: 70vh; overflow-y: auto; }
 table { margin-bottom: 0; }
 th { user-select: none; position: relative; }
@@ -399,5 +505,77 @@ thead {
 
 tfoot {
   display: table-footer-group;
+}
+
+/* Column Visibility Dropdown */
+
+
+.column-visibility-dropdown .badge {
+  font-size: 0.65rem;
+  padding: 2px 5px;
+}
+
+.column-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 200px;
+  max-height: 300px;
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.column-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #dee2e6;
+  background: #f8f9fa;
+  border-radius: 6px 6px 0 0;
+}
+
+.column-menu-list {
+  overflow-y: auto;
+  flex: 1;
+  max-height: 200px;
+}
+
+.column-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.column-menu-item:hover {
+  background: #f0f0f0;
+}
+
+.column-menu-item .column-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.85rem;
+}
+
+.column-menu-footer {
+  padding: 8px 12px;
+  border-top: 1px solid #dee2e6;
+  background: #f8f9fa;
+  border-radius: 0 0 6px 6px;
+}
+
+.btn-close-sm {
+  font-size: 0.5rem;
+  padding: 0.25rem;
 }
 </style>

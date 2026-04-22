@@ -223,6 +223,9 @@
     <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
       <BBadge :variant="rowSelectMode && selectedRowIndices.length ? 'info' : 'secondary'" pill>{{ (rowSelectMode && selectedRowIndices.length)?selectedRowIndices.length:data.length }} rows</BBadge>
       <BBadge variant="secondary" pill>{{ columns.length }} columns</BBadge>
+      <BBadge v-if="hiddenColumns.length > 0" variant="warning" pill class="cursor-pointer" @click="unhideAllColumns" title="Click to show all">
+        <i class="bi bi-eye-slash me-1"></i>{{ hiddenColumns.length }} hidden
+      </BBadge>
       <BBadge variant="warning" pill>{{ nullCount }} nulls</BBadge>
       
       <!-- Selected columns display -->
@@ -277,6 +280,11 @@
           style="width: auto; min-width: 120px;"
         ></BFormSelect>
       </div>      
+      <!-- Apply to Hidden Columns Toggle -->
+      <div v-if="hiddenColumns.length > 0" class="d-flex align-items-center gap-1 ms-2" title="Include hidden columns in operations">
+        <input class="form-check-input" type="checkbox" v-model="applyToHiddenColumns" id="apply-to-hidden" style="margin: 0;">
+        <label class="form-check-label small text-muted" for="apply-to-hidden">Apply to hidden</label>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -290,6 +298,7 @@
     <div v-else class="card">
       <!-- Custom DataTable (no pagination - handled below) -->
       <DataTable
+        ref="dataTableRef"
         :items="filteredData"
         :fields="tableFields"
         :selected-columns="selectedColumns"
@@ -304,6 +313,7 @@
         @row-selected="toggleRowSelection"
         @toggle-all="toggleAllRows"
         @cell-dblclick="openCellEditor"
+        @hidden-columns-changed="onHiddenColumnsChanged"
       />
 
       <!-- Pagination Footer -->
@@ -1256,10 +1266,30 @@ const endRow = computed(() => Math.min(page.value * limit.value, totalRows.value
 
 const searchQuery = ref('')
 const showRowFilterModal = ref(false)
+const dataTableRef = ref(null)
+const hiddenColumns = ref([])
+const applyToHiddenColumns = ref(false) // Whether to apply operations to hidden columns
 const rowFilters = ref({})
 const rowSelectMode = ref(false)
 const operationRowScope = ref('all') // 'all' | 'selected'
-const showTableSettings = ref(false)
+async function onHiddenColumnsChanged(newHiddenColumns) {
+  hiddenColumns.value = newHiddenColumns
+}
+
+function unhideAllColumns() {
+  if (dataTableRef.value) {
+    dataTableRef.value.showAllColumns()
+  }
+  hiddenColumns.value = []
+}
+
+// Filter selected columns to exclude hidden ones (unless applyToHiddenColumns is enabled)
+const effectiveSelectedColumns = computed(() => {
+  if (applyToHiddenColumns.value) {
+    return selectedColumns.value
+  }
+  return selectedColumns.value.filter(col => !hiddenColumns.value.includes(col))
+})
 const showCellEdit = ref(false)
 const cellEdit = ref({ row: 0, column: '', value: '' })
 const showEncodingModal = ref(false)
@@ -1277,6 +1307,7 @@ const showRowIndex = ref(false)
 const multiSort = ref(false)
 const showFooter = ref(false)
 const footerStats = ref({})
+const showTableSettings = ref(false)
 // const footerConfig = ref({})
 const fetchingStats = ref(false)
 
@@ -1369,7 +1400,7 @@ const ENCODING_CONFIGS = {
 }
 
 function openEncodingModal(op) {
-  if (!selectedColumns.value.length) {
+  if (!effectiveSelectedColumns.value.length) {
     toast.warning('Select a column first')
     return
   }
@@ -1381,27 +1412,27 @@ function openEncodingModal(op) {
   showEncodingModal.value = true
   // Generate preview from current data
   if (op === 'one_hot') {
-    encodingParams.value.prefix = selectedColumns.value[0]
-    const col = selectedColumns.value[0]
+    encodingParams.value.prefix = effectiveSelectedColumns.value[0]
+    const col = effectiveSelectedColumns.value[0]
     const unique = [...new Set(data.value.map(r => r[col]).filter(v => v != null))]
     encodingPreview.value = [{ ...Object.fromEntries(unique.map(v => [`${encodingParams.value.prefix}_${v}`, 1])) }]
   } else if (op === 'label') {
-    const col = selectedColumns.value[0]
+    const col = effectiveSelectedColumns.value[0]
     const unique = [...new Set(data.value.map(r => r[col]).filter(v => v != null))].sort()
     encodingPreview.value = unique.map((v, i) => ({ value: v, label: i }))
   } else if (op === 'bin') {
-    const col = selectedColumns.value[0]
+    const col = effectiveSelectedColumns.value[0]
     encodingPreview.value = data.value.slice(0, 5).map(r => ({ original: r[col], binned: '...' }))
   }
 }
 
 async function applyEncoding() {
-  if (!selectedColumns.value.length) return
+  if (!effectiveSelectedColumns.value.length) return
   const op = encodingOp.value
-  const body = { column: selectedColumns.value[0], operation: op }
+  const body = { column: effectiveSelectedColumns.value[0], operation: op }
 
   if (op === 'one_hot') {
-    body.prefix = encodingParams.value.prefix || selectedColumns.value[0]
+    body.prefix = encodingParams.value.prefix || effectiveSelectedColumns.value[0]
   } else if (op === 'map') {
     try {
       body.mapping = JSON.parse(encodingParams.value.mappingJson)
@@ -1851,10 +1882,10 @@ async function loadComparison() {
 }
 
 async function applyOperation(endpoint, params) {
-  if (!selectedColumns.value || selectedColumns.value.length === 0) {
+  if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length === 0) {
     toast.warning('No columns selected'); return
   }
-  const col = selectedColumns.value[0]
+  const col = effectiveSelectedColumns.value[0]
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/${endpoint}`, {
@@ -1873,13 +1904,13 @@ async function applyOperation(endpoint, params) {
 }
 
 async function applyStringOp(operation) {
-  if (!selectedColumns.value || selectedColumns.value.length === 0) {
+  if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length === 0) {
     toast.warning('No columns selected'); return
   }
   operating.value = true
   try {
     const body = { 
-      columns: selectedColumns.value, 
+      columns: effectiveSelectedColumns.value, 
       operation,
       row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined
     }
@@ -1900,7 +1931,7 @@ async function applyStringOp(operation) {
 
 // Merge columns
 function openMergeColumnsModal() {
-  mergeColumns.value = selectedColumns.value.length >= 2 ? [...selectedColumns.value] : []
+  mergeColumns.value = effectiveSelectedColumns.value.length >= 2 ? [...effectiveSelectedColumns.value] : []
   mergeNewColumn.value = ''
   mergeDelimiter.value = ' '
   showMergeModal.value = true
@@ -1930,7 +1961,7 @@ async function applyMerge() {
 
 // Split column
 function openSplitColumnModal() {
-  if (selectedColumns.value.length !== 1) {
+  if (effectiveSelectedColumns.value.length !== 1) {
     toast.warning('Select exactly 1 column to split')
     return
   }
@@ -1954,7 +1985,7 @@ async function applySplit() {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/split-column`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ column: selectedColumns.value[0], delimiter: splitDelimiter.value, new_columns: splitNewColumns.value })
+      body: JSON.stringify({ column: effectiveSelectedColumns.value[0], delimiter: splitDelimiter.value, new_columns: splitNewColumns.value })
     })
     if (res.ok) {
       const data = await res.json()
@@ -1971,22 +2002,22 @@ async function applySplit() {
 
 // Clone column
 function openCloneColumnModal() {
-  if (selectedColumns.value.length !== 1) {
+  if (effectiveSelectedColumns.value.length !== 1) {
     toast.warning('Select exactly 1 column to clone')
     return
   }
-  cloneNewName.value = selectedColumns.value[0] + '_copy'
+  cloneNewName.value = effectiveSelectedColumns.value[0] + '_copy'
   showCloneModal.value = true
 }
 
 async function applyCloneColumn() {
-  if (!cloneNewName.value || selectedColumns.value.length !== 1) return
+  if (!cloneNewName.value || effectiveSelectedColumns.value.length !== 1) return
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/duplicate-column`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ source_column: selectedColumns.value[0], new_column: cloneNewName.value })
+      body: JSON.stringify({ source_column: effectiveSelectedColumns.value[0], new_column: cloneNewName.value })
     })
     if (res.ok) {
       const data = await res.json()
@@ -2002,12 +2033,12 @@ async function applyCloneColumn() {
 }
 
 function openExtractJsonModal() {
-  if (!selectedColumns.value || selectedColumns.value.length !== 1) {
+  if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length !== 1) {
     toast.warning('Select exactly 1 column to extract JSON from')
     return
   }
   // Get sample values from current data
-  const col = selectedColumns.value[0]
+  const col = effectiveSelectedColumns.value[0]
   const samples = data.value.map(row => row[col]).filter(v => v != null).slice(0, 5)
   extractJsonSamples.value = samples.map(s => String(s))
 
@@ -2029,7 +2060,7 @@ function openExtractJsonModal() {
 
 async function applyExtractJson() {
   if (!extractJsonKey.value) { toast.warning('Enter a key'); return }
-  const col = selectedColumns.value[0]
+  const col = effectiveSelectedColumns.value[0]
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/extract-json`, {
@@ -2048,7 +2079,7 @@ async function applyExtractJson() {
 }
 
 async function applyFindReplace() {
-  if (!selectedColumns.value.length) { toast.warning('Select columns first'); return }
+  if (!effectiveSelectedColumns.value.length) { toast.warning('Select columns first'); return }
   if (!findValue.value) { toast.warning('Enter a find value'); return }
   operating.value = true
   try {
@@ -2056,7 +2087,7 @@ async function applyFindReplace() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify({
-        columns: selectedColumns.value,
+        columns: effectiveSelectedColumns.value,
         find: findValue.value,
         replace: replaceValue.value,
         regex: findReplaceRegex.value,
@@ -2075,13 +2106,13 @@ async function applyFindReplace() {
 }
 
 async function applyDatetimeOp(operation) {
-  if (!selectedColumns.value || selectedColumns.value.length === 0) {
+  if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length === 0) {
     toast.warning('No columns selected'); return
   }
   operating.value = true
   try {
     const body = { 
-      columns: selectedColumns.value, 
+      columns: effectiveSelectedColumns.value, 
       operation,
       row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined
     }
@@ -2121,15 +2152,15 @@ async function applyStructuralOp(operation) {
     finally { operating.value = false }
   } else if (operation === 'rename') {
     // Rename is single-column only
-    if (selectedColumns.value.length !== 1) {
+    if (effectiveSelectedColumns.value.length !== 1) {
       toast.warning('Select exactly 1 column to rename'); return
     }
     const newName = await showPrompt({ title: 'Rename Column', message: 'Enter new column name:' })
     if (!newName) return
-    const col = selectedColumns.value[0]
+    const col = effectiveSelectedColumns.value[0]
     await applyOperation('structural', { operation, column: col, new_name: newName })
   } else if (operation === 'astype') {
-    if (!selectedColumns.value || selectedColumns.value.length === 0) {
+    if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length === 0) {
       toast.warning('No columns selected'); return
     }
     const dtype = await showPrompt({ title: 'Change Type', message: 'Enter new type (int, float, str, bool):' })
@@ -2139,7 +2170,7 @@ async function applyStructuralOp(operation) {
       const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/structural`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ operation, columns: selectedColumns.value, dtype })
+        body: JSON.stringify({ operation, columns: effectiveSelectedColumns.value, dtype })
       })
       if (res.ok) { 
         const data = await res.json()
@@ -2150,16 +2181,16 @@ async function applyStructuralOp(operation) {
     } catch (e) { toast.error(e.message) }
     finally { operating.value = false }
   } else if (operation === 'drop') {
-    if (!selectedColumns.value || selectedColumns.value.length === 0) {
+    if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length === 0) {
       toast.warning('No columns selected'); return
     }
-    if (!(await showConfirm({ title: 'Delete Columns', message: `Delete ${selectedColumns.value.length} column(s)?`, variant: 'danger', confirmText: 'Delete' }))) return
+    if (!(await showConfirm({ title: 'Delete Columns', message: `Delete ${effectiveSelectedColumns.value.length} column(s)?`, variant: 'danger', confirmText: 'Delete' }))) return
     operating.value = true
     try {
       const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/structural`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ operation, columns: selectedColumns.value })
+        body: JSON.stringify({ operation, columns: effectiveSelectedColumns.value })
       })
       if (res.ok) { 
         const data = await res.json()
@@ -2173,13 +2204,13 @@ async function applyStructuralOp(operation) {
   }
 }
 async function applyNumericOp(operation) {
-  if (!selectedColumns.value || selectedColumns.value.length === 0) {
+  if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length === 0) {
     toast.warning('No columns selected'); return
   }
   operating.value = true
   try {
     const body = { 
-      columns: selectedColumns.value, 
+      columns: effectiveSelectedColumns.value, 
       operation,
       row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined
     }
@@ -2200,7 +2231,7 @@ async function applyNumericOp(operation) {
 async function applyFillnaStat(method) {
   operating.value = true
   try {
-    const cols = selectedColumns.value.length ? selectedColumns.value : undefined
+    const cols = effectiveSelectedColumns.value.length ? effectiveSelectedColumns.value : undefined
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/fillna`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
@@ -2253,7 +2284,7 @@ function showOpConfirmModal(opId) {
     toast.warning(`Unknown operation: ${opId}`)
     return
   }
-  if (!selectedColumns.value.length && !['remove-duplicates', 'fillna-drop'].includes(config.operation)) {
+  if (!effectiveSelectedColumns.value.length && !['remove-duplicates', 'fillna-drop'].includes(config.operation)) {
     toast.warning('Select column(s) first')
     return
   }
@@ -2281,27 +2312,27 @@ async function onOpConfirmApply(params) {
 
     if (config.operation === 'fillna') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/fillna`
-      body = { columns: selectedColumns.value.length ? selectedColumns.value : undefined, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
+      body = { columns: effectiveSelectedColumns.value.length ? effectiveSelectedColumns.value : undefined, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
     } else if (config.operation === 'remove-duplicates') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/remove-duplicates`
       body = mergedParams
     } else if (config.operation === 'fuzzy-dedupe') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/fuzzy-dedupe`
       body = { 
-        column: selectedColumns.value[0] || null, 
+        column: effectiveSelectedColumns.value[0] || null, 
         threshold: (mergedParams.threshold || 85) / 100,
         matching_type: mergedParams.matching_type || 'standard',
         mode: mergedParams.mode || 'delete'
       }
     } else if (config.operation === 'string-operations') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/string-operations`
-      body = { columns: selectedColumns.value, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
+      body = { columns: effectiveSelectedColumns.value, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
     } else if (config.operation === 'datetime-operations') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/datetime-operations`
-      body = { columns: selectedColumns.value, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
+      body = { columns: effectiveSelectedColumns.value, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
     } else if (config.operation === 'numeric') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/numeric`
-      body = { columns: selectedColumns.value, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
+      body = { columns: effectiveSelectedColumns.value, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
     } else {
       toast.warning(`Unknown operation: ${config.operation}`)
       return
@@ -2884,7 +2915,7 @@ async function redo(opId = null) {
 }
 
 async function applyStructuralAiClean(payload) {
-  if (!selectedColumns.value || selectedColumns.value.length === 0) {
+  if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length === 0) {
     toast.warning('No column selected'); return
   }
   if (!payload.instruction) return
@@ -2892,7 +2923,7 @@ async function applyStructuralAiClean(payload) {
     toast.warning('Please select an AI Agent'); return
   }
   const body = {
-    columns: selectedColumns.value,
+    columns: effectiveSelectedColumns.value,
     instruction: payload.instruction,
     type: 'structural',
     agent_id: payload.agentId,
@@ -2974,7 +3005,7 @@ function onFuzzyAiHelp(payload) {
 }
 
 async function applyDataAiClean(payload) {
-  if (!selectedColumns.value || selectedColumns.value.length === 0) {
+  if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length === 0) {
     toast.warning('No column selected'); return
   }
   if (!payload.instruction) { toast.warning('Enter an instruction'); return }
@@ -2983,7 +3014,7 @@ async function applyDataAiClean(payload) {
   if (!payload.batchProcessAll) {
     // Single batch mode (original behavior)
     const body = {
-      columns: selectedColumns.value,
+      columns: effectiveSelectedColumns.value,
       instruction: payload.instruction,
       type: 'data',
       agent_id: payload.agentId,
@@ -3024,7 +3055,7 @@ async function applyDataAiClean(payload) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify({
-        columns: selectedColumns.value,
+        columns: effectiveSelectedColumns.value,
         instruction: payload.instruction,
         type: 'data',
         agent_id: payload.agentId,
@@ -3050,7 +3081,7 @@ async function applyDataAiClean(payload) {
     if (warning) toast.warning(warning)
 
     // Step 2: Stream progress via SSE using fetch (EventSource can't send headers)
-    const columnsParam = selectedColumns.value.join(',')
+    const columnsParam = effectiveSelectedColumns.value.join(',')
     const sseUrl = `${apiUrl}/api/datasets/${datasetId.value}/ai-batch/${job_id}/stream?columns=${encodeURIComponent(columnsParam)}&instruction=${encodeURIComponent(payload.instruction)}&agent_id=${payload.agentId}&batch_size=${payload.batchSize}&delay=${payload.batchDelay}&start_row=${payload.batchStartRow}`
 
     try {

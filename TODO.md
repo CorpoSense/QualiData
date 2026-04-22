@@ -31,17 +31,20 @@ Track tasks and improvements for the project.
 
 ## Improvments:
 
+#### Extended filtering and sorting
+- [ ] Implement an option to each column which show an extended menu for multi-filtering and multi-sorting similar to Excel's while showing unique values and theirs counts so the user can apply multiple both filtering and sorting for multiple columns.
+- [ ] This feature is an extension to the previous feature and should not override any of them while it uses most of the previous existing APIs.
+
 #### Hide columns
 - [ ] The user is able to hide some columns to save some screen space and work easily on the visible columns.
 - [ ] The invisible columns should not be effected (we may need to reflect on that).
 
-#### Apply on selected rows/columns
-- The user is able to apply any operation to any selected combination of: rows, columns or rows and columns.
-- It's okay if some features or operations wont be available in the mode when the user select both a set of rows and columns.
-
 #### AI Agent Capabilities
 - [ ] Support different type of memories
 - [ ] Support uploading a file.
+
+#### Apply on selected rows/columns
+- [x] The ability to apply any operation to any selected combination of: rows, columns or rows and columns.
 
 #### Fuzzy matching
 - [x] Add the footer option to the data table.
