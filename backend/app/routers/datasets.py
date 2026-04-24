@@ -772,7 +772,13 @@ async def filtered_dataset_post(
 ):
     """Filter dataset rows by column values (POST with JSON body).
 
-    Body: {"country": "N/A", "city": "Paris"} — only non-empty values are used as filters.
+    Supports two filter formats per column:
+    - Substring match (legacy): {"country": "N/A"} — case-insensitive substring match
+    - Selected values (multi-filter): {"country": {"selected_values": ["France", "Germany"]}}
+      — exact match where the cell value's string representation is in the selected list.
+      Use null in the list to match null/empty values: {"country": {"selected_values": [null, "France"]}}
+
+    Both formats can be mixed in the same request. All filters are AND-combined.
     Returns matching rows with pagination + total matching count.
     """
     result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
@@ -795,18 +801,58 @@ async def filtered_dataset_post(
     else:
         return {"columns": _normalize_columns(dataset.columns), "preview_data": [], "row_count": 0, "total_matching": 0, "page": page, "limit": limit}
 
-    # Build active filters (non-empty values only)
-    active_filters = {k: str(v).strip().lower() for k, v in filters.items() if v and str(v).strip()}
+    # Parse filters into two categories:
+    # 1. Substring filters: {"col": "substring"} (legacy format)
+    # 2. Selected values filters: {"col": {"selected_values": ["val1", "val2"]}} (new format)
+    substring_filters = {}
+    selected_values_filters = {}
+
+    for col, val in filters.items():
+        if isinstance(val, dict) and "selected_values" in val:
+            # New format: selected_values list
+            selected_vals = val["selected_values"]
+            if isinstance(selected_vals, list) and len(selected_vals) > 0:
+                # Normalize: convert all non-null values to strings, keep None as-is
+                normalized = set()
+                for v in selected_vals:
+                    if v is None:
+                        normalized.add(None)
+                    else:
+                        normalized.add(str(v).strip())
+                selected_values_filters[col] = normalized
+        elif val is not None and str(val).strip():
+            # Legacy format: substring match
+            substring_filters[col] = str(val).strip().lower()
 
     # Filter rows
     matching_indices = []
     for i, row in enumerate(preview_list):
         match = True
-        for col, filter_val in active_filters.items():
+
+        # Check substring filters
+        for col, filter_val in substring_filters.items():
             cell_val = str(row.get(col, "")).lower()
             if filter_val not in cell_val:
                 match = False
                 break
+
+        if not match:
+            continue
+
+        # Check selected_values filters (exact match on string representation)
+        for col, allowed_values in selected_values_filters.items():
+            cell_raw = row.get(col)
+            if cell_raw is None:
+                # Cell is null — check if null is in allowed values
+                if None not in allowed_values:
+                    match = False
+                    break
+            else:
+                cell_str = str(cell_raw)
+                if cell_str not in allowed_values:
+                    match = False
+                    break
+
         if match:
             matching_indices.append(i)
 
@@ -827,6 +873,77 @@ async def filtered_dataset_post(
         "matching_indices": matching_indices,
         "page": page,
         "limit": limit,
+    }
+
+
+@router.get("/{dataset_id}/unique-values")
+async def get_unique_values(
+    dataset_id: str,
+    column: str = Query(..., description="Column name to get unique values for"),
+    limit: int = Query(500, ge=1, le=5000, description="Max unique values to return"),
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Get unique values and their counts for a specific column.
+
+    Returns value counts sorted by frequency (descending), useful for
+    column multi-filter UI. Operates on the entire dataset.
+    """
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    project_result = await session.execute(
+        select(Project).where(
+            Project.id == dataset.project_id, Project.user_id == current_user.id
+        )
+    )
+    if not project_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Verify column exists
+    columns = _normalize_columns(dataset.columns)
+    col_names = [c["name"] for c in columns]
+    if column not in col_names:
+        raise HTTPException(status_code=400, detail=f"Column '{column}' not found. Available: {col_names}")
+
+    # Use data_json for computing unique values
+    if not dataset.data_json or "data" not in dataset.data_json:
+        return {"column": column, "values": [], "total_unique": 0}
+
+    # Build a pandas Series from the column data for efficient value_counts
+    all_data = dataset.data_json["data"]
+    col_data = pd.Series([row.get(column) for row in all_data])
+
+    # Compute value counts (exclude NaN/None by default, but include null count)
+    null_count = int(col_data.isna().sum())
+    non_null = col_data.dropna()
+
+    # Convert all values to string for consistent comparison in the UI
+    # (handles mixed types like int/float/string)
+    if len(non_null) > 0:
+        non_null_str = non_null.astype(str)
+        value_counts = non_null_str.value_counts().head(limit)
+        values_list = [
+            {"value": str(v), "count": int(c)}
+            for v, c in value_counts.items()
+        ]
+        total_unique = int(non_null_str.nunique())
+    else:
+        values_list = []
+        total_unique = 0
+
+    # Add null entry if there are nulls
+    if null_count > 0:
+        values_list.append({"value": None, "count": null_count})
+        total_unique += 1  # Count null as a unique value
+
+    return {
+        "column": column,
+        "values": values_list,
+        "total_unique": total_unique,
     }
 
 

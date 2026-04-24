@@ -125,3 +125,117 @@ class TestFilteredEndpoint:
         result = await _call_filtered(ds, {"country": "France"})
         assert result["preview_data"] == []
         assert result["total_matching"] == 0
+
+
+class TestFilteredSelectedValues:
+    """Tests for the selected_values filter format in POST /filtered."""
+
+    @pytest.mark.asyncio
+    async def test_selected_values_single_column(self):
+        ds = _make_mock_dataset(SAMPLE_DATA)
+        result = await _call_filtered(ds, {"country": {"selected_values": ["France"]}})
+        assert result["total_matching"] == 2
+        assert all(r["country"] == "France" for r in result["preview_data"])
+
+    @pytest.mark.asyncio
+    async def test_selected_values_multiple_values(self):
+        ds = _make_mock_dataset(SAMPLE_DATA)
+        result = await _call_filtered(ds, {"country": {"selected_values": ["France", "Germany"]}})
+        assert result["total_matching"] == 3
+        assert all(r["country"] in ("France", "Germany") for r in result["preview_data"])
+
+    @pytest.mark.asyncio
+    async def test_selected_values_multiple_columns(self):
+        ds = _make_mock_dataset(SAMPLE_DATA)
+        result = await _call_filtered(ds, {
+            "country": {"selected_values": ["UK"]},
+            "city": {"selected_values": ["London"]},
+        })
+        assert result["total_matching"] == 2
+        assert all(r["city"] == "London" and r["country"] == "UK" for r in result["preview_data"])
+
+    @pytest.mark.asyncio
+    async def test_selected_values_with_null(self):
+        data_with_nulls = [
+            {"name": "Alice", "city": "Paris"},
+            {"name": "Bob", "city": None},
+            {"name": "Carol", "city": "Paris"},
+            {"name": "Dave", "city": None},
+        ]
+        ds = _make_mock_dataset(data_with_nulls)
+        result = await _call_filtered(ds, {"city": {"selected_values": [None]}})
+        assert result["total_matching"] == 2
+        assert all(r["city"] is None for r in result["preview_data"])
+
+    @pytest.mark.asyncio
+    async def test_selected_values_with_null_and_values(self):
+        data_with_nulls = [
+            {"name": "Alice", "city": "Paris"},
+            {"name": "Bob", "city": None},
+            {"name": "Carol", "city": "London"},
+            {"name": "Dave", "city": None},
+        ]
+        ds = _make_mock_dataset(data_with_nulls)
+        result = await _call_filtered(ds, {"city": {"selected_values": [None, "Paris"]}})
+        assert result["total_matching"] == 3
+
+    @pytest.mark.asyncio
+    async def test_selected_values_empty_list_returns_all(self):
+        ds = _make_mock_dataset(SAMPLE_DATA)
+        # Empty selected_values list should not filter (no active filter for that column)
+        result = await _call_filtered(ds, {"country": {"selected_values": []}})
+        assert result["total_matching"] == 5  # All rows returned
+
+    @pytest.mark.asyncio
+    async def test_selected_values_no_match(self):
+        ds = _make_mock_dataset(SAMPLE_DATA)
+        result = await _call_filtered(ds, {"country": {"selected_values": ["Japan"]}})
+        assert result["total_matching"] == 0
+        assert result["preview_data"] == []
+
+    @pytest.mark.asyncio
+    async def test_selected_values_exact_match_not_substring(self):
+        ds = _make_mock_dataset(SAMPLE_DATA)
+        # "Fran" should NOT match "France" with selected_values (exact match)
+        result = await _call_filtered(ds, {"country": {"selected_values": ["Fran"]}})
+        assert result["total_matching"] == 0
+
+    @pytest.mark.asyncio
+    async def test_mixed_filter_types(self):
+        """Mix selected_values and substring filters in the same request."""
+        ds = _make_mock_dataset(SAMPLE_DATA)
+        result = await _call_filtered(ds, {
+            "country": {"selected_values": ["France", "UK"]},  # exact match
+            "name": "a",  # substring match (Alice, Carol, Dave)
+        })
+        # France: Alice, Carol (both have 'a' in name)
+        # UK: Bob, Eve (neither has 'a' in name)
+        assert result["total_matching"] == 2
+        assert all(r["country"] == "France" for r in result["preview_data"])
+
+    @pytest.mark.asyncio
+    async def test_selected_values_pagination(self):
+        ds = _make_mock_dataset(SAMPLE_DATA)
+        result = await _call_filtered(
+            ds, {"country": {"selected_values": ["France", "UK"]}}, limit=2, page=1
+        )
+        assert result["total_matching"] == 4
+        assert len(result["preview_data"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_selected_values_returns_matching_indices(self):
+        ds = _make_mock_dataset(SAMPLE_DATA)
+        result = await _call_filtered(ds, {"country": {"selected_values": ["UK"]}})
+        assert result["matching_indices"] == [1, 4]
+
+    @pytest.mark.asyncio
+    async def test_selected_values_numeric_as_string(self):
+        """Numeric values in selected_values should match their string representation."""
+        data = [
+            {"name": "Alice", "score": 85},
+            {"name": "Bob", "score": 90},
+            {"name": "Carol", "score": 85},
+        ]
+        ds = _make_mock_dataset(data)
+        result = await _call_filtered(ds, {"score": {"selected_values": ["85"]}})
+        assert result["total_matching"] == 2

@@ -22,6 +22,9 @@
             <span v-if="hasActiveFilter" class="badge bg-warning text-dark" style="cursor: pointer;" @click="showRowFilterModal = true" title="Click to edit filter">
               <i class="bi bi-funnel-fill me-1"></i>{{ filteredData.length }}/{{ data.length }} rows
             </span>
+            <span v-if="hasColumnFilters" class="badge bg-info text-dark" style="cursor: pointer;" @click="clearColumnFilters" title="Click to clear column filters">
+              <i class="bi bi-funnel-fill me-1"></i>{{ activeColumnFilterCount }} column filter(s)
+            </span>
             <BButton size="sm" variant="info" @click="showProfile = true">
               <i class="bi bi-bar-chart me-1"></i> Profile
             </BButton>
@@ -308,12 +311,19 @@
         :multi-sort="multiSort"
         :show-footer="showFooter"
         :footer-stats="footerStats"
+        :enable-column-filter="enableColumnFilter"
+        :column-unique-values="columnUniqueValues"
+        :column-filter-state="columnFilterState"
+        :fetching-unique-values="fetchingUniqueValues"
+        :column-unique-counts="columnUniqueCounts"
         @row-clicked="onRowClicked"
         @head-clicked="onHeadClicked"
         @row-selected="toggleRowSelection"
         @toggle-all="toggleAllRows"
         @cell-dblclick="openCellEditor"
         @hidden-columns-changed="onHiddenColumnsChanged"
+        @column-filter-changed="onColumnFilterChanged"
+        @request-unique-values="fetchUniqueValuesForColumn"
       />
 
       <!-- Pagination Footer -->
@@ -749,7 +759,14 @@
             <small class="d-block text-muted">Show summary statistics at bottom of each page</small>
           </label>
         </div>
-      </div>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" v-model="enableColumnFilter" id="setting-column-filter">
+          <label class="form-check-label" for="setting-column-filter">
+            <strong>Column multi-filter</strong>
+            <small class="d-block text-muted">Show filter dropdowns on column headers to filter by selected values</small>
+          </label>
+        </div>
+        </div>
       <template #footer>
         <BButton variant="primary" size="sm" @click="showTableSettings = false">Done</BButton>
       </template>
@@ -1308,6 +1325,12 @@ const multiSort = ref(false)
 const showFooter = ref(false)
 const footerStats = ref({})
 const showTableSettings = ref(false)
+// Column multi-filter state
+const enableColumnFilter = ref(false)
+const columnFilterState = ref({}) // { columnName: [selectedValues] }
+const columnUniqueValues = ref({}) // { columnName: [{value, count}] }
+const columnUniqueCounts = ref({}) // { columnName: totalUnique }
+const fetchingUniqueValues = ref({}) // { columnName: boolean }
 // const footerConfig = ref({})
 const fetchingStats = ref(false)
 
@@ -1742,8 +1765,12 @@ const paginatedData = computed(() => {
   return data.value
 })
 
+// Column filter computed properties
+const hasColumnFilters = computed(() => Object.keys(columnFilterState.value).some(k => columnFilterState.value[k] && columnFilterState.value[k].length > 0))
+const activeColumnFilterCount = computed(() => Object.keys(columnFilterState.value).filter(k => columnFilterState.value[k] && columnFilterState.value[k].length > 0).length)
+
 // Filtered data (search) applied on top of paginated data
-const hasActiveFilter = computed(() => Object.values(rowFilters.value).some(v => v && v.trim()))
+const hasActiveFilter = computed(() => Object.values(rowFilters.value).some(v => v && v.trim()) || hasColumnFilters.value)
 
 const filteredData = computed(() => {
   let result = paginatedData.value
@@ -1806,10 +1833,18 @@ async function refreshData() {
 
     // Choose endpoint based on filter state
     let previewRes
-    if (hasActiveFilter.value) {
+    const hasSubstringFilters = Object.values(rowFilters.value).some(v => v && v.trim())
+    if (hasSubstringFilters || hasColumnFilters.value) {
       const activeFilters = {}
+      // Add substring filters (legacy format)
       for (const [k, v] of Object.entries(rowFilters.value)) {
         if (v && v.trim()) activeFilters[k] = v.trim()
+      }
+      // Add column selected_values filters (new format)
+      for (const [col, selectedValues] of Object.entries(columnFilterState.value)) {
+        if (selectedValues && selectedValues.length > 0) {
+          activeFilters[col] = { selected_values: selectedValues }
+        }
       }
       previewRes = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/filtered?limit=${limit.value}&page=${page.value}`, {
         method: 'POST',
@@ -1831,7 +1866,7 @@ async function refreshData() {
       columns.value = (preview.columns || []).map(col => ({ field: col.name, label: col.name }))
       dataset.value = preview
 
-      if (hasActiveFilter.value) {
+      if (hasSubstringFilters || hasColumnFilters.value) {
         filteredMatchingIndices.value = preview.matching_indices || null
         filteredTotalMatching.value = preview.total_matching ?? null
         totalRows.value = preview.total_matching || 0
@@ -1856,6 +1891,8 @@ async function refreshData() {
       profileData.value = await profileRes.json()
       nullCount.value = profileData.value.columns?.reduce((sum, c) => sum + c.null_count, 0) || 0
     }
+    // Invalidate unique values cache since data may have changed
+    columnUniqueValues.value = {}
   } catch (e) { console.error(e) }
   finally { loading.value = false }
 }
@@ -2366,9 +2403,50 @@ async function applyRowFilter() {
 
 function clearRowFilter() {
   rowFilters.value = {}
+  columnFilterState.value = {}
   filteredMatchingIndices.value = null
   filteredTotalMatching.value = null
   showRowFilterModal.value = false
+  page.value = 1
+  refreshData()
+}
+
+function clearColumnFilters() {
+  columnFilterState.value = {}
+  page.value = 1
+  refreshData()
+}
+
+async function fetchUniqueValuesForColumn(column) {
+  if (fetchingUniqueValues.value[column]) return
+  fetchingUniqueValues.value[column] = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/unique-values?column=${encodeURIComponent(column)}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      columnUniqueValues.value[column] = data.values || []
+      columnUniqueCounts.value[column] = data.total_unique || 0
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Failed to load unique values')
+    }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    fetchingUniqueValues.value[column] = false
+  }
+}
+
+function onColumnFilterChanged({ column, selectedValues }) {
+  if (selectedValues.length === 0) {
+    delete columnFilterState.value[column]
+  } else {
+    columnFilterState.value[column] = selectedValues
+  }
+  // Trigger reactivity
+  columnFilterState.value = { ...columnFilterState.value }
   page.value = 1
   refreshData()
 }
