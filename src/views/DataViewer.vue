@@ -301,30 +301,32 @@
     <div v-else class="card">
       <!-- Custom DataTable (no pagination - handled below) -->
       <DataTable
-        ref="dataTableRef"
-        :items="filteredData"
-        :fields="tableFields"
-        :selected-columns="selectedColumns"
-        :selectable="rowSelectMode"
-        :selected-rows="selectedRowIndices"
-        :show-index="showRowIndex"
-        :multi-sort="multiSort"
-        :show-footer="showFooter"
-        :footer-stats="footerStats"
-        :enable-column-filter="enableColumnFilter"
-        :column-unique-values="columnUniqueValues"
-        :column-filter-state="columnFilterState"
-        :fetching-unique-values="fetchingUniqueValues"
-        :column-unique-counts="columnUniqueCounts"
-        @row-clicked="onRowClicked"
-        @head-clicked="onHeadClicked"
-        @row-selected="toggleRowSelection"
-        @toggle-all="toggleAllRows"
-        @cell-dblclick="openCellEditor"
-        @hidden-columns-changed="onHiddenColumnsChanged"
-        @column-filter-changed="onColumnFilterChanged"
-        @request-unique-values="fetchUniqueValuesForColumn"
-      />
+            ref="dataTableRef"
+            :items="filteredData"
+            :fields="tableFields"
+            :selected-columns="selectedColumns"
+            :selectable="rowSelectMode"
+            :selected-rows="selectedRowIndices"
+            :show-index="showRowIndex"
+            :multi-sort="multiSort"
+            :server-sort="sortKeys"
+            :show-footer="showFooter"
+            :footer-stats="footerStats"
+            :enable-column-filter="enableColumnFilter"
+            :column-unique-values="columnUniqueValues"
+            :column-filter-state="columnFilterState"
+            :fetching-unique-values="fetchingUniqueValues"
+            :column-unique-counts="columnUniqueCounts"
+            @row-clicked="onRowClicked"
+            @head-clicked="onHeadClicked"
+            @row-selected="toggleRowSelection"
+            @toggle-all="toggleAllRows"
+            @cell-dblclick="openCellEditor"
+            @hidden-columns-changed="onHiddenColumnsChanged"
+            @column-filter-changed="onColumnFilterChanged"
+            @request-unique-values="fetchUniqueValuesForColumn"
+            @sort-changed="onSortChanged"
+          />
 
       <!-- Pagination Footer -->
       <div class="d-flex justify-content-between align-items-center m-2 flex-wrap gap-2">
@@ -1322,6 +1324,7 @@ const csvText = ref('')
 const jsonText = ref('')
 const showRowIndex = ref(false)
 const multiSort = ref(false)
+const sortKeys = ref([]) // Server-side sort state: [{ key: 'name', dir: 'asc' }, ...]
 const showFooter = ref(false)
 const footerStats = ref({})
 const showTableSettings = ref(false)
@@ -1750,6 +1753,38 @@ function onPageChange(newPage) {
 function onHeadClicked(field) {
   // Toggle column selection when clicking column header
   toggleColumnSelection(field.key || field.field)
+}
+
+// Handle server-side sort: call backend sort API when sort changes
+async function onSortChanged(newSortKeys) {
+  if (newSortKeys.length === 0) {
+    // Sort cleared — refresh data (server data reverts to original order on refresh)
+    sortKeys.value = []
+    await refreshData()
+    return
+  }
+  // Single column sort: use first key
+  const { key, dir } = newSortKeys[0]
+  sortKeys.value = [...newSortKeys]
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/sort`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ column: key, ascending: dir === 'asc', na_position: 'last' })
+    })
+    if (res.ok) {
+      toast.success(`Sorted by ${key} (${dir === 'asc' ? 'ascending' : 'descending'})`)
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Sort failed')
+    }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    operating.value = false
+  }
 }
 
 // Check if single-column only operation (like rename)

@@ -208,6 +208,9 @@ const props = defineProps({
   selectedRows: { type: Array, default: () => [] },
   showIndex: { type: Boolean, default: false },
   multiSort: { type: Boolean, default: false },
+  // Server-side sort: when provided, sort state is controlled externally
+  // Data is already sorted by the server; this prop only controls the sort UI indicators
+  serverSort: { type: Array, default: null }, // [{ key: 'name', dir: 'asc' }, ...] or null
   // Footer props
   showFooter: { type: Boolean, default: false },
   footerStats: { type: Object, default: () => ({}) },
@@ -227,6 +230,13 @@ const emit = defineEmits([
 
 // Sort state: array of { key, dir } for multi-sort
 const sortKeys = ref([]) // [{ key: 'name', dir: 'asc' }, ...]
+
+// Sync sort state with serverSort prop when provided (server-side sort mode)
+watch(() => props.serverSort, (newVal) => {
+  if (newVal !== null && newVal !== undefined) {
+    sortKeys.value = [...newVal]
+  }
+}, { immediate: true, deep: true })
 
 // Hidden columns state
 const hiddenColumns = ref([])
@@ -288,6 +298,11 @@ function sortTitle(key) {
 }
 
 const sortedItems = computed(() => {
+  // When serverSort is provided, data is already sorted server-side
+  if (props.serverSort !== null && props.serverSort !== undefined) {
+    return props.items
+  }
+  // Client-side sort (default behavior)
   if (!sortKeys.value.length) return props.items
   return [...props.items].sort((a, b) => {
     for (const { key, dir } of sortKeys.value) {

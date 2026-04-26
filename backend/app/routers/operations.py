@@ -1177,7 +1177,13 @@ async def sort_operations(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Sort by column."""
+    """Sort by column.
+
+    Request body:
+    - column: Column name to sort by (required)
+    - ascending: Sort direction, true=asc, false=desc (default: true)
+    - na_position: Where to place null values, 'first' or 'last' (default: 'last')
+    """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
@@ -1185,11 +1191,16 @@ async def sort_operations(
     df = pd.DataFrame(dataset.data_json["data"])
     column = request.get('column')
     ascending = request.get('ascending', True)
+    na_position = request.get('na_position', 'last')
 
+    if not column:
+        raise HTTPException(status_code=400, detail="column is required")
     if column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
+    if na_position not in ('first', 'last'):
+        raise HTTPException(status_code=400, detail="na_position must be 'first' or 'last'")
 
-    df = df.sort_values(by=column, ascending=ascending)
+    df = df.sort_values(by=column, ascending=ascending, na_position=na_position).reset_index(drop=True)
 
     from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
     before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
@@ -1201,7 +1212,8 @@ async def sort_operations(
     await save_operation(dataset_id, "sort", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
-    return {"status": "success", "message": f"Sorted by {column}", "columns": dataset.columns}
+    direction = "ascending" if ascending else "descending"
+    return {"status": "success", "message": f"Sorted by {column} ({direction}, nulls {na_position})", "columns": dataset.columns}
 
 
 # ML / Feature Engineering operations
