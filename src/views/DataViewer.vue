@@ -1763,18 +1763,29 @@ async function onSortChanged(newSortKeys) {
     await refreshData()
     return
   }
-  // Single column sort: use first key
-  const { key, dir } = newSortKeys[0]
   sortKeys.value = [...newSortKeys]
   operating.value = true
   try {
+    let body
+    if (newSortKeys.length === 1) {
+      // Single column sort: use backward-compatible format
+      const { key, dir } = newSortKeys[0]
+      body = { column: key, ascending: dir === 'asc', na_position: 'last' }
+    } else {
+      // Multi-column sort: use sort_keys format
+      body = {
+        sort_keys: newSortKeys.map(sk => ({ column: sk.key, ascending: sk.dir === 'asc' })),
+        na_position: 'last',
+      }
+    }
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/sort`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ column: key, ascending: dir === 'asc', na_position: 'last' })
+      body: JSON.stringify(body)
     })
     if (res.ok) {
-      toast.success(`Sorted by ${key} (${dir === 'asc' ? 'ascending' : 'descending'})`)
+      const sortDesc = newSortKeys.map(sk => `${sk.key} ${sk.dir === 'asc' ? '↑' : '↓'}`).join(', ')
+      toast.success(`Sorted by ${sortDesc}`)
       await refreshData()
     } else {
       const err = await res.json()
@@ -1855,10 +1866,29 @@ watch(showCompare, (val) => {
 
 // Auto-switch row scope to 'selected' when rows are selected
 watch(selectedRowIndices, (newVal) => {
-  if (newVal.length > 0 && operationRowScope.value === 'all') {
-    operationRowScope.value = 'selected'
+    if (newVal.length > 0 && operationRowScope.value === 'all') {
+      operationRowScope.value = 'selected'
+    }
+  })
+
+// When multiSort is toggled off, clear any multi-sort keys (keep only first if any)
+watch(multiSort, (newVal) => {
+  if (!newVal && sortKeys.value.length > 1) {
+    // Keep only the primary sort key when switching from multi to single sort
+    sortKeys.value = [sortKeys.value[0]]
   }
 })
+
+// When operations change (after undo/redo), clear sort indicators if a sort was undone/redone
+watch(operations, (newOps) => {
+  if (sortKeys.value.length === 0) return
+  // Check if the most recent non-undone sort operation matches our current sortKeys
+  const activeSortOps = newOps.filter(op => op.operation_type === 'sort' && !op.is_undone)
+  if (activeSortOps.length === 0 && sortKeys.value.length > 0) {
+    // All sort operations have been undone — clear sort indicators
+    sortKeys.value = []
+  }
+}, { deep: true })
 
 
 async function refreshData() {

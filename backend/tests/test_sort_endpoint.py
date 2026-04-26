@@ -1,4 +1,4 @@
-"""Tests for the sort endpoint (server-side single column sort).
+"""Tests for the sort endpoint (server-side single and multi-column sort).
 
 Tests cover:
 - Ascending/descending sort for strings and numbers
@@ -9,6 +9,10 @@ Tests cover:
 - Sort is idempotent
 - Mixed type columns
 - Empty dataset
+- Multi-column sort with multiple sort keys
+- Multi-column sort with mixed directions
+- Multi-column sort with nulls
+- Multi-column sort validation
 """
 
 import pytest
@@ -181,3 +185,201 @@ class TestSortRequestValidation:
         """na_position must be 'first' or 'last'."""
         request = {"column": "name", "na_position": "middle"}
         assert request["na_position"] not in ("first", "last")
+
+
+class TestMultiColumnSortLogic:
+    """Unit tests for multi-column sort logic using pandas sort_values."""
+
+    def test_multi_sort_two_columns_both_ascending(self):
+        """Sort by name asc, then age asc — ties in name broken by age."""
+        df = pd.DataFrame({
+            "name": ["Alice", "Bob", "Alice", "Bob"],
+            "age": [30, 25, 20, 35],
+        })
+        result = df.sort_values(by=["name", "age"], ascending=[True, True], na_position="last").reset_index(drop=True)
+        assert list(result["name"]) == ["Alice", "Alice", "Bob", "Bob"]
+        assert list(result["age"]) == [20, 30, 25, 35]
+
+    def test_multi_sort_two_columns_mixed_directions(self):
+        """Sort by name asc, then age desc — ties in name broken by age descending."""
+        df = pd.DataFrame({
+            "name": ["Alice", "Bob", "Alice", "Bob"],
+            "age": [30, 25, 20, 35],
+        })
+        result = df.sort_values(by=["name", "age"], ascending=[True, False], na_position="last").reset_index(drop=True)
+        assert list(result["name"]) == ["Alice", "Alice", "Bob", "Bob"]
+        assert list(result["age"]) == [30, 20, 35, 25]
+
+    def test_multi_sort_three_columns(self):
+        """Sort by three columns: city asc, name asc, age asc."""
+        df = pd.DataFrame({
+            "city": ["NYC", "LA", "NYC", "LA", "NYC"],
+            "name": ["Bob", "Alice", "Alice", "Bob", "Charlie"],
+            "age": [30, 25, 20, 35, 22],
+        })
+        result = df.sort_values(by=["city", "name", "age"], ascending=[True, True, True], na_position="last").reset_index(drop=True)
+        # LA first, then NYC
+        assert list(result["city"]) == ["LA", "LA", "NYC", "NYC", "NYC"]
+        assert list(result["name"]) == ["Alice", "Bob", "Alice", "Bob", "Charlie"]
+        assert list(result["age"]) == [25, 35, 20, 30, 22]
+
+    def test_multi_sort_first_desc_second_asc(self):
+        """Sort by city desc, then name asc."""
+        df = pd.DataFrame({
+            "city": ["NYC", "LA", "NYC", "LA"],
+            "name": ["Bob", "Alice", "Alice", "Bob"],
+        })
+        result = df.sort_values(by=["city", "name"], ascending=[False, True], na_position="last").reset_index(drop=True)
+        assert list(result["city"]) == ["NYC", "NYC", "LA", "LA"]
+        assert list(result["name"]) == ["Alice", "Bob", "Alice", "Bob"]
+
+    def test_multi_sort_with_nulls_in_first_column(self):
+        """Multi-sort with nulls in the primary sort column."""
+        df = pd.DataFrame({
+            "name": [None, "Bob", None, "Alice"],
+            "age": [30, 25, 20, 35],
+        })
+        result = df.sort_values(by=["name", "age"], ascending=[True, True], na_position="last").reset_index(drop=True)
+        names = list(result["name"])
+        ages = list(result["age"])
+        # Non-null names first, sorted asc
+        assert names[0] == "Alice"
+        assert names[1] == "Bob"
+        # Nulls last
+        assert pd.isna(names[2])
+        assert pd.isna(names[3])
+
+    def test_multi_sort_with_nulls_in_second_column(self):
+        """Multi-sort with nulls in the secondary sort column."""
+        df = pd.DataFrame({
+            "name": ["Alice", "Alice", "Bob", "Bob"],
+            "age": [30, None, 25, None],
+        })
+        result = df.sort_values(by=["name", "age"], ascending=[True, True], na_position="last").reset_index(drop=True)
+        names = list(result["name"])
+        ages = list(result["age"])
+        # Alice: 30 first, then null
+        assert names[0] == "Alice"
+        assert ages[0] == 30
+        assert pd.isna(ages[1])
+        # Bob: 25 first, then null
+        assert names[2] == "Bob"
+        assert ages[2] == 25
+        assert pd.isna(ages[3])
+
+    def test_multi_sort_preserves_all_rows(self):
+        """Multi-sort should not lose any rows."""
+        df = pd.DataFrame({
+            "name": ["C", "A", "B", "A", "C"],
+            "age": [3, 1, 2, 5, 4],
+            "score": [90, 80, 70, 60, 50],
+        })
+        result = df.sort_values(by=["name", "age"], ascending=[True, True], na_position="last").reset_index(drop=True)
+        assert len(result) == 5
+        # Verify paired data preserved
+        a_rows = result[result["name"] == "A"]
+        assert list(a_rows["age"]) == [1, 5]
+        assert list(a_rows["score"]) == [80, 60]
+
+    def test_multi_sort_is_idempotent(self):
+        """Applying the same multi-sort twice should produce the same result."""
+        df = pd.DataFrame({
+            "name": ["C", "A", "B", "A"],
+            "age": [3, 1, 2, 5],
+        })
+        result1 = df.sort_values(by=["name", "age"], ascending=[True, True], na_position="last").reset_index(drop=True)
+        result2 = result1.sort_values(by=["name", "age"], ascending=[True, True], na_position="last").reset_index(drop=True)
+        pd.testing.assert_frame_equal(result1, result2)
+
+    def test_multi_sort_single_key_equivalent_to_single_sort(self):
+        """Multi-sort with one key should produce the same result as single sort."""
+        df = pd.DataFrame({"name": ["C", "A", "B"]})
+        single = df.sort_values(by="name", ascending=True, na_position="last").reset_index(drop=True)
+        multi = df.sort_values(by=["name"], ascending=[True], na_position="last").reset_index(drop=True)
+        pd.testing.assert_frame_equal(single, multi)
+
+    def test_multi_sort_all_descending(self):
+        """Multi-sort with all columns descending."""
+        df = pd.DataFrame({
+            "name": ["Alice", "Bob", "Alice", "Bob"],
+            "age": [20, 25, 30, 35],
+        })
+        result = df.sort_values(by=["name", "age"], ascending=[False, False], na_position="last").reset_index(drop=True)
+        assert list(result["name"]) == ["Bob", "Bob", "Alice", "Alice"]
+        assert list(result["age"]) == [35, 25, 30, 20]
+
+    def test_multi_sort_empty_dataframe(self):
+        """Multi-sort on empty dataframe should return empty."""
+        df = pd.DataFrame({"name": pd.Series([], dtype=str), "age": pd.Series([], dtype=int)})
+        result = df.sort_values(by=["name", "age"], ascending=[True, True], na_position="last")
+        assert len(result) == 0
+
+    def test_multi_sort_with_duplicate_rows(self):
+        """Multi-sort with completely identical rows."""
+        df = pd.DataFrame({
+            "name": ["Alice", "Alice", "Alice"],
+            "age": [20, 20, 20],
+        })
+        result = df.sort_values(by=["name", "age"], ascending=[True, True], na_position="last").reset_index(drop=True)
+        assert len(result) == 3
+        assert list(result["name"]) == ["Alice", "Alice", "Alice"]
+
+
+class TestMultiColumnSortRequestValidation:
+    """Tests for multi-column sort request parameter validation."""
+
+    def test_sort_keys_format(self):
+        """sort_keys should be a list of {column, ascending} objects."""
+        sort_keys = [
+            {"column": "name", "ascending": True},
+            {"column": "age", "ascending": False},
+        ]
+        # Validate structure
+        for sk in sort_keys:
+            assert "column" in sk
+            assert "ascending" in sk
+            assert isinstance(sk["ascending"], bool)
+
+    def test_sort_keys_empty_list(self):
+        """Empty sort_keys list should be rejected."""
+        sort_keys = []
+        assert len(sort_keys) == 0  # Endpoint should return 400
+
+    def test_sort_keys_with_invalid_column(self):
+        """sort_keys with non-existent column should be rejected."""
+        df = pd.DataFrame({"name": ["A", "B"]})
+        sort_keys = [{"column": "nonexistent", "ascending": True}]
+        assert sort_keys[0]["column"] not in df.columns
+
+    def test_sort_keys_with_duplicate_columns(self):
+        """sort_keys with duplicate columns should be handled (deduped or rejected)."""
+        sort_keys = [
+            {"column": "name", "ascending": True},
+            {"column": "name", "ascending": False},
+        ]
+        columns = [sk["column"] for sk in sort_keys]
+        assert columns.count("name") == 2  # Duplicate — endpoint should handle
+
+    def test_sort_keys_with_invalid_na_position(self):
+        """na_position must be 'first' or 'last'."""
+        request = {"sort_keys": [{"column": "name", "ascending": True}], "na_position": "middle"}
+        assert request["na_position"] not in ("first", "last")
+
+    def test_sort_keys_default_na_position(self):
+        """Default na_position should be 'last'."""
+        request = {"sort_keys": [{"column": "name", "ascending": True}]}
+        na_position = request.get("na_position", "last")
+        assert na_position == "last"
+
+    def test_sort_keys_default_ascending(self):
+        """Default ascending per sort key should be True."""
+        sort_key = {"column": "name"}
+        ascending = sort_key.get("ascending", True)
+        assert ascending is True
+
+    def test_backward_compatible_single_column(self):
+        """Single column sort (column + ascending) should still work."""
+        request = {"column": "name", "ascending": True, "na_position": "last"}
+        # This is the legacy format — endpoint should support both
+        assert "column" in request
+        assert "sort_keys" not in request

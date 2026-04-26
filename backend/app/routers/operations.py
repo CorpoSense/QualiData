@@ -1177,30 +1177,79 @@ async def sort_operations(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Sort by column.
+    """Sort by one or more columns.
 
-    Request body:
+    Supports two request formats:
+
+    Single-column (backward compatible):
     - column: Column name to sort by (required)
     - ascending: Sort direction, true=asc, false=desc (default: true)
     - na_position: Where to place null values, 'first' or 'last' (default: 'last')
+
+    Multi-column:
+    - sort_keys: List of {column, ascending} objects (required)
+    - na_position: Where to place null values, 'first' or 'last' (default: 'last')
+
+    Example multi-column request:
+    {
+        "sort_keys": [
+            {"column": "name", "ascending": true},
+            {"column": "age", "ascending": false}
+        ],
+        "na_position": "last"
+    }
     """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     df = pd.DataFrame(dataset.data_json["data"])
-    column = request.get('column')
-    ascending = request.get('ascending', True)
     na_position = request.get('na_position', 'last')
 
-    if not column:
-        raise HTTPException(status_code=400, detail="column is required")
-    if column not in df.columns:
-        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
     if na_position not in ('first', 'last'):
         raise HTTPException(status_code=400, detail="na_position must be 'first' or 'last'")
 
-    df = df.sort_values(by=column, ascending=ascending, na_position=na_position).reset_index(drop=True)
+    sort_keys = request.get('sort_keys')
+
+    if sort_keys is not None:
+        # Multi-column sort
+        if not isinstance(sort_keys, list) or len(sort_keys) == 0:
+            raise HTTPException(status_code=400, detail="sort_keys must be a non-empty list")
+
+        columns = []
+        ascending_list = []
+        for i, sk in enumerate(sort_keys):
+            col = sk.get('column') if isinstance(sk, dict) else None
+            if not col:
+                raise HTTPException(status_code=400, detail=f"sort_keys[{i}]: column is required")
+            if col not in df.columns:
+                raise HTTPException(status_code=400, detail=f"Column '{col}' not found")
+            if col in columns:
+                raise HTTPException(status_code=400, detail=f"Duplicate sort column: '{col}'")
+            columns.append(col)
+            ascending_list.append(sk.get('ascending', True))
+
+        df = df.sort_values(by=columns, ascending=ascending_list, na_position=na_position).reset_index(drop=True)
+
+        # Build descriptive message
+        sort_desc = ", ".join(
+            f"{col} {'asc' if asc else 'desc'}" for col, asc in zip(columns, ascending_list)
+        )
+        msg = f"Sorted by {sort_desc} (nulls {na_position})"
+    else:
+        # Single-column sort (backward compatible)
+        column = request.get('column')
+        ascending = request.get('ascending', True)
+
+        if not column:
+            raise HTTPException(status_code=400, detail="column is required")
+        if column not in df.columns:
+            raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
+
+        df = df.sort_values(by=column, ascending=ascending, na_position=na_position).reset_index(drop=True)
+
+        direction = "ascending" if ascending else "descending"
+        msg = f"Sorted by {column} ({direction}, nulls {na_position})"
 
     from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
     before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
@@ -1212,8 +1261,7 @@ async def sort_operations(
     await save_operation(dataset_id, "sort", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
-    direction = "ascending" if ascending else "descending"
-    return {"status": "success", "message": f"Sorted by {column} ({direction}, nulls {na_position})", "columns": dataset.columns}
+    return {"status": "success", "message": msg, "columns": dataset.columns}
 
 
 # ML / Feature Engineering operations

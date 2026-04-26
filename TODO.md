@@ -22,6 +22,8 @@ Track tasks and improvements for the project.
 - `AGENTS.md` - Default models reference
 
 ### Fix bugs:
+- [ ] Fix update cell after sorting dataset. 
+- [ ] Persist column selection after any operation where possible (moving column, refresh page...)
 - [x] Update a cell's value is not working
 - [x] Display correct number of dataset in each project.
 - [x] Profile is only showing 500 rows!
