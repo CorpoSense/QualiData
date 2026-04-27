@@ -15,7 +15,7 @@ def _make_mock_dataset(data: list[dict]):
     ds.project_id = "test-project-id"
     ds.data_json = {"data": data}
     ds.row_count = len(data)
-    ds.columns = [{"field": k, "label": k} for k in data[0].keys()] if data else []
+    ds.columns = [{"name": k, "dtype": "string"} for k in data[0].keys()] if data else []
     return ds
 
 

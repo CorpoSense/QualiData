@@ -17,9 +17,9 @@ def mock_dataset():
     ds = MagicMock()
     ds.id = "test-dataset-id"
     ds.columns = [
-        {"field": "first_name", "label": "first_name", "dtype": "object"},
-        {"field": "last_name", "label": "last_name", "dtype": "object"},
-        {"field": "age", "label": "age", "dtype": "int64"},
+        {"name": "first_name", "dtype": "object"},
+        {"name": "last_name", "dtype": "object"},
+        {"name": "age", "dtype": "int64"},
     ]
     ds.data_json = {"data": [
         {"first_name": "John", "last_name": "Doe", "age": 30},
