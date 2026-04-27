@@ -131,3 +131,33 @@ class TestCellUpdateTypeCoercion:
         # Verify no NaN in the saved data
         import json
         json.dumps(dataset.data_json["data"])  # Should not raise
+
+    @pytest.mark.asyncio
+    async def test_update_cell_result_is_json_serializable(self):
+        """Test that update_cell returns a JSON-serializable result (no numpy types)."""
+        import json
+        from app.routers.cell_ops import update_cell, CellUpdate
+
+        dataset = _make_mock_dataset([
+            {"id": 1, "score": 85},
+            {"id": 2, "score": 92},
+        ])
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = dataset
+        mock_session.execute = AsyncMock(return_value=mock_result)
+
+        result = await update_cell(
+            dataset_id="test-ds-id",
+            update=CellUpdate(row_index=0, column="score", value="90"),
+            current_user=MagicMock(id="user-1"),
+            session=mock_session,
+        )
+
+        assert result["status"] == "success"
+        assert result["old_value"] == 85
+        # Ensure the result dict is JSON-serializable
+        try:
+            json.dumps(result)
+        except TypeError as e:
+            pytest.fail(f"Result is not JSON-serializable: {e}")

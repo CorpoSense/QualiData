@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_async_session
 from app.db.models import Dataset
 from app.routers.auth import get_current_active_user
-from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json, _ensure_json_serializable
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
@@ -98,18 +98,6 @@ async def update_cell(
     # Update cell
     df.at[update.row_index, update.column] = new_value
 
-    # Save back — use centralized functions for consistent data handling
-    # Get data from whichever source we have (prefer data_json if available for full dataset)
-    if dataset.data_json and "data" in dataset.data_json:
-        # Update from data_json (full dataset)
-        df = pd.DataFrame(dataset.data_json["data"])
-    # else:
-    #     # Fall back to preview_data
-    #     df = pd.DataFrame(dataset.data_json["data"])
-    
-    # Apply the cell update
-    df.at[update.row_index, update.column] = new_value
-    
     # Update data_json using centralized function
     dataset.data_json = get_full_data_json(df)
     
@@ -118,8 +106,14 @@ async def update_cell(
     
     await session.commit()
 
+    # Serialize old_value to ensure JSON-compatible response
+    if pd.isna(old_value):
+        old_value_serialized = None
+    else:
+        old_value_serialized = _ensure_json_serializable([{"v": old_value}])[0]["v"]
+
     return {
         "status": "success",
         "message": f"Updated cell at row {update.row_index}, column '{update.column}'",
-        "old_value": old_value if not pd.isna(old_value) else None,
+        "old_value": old_value_serialized,
     }
