@@ -370,7 +370,8 @@ const allFields = computed(() => props.fields)
 
 // Visible fields (excluding hidden)
 const visibleFields = computed(() => {
-  return props.fields.filter(f => !hiddenColumns.value.includes(f.key))
+  const result = props.fields.filter(f => !hiddenColumns.value.includes(f.key))
+  return result
 })
 
 // Column filter functions

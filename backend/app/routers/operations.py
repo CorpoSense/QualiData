@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_async_session
 from app.db.models import Dataset, OperationHistory, Project, User
 from app.routers.auth import get_current_active_user
+from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+
 
 router = APIRouter(tags=["dataset-operations"])
 
@@ -156,6 +158,11 @@ async def add_column(
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     if request.formula:
         if request.formula.startswith("row_number"):
             df[request.column_name] = range(1, len(df) + 1)
@@ -194,6 +201,11 @@ async def remove_columns(
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     missing = [c for c in request.columns if c not in df.columns]
     if missing:
         raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
@@ -227,6 +239,11 @@ async def rename_column(
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     if request.old_name not in df.columns:
         raise HTTPException(
             status_code=400, detail=f"Column '{request.old_name}' not found"
@@ -260,6 +277,11 @@ async def merge_columns(
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     missing = [c for c in request.columns if c not in df.columns]
     if missing:
         raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
@@ -296,6 +318,11 @@ async def split_column(
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     if request.column not in df.columns:
         raise HTTPException(
             status_code=400, detail=f"Column '{request.column}' not found"
@@ -336,6 +363,11 @@ async def duplicate_column(
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     if request.source_column not in df.columns:
         raise HTTPException(
             status_code=400, detail=f"Column '{request.source_column}' not found"
@@ -661,6 +693,11 @@ async def string_operations(
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
 
     # Support both single column and batch (multiple columns)
     column = request.get('column')
@@ -811,6 +848,11 @@ async def extract_json_value(
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     column = request.get("column")
     key = request.get("key")
 
@@ -879,6 +921,11 @@ async def find_replace(
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     columns = request.get("columns", [])
     find_val = request.get("find", "")
     replace_val = request.get("replace", "")
@@ -969,6 +1016,11 @@ async def datetime_operations(
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
 
     # Support both single column and batch (multiple columns)
     column = request.get('column')
@@ -1079,6 +1131,11 @@ async def fillna_operations(
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     method = request.get('method')
     fill_value = request.get('fill_value')
     request.get('column')
@@ -1152,11 +1209,15 @@ async def remove_duplicates(
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     before_count = len(df)
     df = df.drop_duplicates()
     after_count = len(df)
-
-    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+        
     before_snapshot = {"columns": dataset.columns, "row_count": before_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
@@ -1204,6 +1265,16 @@ async def sort_operations(
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     na_position = request.get('na_position', 'last')
 
     if na_position not in ('first', 'last'):
@@ -1258,6 +1329,9 @@ async def sort_operations(
     dataset.row_count = len(df)
     after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
 
+    _data_json_cols = list(dataset.data_json["data"][0].keys()) if dataset.data_json.get("data") else []
+    _preview_cols = list(after_snapshot["preview_data"][0].keys()) if after_snapshot.get("preview_data") else []
+
     await save_operation(dataset_id, "sort", request, before_snapshot, after_snapshot, session)
     await session.commit()
 
@@ -1281,6 +1355,11 @@ async def encoding_operations(
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     column = request.get("column")
     operation = request.get("operation")
 
@@ -1360,6 +1439,11 @@ async def structural_operations(
         raise HTTPException(status_code=400, detail="No data to operate on")
 
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     operation = request.get('operation')
     column = request.get('column')
     columns = request.get('columns')
@@ -1473,8 +1557,13 @@ async def add_records(
         raise HTTPException(status_code=400, detail="Provide 'records' or 'csv_text'")
 
     import io as io_mod
-
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
+
 
     if request.csv_text:
         csv_df = pd.read_csv(io_mod.StringIO(request.csv_text))
@@ -1541,8 +1630,14 @@ async def import_recipe(
         raise HTTPException(status_code=400, detail="No operations provided")
 
     df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        # Reorder DataFrame columns to match expected order
+        df = df.reindex(columns=expected_columns)
     existing_columns = set(df.columns)
     results = []
+
 
     from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 

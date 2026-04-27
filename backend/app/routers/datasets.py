@@ -752,6 +752,12 @@ async def preview_dataset(
     # Normalize columns: handle both dict format and legacy string format
     columns = _normalize_columns(dataset.columns)
 
+    # DEBUG: Log column order in preview response to diagnose column order issue
+    import logging
+    _logger = logging.getLogger(__name__)
+    _col_names = [c["name"] for c in columns] if columns and isinstance(columns[0], dict) else columns
+    _data_keys = list(preview_data[0].keys()) if preview_data else []
+
     return {
         "columns": columns,
         "preview_data": preview_data,

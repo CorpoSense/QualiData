@@ -147,6 +147,32 @@ class TestSortLogic:
         assert list(result.index) == [0, 1, 2]
         assert list(result["name"]) == ["A", "B", "C"]
 
+    def test_sort_preserves_column_order(self):
+        """Sorting should preserve the original column order."""
+        # Create a DataFrame with specific column order
+        df = pd.DataFrame({
+            "z_column": [1, 2, 3],
+            "a_column": [4, 5, 6],
+            "m_column": [7, 8, 9]
+        })
+        # Sort by a_column (should not change column order)
+        result = df.sort_values(by="a_column", ascending=True, na_position="last").reset_index(drop=True)
+        # Column order should remain: z_column, a_column, m_column
+        assert list(result.columns) == ["z_column", "a_column", "m_column"]
+
+    def test_multi_column_sort_preserves_column_order(self):
+        """Multi-column sorting should preserve the original column order."""
+        # Create a DataFrame with specific column order
+        df = pd.DataFrame({
+            "z_column": [1, 2, 3],
+            "a_column": [4, 5, 6],
+            "m_column": [7, 8, 9]
+        })
+        # Sort by multiple columns (should not change column order)
+        result = df.sort_values(by=["a_column", "z_column"], ascending=[True, True], na_position="last").reset_index(drop=True)
+        # Column order should remain: z_column, a_column, m_column
+        assert list(result.columns) == ["z_column", "a_column", "m_column"]
+
 
 class TestSortRequestValidation:
     """Tests for sort request parameter validation."""
@@ -383,3 +409,29 @@ class TestMultiColumnSortRequestValidation:
         # This is the legacy format — endpoint should support both
         assert "column" in request
         assert "sort_keys" not in request
+
+    def test_sort_preserves_column_order(self):
+        """Sorting should preserve the original column order."""
+        # Create a DataFrame with specific column order
+        df = pd.DataFrame({
+            "z_column": [1, 2, 3],
+            "a_column": [4, 5, 6],
+            "m_column": [7, 8, 9]
+        })
+        # Sort by a_column (should not change column order)
+        result = df.sort_values(by="a_column", ascending=True, na_position="last").reset_index(drop=True)
+        # Column order should remain: z_column, a_column, m_column
+        assert list(result.columns) == ["z_column", "a_column", "m_column"]
+
+    def test_multi_column_sort_preserves_column_order(self):
+        """Multi-column sorting should preserve the original column order."""
+        # Create a DataFrame with specific column order
+        df = pd.DataFrame({
+            "z_column": [1, 2, 3],
+            "a_column": [4, 5, 6],
+            "m_column": [7, 8, 9]
+        })
+        # Sort by multiple columns (should not change column order)
+        result = df.sort_values(by=["a_column", "z_column"], ascending=[True, True], na_position="last").reset_index(drop=True)
+        # Column order should remain: z_column, a_column, m_column
+        assert list(result.columns) == ["z_column", "a_column", "m_column"]

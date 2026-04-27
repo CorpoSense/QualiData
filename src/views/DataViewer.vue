@@ -1784,6 +1784,7 @@ async function onSortChanged(newSortKeys) {
       body: JSON.stringify(body)
     })
     if (res.ok) {
+      const sortResult = await res.json()
       const sortDesc = newSortKeys.map(sk => `${sk.key} ${sk.dir === 'asc' ? '↑' : '↓'}`).join(', ')
       toast.success(`Sorted by ${sortDesc}`)
       await refreshData()
@@ -1930,6 +1931,19 @@ async function refreshData() {
       data.value = preview.preview_data || []
       columns.value = (preview.columns || []).map(col => ({ field: col.name, label: col.name }))
       dataset.value = preview
+      // Normalize data row key order to match columns.value order to prevent column mismatch
+      if (data.value.length > 0 && columns.value.length > 0) {
+        const columnOrder = columns.value.map(c => c.field)
+        data.value = data.value.map(row => {
+          const orderedRow = {}
+          for (const key of columnOrder) {
+            if (key in row) {
+              orderedRow[key] = row[key]
+            }
+          }
+          return orderedRow
+        })
+      }
 
       if (hasSubstringFilters || hasColumnFilters.value) {
         filteredMatchingIndices.value = preview.matching_indices || null
