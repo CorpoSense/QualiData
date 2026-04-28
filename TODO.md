@@ -22,7 +22,7 @@ Track tasks and improvements for the project.
 - `AGENTS.md` - Default models reference
 
 ### Fix bugs:
-- [ ] Persist column selection after any operation where possible (moving column, refresh page...)
+- [x] Persist column(s) selection after any operation where possible (moving column, refresh page...)
 - [x] Persist columns order after any operation.
 - [-] Fix update cell after sorting dataset. 
 - [x] Update a cell's value is not working

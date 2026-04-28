@@ -1563,6 +1563,36 @@ const selectedRows = ref([])  // Selected rows
 const batchProgress = ref(null)
 const fuzzyAiContext = ref(null)
 
+// Load selected columns from localStorage (dataset-specific)
+const loadSelectedColumns = () => {
+  try {
+    const key = `dataViewer-selectedColumns-${datasetId.value}`
+    const saved = localStorage.getItem(key)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      // Filter to only include columns that still exist (in case columns changed)
+      if (columns.value.length > 0) {
+        const existingColumnFields = columns.value.map(c => c.field)
+        selectedColumns.value = parsed.filter(col => existingColumnFields.includes(col))
+      } else {
+        selectedColumns.value = parsed
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load selected columns from localStorage:', e)
+  }
+}
+
+// Save selected columns to localStorage (dataset-specific)
+const saveSelectedColumns = () => {
+  try {
+    const key = `dataViewer-selectedColumns-${datasetId.value}`
+    localStorage.setItem(key, JSON.stringify(selectedColumns.value))
+  } catch (e) {
+    console.warn('Failed to save selected columns to localStorage:', e)
+  }
+}
+
 // Computed fields for BTable - disable sorting to allow column selection
 const tableFields = computed(() => {
   return columns.value.map(col => ({
@@ -1844,16 +1874,29 @@ async function fetchAgents() {
 }
 
 onMounted(async () => {
-  await refreshData()
-  await fetchAgents()
-  if (route.query.showProfile === 'true') showProfile.value = true
-})
+   loadSelectedColumns()
+   await refreshData()
+   await fetchAgents()
+   if (route.query.showProfile === 'true') showProfile.value = true
+ })
+
+// Watch for changes to selectedColumns and save to localStorage
+watch(selectedColumns, (newVal) => {
+   saveSelectedColumns()
+}, { deep: true })
 
 // Watch limit changes - reset to first page and refresh
 watch(limit, (newVal, oldVal) => {
   if (newVal !== oldVal) {
     page.value = 1
     refreshData()
+  }
+})
+
+// Watch datasetId changes - load selected columns for new dataset
+watch(datasetId, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    loadSelectedColumns()
   }
 })
 
