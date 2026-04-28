@@ -226,17 +226,17 @@
     <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
       <BBadge :variant="rowSelectMode && selectedRowIndices.length ? 'info' : 'secondary'" pill>{{ (rowSelectMode && selectedRowIndices.length)?selectedRowIndices.length:data.length }} rows</BBadge>
       <BBadge variant="secondary" pill>{{ columns.length }} columns</BBadge>
-      <BBadge v-if="hiddenColumns.length > 0" variant="warning" pill class="cursor-pointer" @click="unhideAllColumns" title="Click to show all">
+      <BBadge v-b-tooltip="'Click to show all columns'" v-if="hiddenColumns.length > 0" variant="warning" pill class="cursor-pointer" @click="unhideAllColumns">
         <i class="bi bi-eye-slash me-1"></i>{{ hiddenColumns.length }} hidden
       </BBadge>
       <BBadge variant="warning" pill>{{ nullCount }} nulls</BBadge>
       
       <!-- Selected columns display -->
-      <BBadge v-if="selectedColumns.length > 0" variant="info" pill class="ms-2 cursor-pointer" @click="selectedColumns = []">
-        <i class="bi bi-check2-square me-1"></i>
-        {{ selectedColumns.length === 1 ? `1 column: ${selectedColumns[0]}` : `${selectedColumns.length} columns selected` }}
+      <BBadge v-b-tooltip="'Click to clear selection'" v-if="selectedColumns.length > 0" variant="info" pill class="ms-2 cursor-pointer" @click="selectedColumns = []">
+          <i class="bi bi-check2-square me-1"></i>
+          {{ selectedColumns.length === 1 ? `1 column: ${selectedColumns[0]}` : `${selectedColumns.length} columns selected` }}
       </BBadge>
-      <BButton size="sm" variant="outline-secondary" @click="selectedColumns = columns.map(c => c.field)">
+      <BButton v-b-tooltip="'Click to select all columns'" size="sm" variant="outline-secondary" @click="selectedColumns = columns.map(c => c.field)">
         <i class="bi bi-check-all"></i> Select All
       </BButton>
       <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveLeft" @click="reorderColumns('left')" title="Move selected columns one step left">
@@ -1368,20 +1368,6 @@ async function fetchFooterStats() {
           }
         }
         footerStats.value = statsObj
-        // Initialize footer config with default enabled stats for each column
-        /*footerConfig.value = {}
-        for (const col of columns.value) {
-          const colStats = footerStats.value[col.field]
-          if (colStats) {
-            const defaultStats = []
-            if (colStats.is_numeric) {
-              defaultStats.push('min', 'max', 'mean', 'median', 'std')
-            } else {
-              defaultStats.push('unique_count', 'min_length', 'max_length')
-            }
-            footerConfig.value[col.field] = defaultStats
-          }
-        }*/
       }
     } else {
       toast.error('Failed to load footer stats')
@@ -1395,25 +1381,6 @@ async function fetchFooterStats() {
     fetchingStats.value = false
   }
 }
-
-/*function onFooterConfigChange({ column, stat, visible }) {
-  if (!footerConfig.value[column]) {
-    const colStats = footerStats.value[column]
-    if (colStats?.is_numeric) {
-      footerConfig.value[column] = ['count', 'mean', 'min', 'max']
-    } else {
-      footerConfig.value[column] = ['count', 'unique', 'top']
-    }
-  }
-  if (visible) {
-    if (!footerConfig.value[column].includes(stat)) {
-      footerConfig.value[column].push(stat)
-    }
-  } else {
-    const idx = footerConfig.value[column].indexOf(stat)
-    if (idx >= 0) footerConfig.value[column].splice(idx, 1)
-  }
-}*/
 
 const ENCODING_CONFIGS = {
   one_hot: { title: 'One-Hot Encoding', description: 'Creates binary (0/1) columns for each unique value in the selected column. Useful for categorical features in ML models.', defaults: { prefix: '' } },
