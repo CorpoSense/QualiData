@@ -226,11 +226,10 @@
     <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
       <BBadge :variant="rowSelectMode && selectedRowIndices.length ? 'info' : 'secondary'" pill>{{ (rowSelectMode && selectedRowIndices.length)?selectedRowIndices.length:data.length }} rows</BBadge>
       <BBadge variant="secondary" pill>{{ columns.length }} columns</BBadge>
-      <BBadge v-b-tooltip="'Click to show all columns'" v-if="hiddenColumns.length > 0" variant="warning" pill class="cursor-pointer" @click="unhideAllColumns">
-        <i class="bi bi-eye-slash me-1"></i>{{ hiddenColumns.length }} hidden
-      </BBadge>
+       <BBadge v-b-tooltip="'Click to show all columns'" v-if="hiddenColumns.length > 0" variant="warning" pill class="cursor-pointer" @click="unhideAllColumns">
+         <i class="bi bi-eye-slash me-1"></i>{{ hiddenColumns.length }} hidden
+       </BBadge>
       <BBadge variant="warning" pill>{{ nullCount }} nulls</BBadge>
-      
       <!-- Selected columns display -->
       <BBadge v-b-tooltip="'Click to clear selection'" v-if="selectedColumns.length > 0" variant="info" pill class="ms-2 cursor-pointer" @click="selectedColumns = []">
           <i class="bi bi-check2-square me-1"></i>
@@ -260,6 +259,26 @@
       <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-danger" @click="deleteSelectedRows">
         <i class="bi bi-trash me-1"></i>Delete {{ selectedRowIndices.length }}
       </BButton>
+       <!-- Column visibility dropdown -->
+       <BDropdown size="sm" variant="outline-secondary" class="column-visibility-dropdown" no-caret>
+         <template #button-content>
+           <i class="bi bi-eye"></i>
+           <span v-if="hiddenColumns.length > 0" class="badge bg-warning ms-1" style="font-size: 0.6rem;">{{ hiddenColumns.length }}</span>
+         </template>
+         <BDropdownItemButton
+           v-for="field in columns"
+           :key="field.field"
+           :class="{ 'text-muted': hiddenColumns.includes(field.field) }"
+           @click.stop="toggleVisibility(field.field)"
+         >
+           <i :class="hiddenColumns.includes(field.field) ? 'bi bi-eye-slash' : 'bi bi-eye'" class="me-1"></i>
+           {{ field.label }}
+         </BDropdownItemButton>
+         <BDropdownDivider v-if="hiddenColumns.length > 0" />
+         <BDropdownItemButton v-if="hiddenColumns.length > 0" @click="unhideAllColumns">
+           <i class="bi bi-eye-fill me-1"></i> Show All
+         </BDropdownItemButton>
+       </BDropdown>
       <BButton size="sm" :variant="'outline-secondary'" @click="showTableSettings = true">
         <i class="bi bi-gear"></i>
       </BButton>      
@@ -282,8 +301,8 @@
       </div>      
       <!-- Apply to Hidden Columns Toggle -->
       <div v-if="hiddenColumns.length > 0" class="d-flex align-items-center gap-1 ms-2" title="Include hidden columns in operations">
-        <input class="form-check-input" type="checkbox" v-model="applyToHiddenColumns" id="apply-to-hidden" style="margin: 0;">
-        <label class="form-check-label small text-muted" for="apply-to-hidden">Apply to hidden</label>
+        <input class="form-check-input m-0" type="checkbox" v-model="applyToHiddenColumns" id="apply-to-hidden">
+        <label class="form-check-label small text-muted cursor-pointer" for="apply-to-hidden">Apply to hidden</label>
       </div>
     </div>
 
@@ -298,32 +317,33 @@
     <div v-else class="card">
       <!-- Custom DataTable (no pagination - handled below) -->
       <DataTable
-            ref="dataTableRef"
-            :items="filteredData"
-            :fields="tableFields"
-            :selected-columns="selectedColumns"
-            :selectable="rowSelectMode"
-            :selected-rows="selectedRowIndices"
-            :show-index="showRowIndex"
-            :multi-sort="multiSort"
-            :server-sort="sortKeys"
-            :show-footer="showFooter"
-            :footer-stats="footerStats"
-            :enable-column-filter="enableColumnFilter"
-            :column-unique-values="columnUniqueValues"
-            :column-filter-state="columnFilterState"
-            :fetching-unique-values="fetchingUniqueValues"
-            :column-unique-counts="columnUniqueCounts"
-            @row-clicked="onRowClicked"
-            @head-clicked="onHeadClicked"
-            @row-selected="toggleRowSelection"
-            @toggle-all="toggleAllRows"
-            @cell-dblclick="openCellEditor"
-            @hidden-columns-changed="onHiddenColumnsChanged"
-            @column-filter-changed="onColumnFilterChanged"
-            @request-unique-values="fetchUniqueValuesForColumn"
-            @sort-changed="onSortChanged"
-          />
+        ref="dataTableRef"
+        :items="filteredData"
+        :fields="tableFields"
+        :selected-columns="selectedColumns"
+        :selectable="rowSelectMode"
+        :selected-rows="selectedRowIndices"
+        :show-index="showRowIndex"
+        :multi-sort="multiSort"
+        :server-sort="sortKeys"
+        :show-footer="showFooter"
+        :footer-stats="footerStats"
+        :enable-column-filter="enableColumnFilter"
+        :column-unique-values="columnUniqueValues"
+        :column-filter-state="columnFilterState"
+        :fetching-unique-values="fetchingUniqueValues"
+        :column-unique-counts="columnUniqueCounts"
+        :hidden-columns="hiddenColumns"
+        @row-clicked="onRowClicked"
+        @head-clicked="onHeadClicked"
+        @row-selected="toggleRowSelection"
+        @toggle-all="toggleAllRows"
+        @cell-dblclick="openCellEditor"
+        @hidden-columns-changed="onHiddenColumnsChanged"
+        @column-filter-changed="onColumnFilterChanged"
+        @request-unique-values="fetchUniqueValuesForColumn"
+        @sort-changed="onSortChanged"
+      />
 
       <!-- Pagination Footer -->
       <div class="d-flex justify-content-between align-items-center m-2 flex-wrap gap-2">
@@ -1241,7 +1261,7 @@
 import { getApiUrl } from '@/utils/api'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormFile, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem } from 'bootstrap-vue-next'
+import { BButton, BFormSelect, BFormInput, BFormTextarea, BFormFile, BFormGroup, BBadge, BModal, BDropdown, BDropdownItem, BDropdownItemButton, BDropdownDivider } from 'bootstrap-vue-next'
 import DataTable from '@/components/DataTable.vue'
 import PromptModal from '@/components/PromptModal.vue'
 import OperationConfirmModal from '@/components/OperationConfirmModal.vue'
@@ -1293,10 +1313,16 @@ async function onHiddenColumnsChanged(newHiddenColumns) {
 }
 
 function unhideAllColumns() {
-  if (dataTableRef.value) {
-    dataTableRef.value.showAllColumns()
-  }
   hiddenColumns.value = []
+}
+
+function toggleVisibility(key) {
+  const idx = hiddenColumns.value.indexOf(key)
+  if (idx >= 0) {
+    hiddenColumns.value.splice(idx, 1)
+  } else {
+    hiddenColumns.value.push(key)
+  }
 }
 
 // Filter selected columns to exclude hidden ones (unless applyToHiddenColumns is enabled)
@@ -3580,44 +3606,51 @@ async function fetchOperations() {
 
 <style scoped>
 .data-viewer {
-  background: #f8f9fa;
-  min-height: 100vh;
+   background: #f8f9fa;
+   min-height: 100vh;
 }
 .history-sidebar {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 360px;
-  height: 100vh;
-  background: #f8fafc;
-  box-shadow: -4px 0 16px rgba(0,0,0,0.08);
-  z-index: 99999 !important;
-  overflow-y: auto;
-  padding: 70px 12px 12px;
+   position: fixed;
+   top: 0;
+   right: 0;
+   width: 360px;
+   height: 100vh;
+   background: #f8fafc;
+   box-shadow: -4px 0 16px rgba(0,0,0,0.08);
+   z-index: 99999 !important;
+   overflow-y: auto;
+   padding: 70px 12px 12px;
 }
 
 .history-sidebar h6 {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #334155;
+   font-size: 0.85rem;
+   font-weight: 600;
+   color: #334155;
 }
 
 .history-sidebar .card {
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  transition: box-shadow 0.15s ease;
+   border-radius: 8px;
+   border: 1px solid #e2e8f0;
+   transition: box-shadow 0.15s ease;
 }
 
 .history-sidebar .card:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .history-sidebar .card-body {
-  padding: 10px 12px;
+   padding: 10px 12px;
 }
 
 .history-sidebar .badge {
-  font-size: 0.7rem;
-  font-weight: 500;
+   font-size: 0.7rem;
+   font-weight: 500;
+}
+
+/* Column Visibility Dropdown */
+.column-visibility-dropdown .dropdown-menu {
+  max-height: 300px;
+  overflow-y: auto;
+  min-width: 180px;
 }
 </style>

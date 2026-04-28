@@ -77,42 +77,7 @@
               title="Drag to resize, double-click to auto-fit"
             ></div>
           </th>
-          <!-- Column visibility button in last header column -->
-          <th v-if="visibleFields.length > 0" style="width: 50px; min-width: 50px; position: relative;" class="text-center">
-            <BButton
-              size="sm"
-              variant="outline-secondary"
-              @click.stop="showColumnMenu = !showColumnMenu"
-              title="Column visibility"
-              class="border-0 p-1"
-            >
-              <i class="bi bi-eye"></i>
-              <span v-if="hiddenColumns.length > 0" class="badge bg-warning ms-1" style="font-size: 0.6rem;">{{ hiddenColumns.length }}</span>
-            </BButton>
-            <div v-if="showColumnMenu" class="column-menu" style="right: 0;">
-              <div class="column-menu-header">
-                <span class="fw-bold small">Show/Hide Columns</span>
-                <button class="btn-close btn-close-sm" @click.stop="showColumnMenu = false"></button>
-              </div>
-              <div class="column-menu-list">
-                <div
-                  v-for="field in allFields"
-                  :key="field.key"
-                  class="column-menu-item"
-                  :class="{ 'text-muted': isHidden(field.key) }"
-                  @click.stop="toggleVisibility(field.key)"
-                >
-                  <i :class="isHidden(field.key) ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
-                  <span class="column-name">{{ field.label }}</span>
-                </div>
-              </div>
-              <div class="column-menu-footer">
-                <button class="btn btn-sm btn-outline-secondary w-100" @click.stop="showAllColumns">
-                  Show All
-                </button>
-              </div>
-            </div>
-          </th>
+
         </tr>
       </thead>
       <tbody>
@@ -220,6 +185,8 @@ const props = defineProps({
   columnFilterState: { type: Object, default: () => ({}) },
   fetchingUniqueValues: { type: Object, default: () => ({}) },
   columnUniqueCounts: { type: Object, default: () => ({}) },
+  // Hidden columns — parent is the single source of truth
+  hiddenColumns: { type: Array, default: () => [] },
 })
 
 const emit = defineEmits([
@@ -238,10 +205,12 @@ watch(() => props.serverSort, (newVal) => {
   }
 }, { immediate: true, deep: true })
 
-// Hidden columns state
-const hiddenColumns = ref([])
-const showColumnMenu = ref(false)
-
+// Hidden columns state (internal copy synced from prop)
+const internalHiddenColumns = ref([])
+// Sync from parent prop (single source of truth)
+watch(() => props.hiddenColumns, (newVal) => {
+  internalHiddenColumns.value = [...newVal]
+}, { immediate: true, deep: true })
 // Column filter dropdown state
 const openFilterColumn = ref(null)
 
@@ -332,36 +301,36 @@ function isSelected(field) {
 
 // Hidden columns functions
 function isHidden(key) {
-  return hiddenColumns.value.includes(key)
+  return internalHiddenColumns.value.includes(key)
 }
 
 function toggleVisibility(key) {
-  const idx = hiddenColumns.value.indexOf(key)
+  const idx = internalHiddenColumns.value.indexOf(key)
   if (idx >= 0) {
-    hiddenColumns.value.splice(idx, 1)
+    internalHiddenColumns.value.splice(idx, 1)
   } else {
-    hiddenColumns.value.push(key)
+    internalHiddenColumns.value.push(key)
   }
-  emit('hidden-columns-changed', hiddenColumns.value)
+  emit('hidden-columns-changed', [...internalHiddenColumns.value])
 }
 
 function showAllColumns() {
-  hiddenColumns.value = []
-  emit('hidden-columns-changed', hiddenColumns.value)
+  internalHiddenColumns.value = []
+  emit('hidden-columns-changed', [])
 }
 
 function hideColumn(key) {
   if (!isHidden(key)) {
-    hiddenColumns.value.push(key)
-    emit('hidden-columns-changed', hiddenColumns.value)
+    internalHiddenColumns.value.push(key)
+    emit('hidden-columns-changed', [...internalHiddenColumns.value])
   }
 }
 
 function unhideColumn(key) {
-  const idx = hiddenColumns.value.indexOf(key)
+  const idx = internalHiddenColumns.value.indexOf(key)
   if (idx >= 0) {
-    hiddenColumns.value.splice(idx, 1)
-    emit('hidden-columns-changed', hiddenColumns.value)
+    internalHiddenColumns.value.splice(idx, 1)
+    emit('hidden-columns-changed', [...internalHiddenColumns.value])
   }
 }
 
@@ -370,7 +339,7 @@ const allFields = computed(() => props.fields)
 
 // Visible fields (excluding hidden)
 const visibleFields = computed(() => {
-  const result = props.fields.filter(f => !hiddenColumns.value.includes(f.key))
+  const result = props.fields.filter(f => !internalHiddenColumns.value.includes(f.key))
   return result
 })
 
@@ -513,7 +482,6 @@ onUnmounted(() => {
 
 // Expose methods and state to parent
 defineExpose({
-  hiddenColumns,
   hideColumn,
   unhideColumn,
   showAllColumns,
@@ -617,75 +585,4 @@ tfoot {
   display: table-footer-group;
 }
 
-/* Column Visibility Dropdown */
-
-
-.column-visibility-dropdown .badge {
-  font-size: 0.65rem;
-  padding: 2px 5px;
-}
-
-.column-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: white;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  width: 200px;
-  max-height: 300px;
-  display: flex;
-  flex-direction: column;
-  margin-top: 4px;
-}
-
-.column-menu-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  border-bottom: 1px solid #dee2e6;
-  background: #f8f9fa;
-  border-radius: 6px 6px 0 0;
-}
-
-.column-menu-list {
-  overflow-y: auto;
-  flex: 1;
-  max-height: 200px;
-}
-
-.column-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.column-menu-item:hover {
-  background: #f0f0f0;
-}
-
-.column-menu-item .column-name {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.85rem;
-}
-
-.column-menu-footer {
-  padding: 8px 12px;
-  border-top: 1px solid #dee2e6;
-  background: #f8f9fa;
-  border-radius: 0 0 6px 6px;
-}
-
-.btn-close-sm {
-  font-size: 0.5rem;
-  padding: 0.25rem;
-}
 </style>
