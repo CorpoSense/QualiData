@@ -232,15 +232,12 @@
       <BBadge variant="warning" pill>{{ nullCount }} nulls</BBadge>
       
       <!-- Selected columns display -->
-      <BBadge v-if="selectedColumns.length > 0" variant="info" pill class="ms-2">
+      <BBadge v-if="selectedColumns.length > 0" variant="info" pill class="ms-2 cursor-pointer" @click="selectedColumns = []">
         <i class="bi bi-check2-square me-1"></i>
         {{ selectedColumns.length === 1 ? `1 column: ${selectedColumns[0]}` : `${selectedColumns.length} columns selected` }}
       </BBadge>
       <BButton size="sm" variant="outline-secondary" @click="selectedColumns = columns.map(c => c.field)">
         <i class="bi bi-check-all"></i> Select All
-      </BButton>
-      <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-secondary" @click="selectedColumns = []">
-        Clear
       </BButton>
       <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveLeft" @click="reorderColumns('left')" title="Move selected columns one step left">
         <i class="bi bi-arrow-left"></i>
