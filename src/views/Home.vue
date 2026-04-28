@@ -293,7 +293,7 @@
           <div class="d-flex align-items-center justify-content-center gap-3">
             <span :class="{'fw-bold': !isAnnual, 'text-secondary': isAnnual}">Monthly</span>
             <div class="form-check form-switch fs-4 mb-0">
-              <input class="form-check-input shadow-none" type="checkbox" role="switch" v-model="isAnnual" style="cursor: pointer;">
+              <input class="form-check-input shadow-none cursor-pointer" type="checkbox" role="switch" v-model="isAnnual">
             </div>
             <span :class="{'fw-bold': isAnnual, 'text-secondary': !isAnnual}">
               Annually <span class="badge bg-success bg-opacity-10 text-success rounded-pill fs-6 ms-1">Save 20%</span>

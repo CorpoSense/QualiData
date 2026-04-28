@@ -35,7 +35,7 @@
           
           <!-- Notifications -->
           <li class="nav-item">
-            <button class="nav-link position-relative" @click="$emit('show-notifications')" style="background: none; border: none; cursor: pointer;">
+            <button class="nav-link position-relative no-background" @click="$emit('show-notifications')">
               <i class="bi bi-bell fs-5"></i>
               <span v-if="unreadCount > 0" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 10px;">
                 {{ unreadCount > 9 ? '9+' : unreadCount }}
@@ -46,7 +46,7 @@
           <!-- User Dropdown -->
           <li class="nav-item">
             <div class="dropdown">
-              <button class="nav-link d-flex align-items-center gap-2 dropdown-toggle" data-bs-toggle="dropdown" style="background: none; border: none; cursor: pointer;">
+              <button class="nav-link d-flex align-items-center gap-2 dropdown-toggle no-background" data-bs-toggle="dropdown">
                 <div class="user-avatar rounded-circle d-flex align-items-center justify-content-center">
                   <i class="bi bi-person text-white fs-6"></i>
                 </div>
@@ -127,5 +127,11 @@ defineEmits(['show-notifications', 'logout'])
   width: 32px;
   height: 32px;
   background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+}
+
+.no-background {
+  background: none;
+  border: none;
+  cursor: pointer;
 }
 </style>

@@ -299,8 +299,4 @@ function oauthLogin(provider) {
   max-width: 400px;
   padding: 2rem;
 }
-
-.cursor-pointer {
-  cursor: pointer;
-}
 </style>
