@@ -1883,10 +1883,21 @@ watch(limit, (newVal, oldVal) => {
   }
 })
 
-// Watch datasetId changes - load selected columns for new dataset
+// Watch datasetId changes - reset state and reload data for new dataset
 watch(datasetId, (newVal, oldVal) => {
   if (newVal !== oldVal) {
+    // Reset component state for the new dataset
+    page.value = 1
+    searchQuery.value = ''
+    rowFilters.value = {}
+    columnFilterState.value = {}
+    selectedColumns.value = []
+    selectedRowIndices.value = []
+    hiddenColumns.value = []
+    sortKeys.value = []
+    operations.value = []
     loadSelectedColumns()
+    refreshData()
   }
 })
 

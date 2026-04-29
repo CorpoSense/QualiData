@@ -34,14 +34,10 @@ Track tasks and improvements for the project.
 
 ## Improvments:
 
-#### Extended filtering and sorting
-- [ ] Implement an option to each column which show an extended menu for multi-filtering and multi-sorting similar to Excel's while showing unique values and theirs counts so the user can apply multiple both filtering and sorting for multiple columns.
-- [ ] This feature is an extension to the previous feature and should not override any of them while it uses most of the previous existing APIs.
 - [ ] Make the "Projects" menu item in the navbar a dropdown menu to list projects and theirs datasets.
-
-#### Hide columns
-- [ ] The user is able to hide some columns to save some screen space and work easily on the visible columns.
-- [ ] The invisible columns should not be effected (we may need to reflect on that).
+- [x] Add an extended menu for multi-filtering that is almost similar to Excel's while showing unique values and theirs counts.
+- [x] The user is able to hide some columns to save some screen space and work easily on the visible columns.
+- [x] Add an option to allow the user choose whether to apply operation on the invisible columns.
 
 #### AI Agent Capabilities
 - [ ] Support different type of memories
