@@ -2315,8 +2315,9 @@ async function applyStructuralOp(operation) {
     if (effectiveSelectedColumns.value.length !== 1) {
       toast.warning('Select exactly 1 column to rename'); return
     }
-    const newName = await showPrompt({ title: 'Rename Column', message: 'Enter new column name:' })
-    if (!newName) return
+    const currentName = effectiveSelectedColumns.value[0]
+    const newName = await showPrompt({ title: 'Rename Column', message: 'Enter new column name:', defaultValue: currentName })
+    if (!newName || newName === currentName) return
     const col = effectiveSelectedColumns.value[0]
     await applyOperation('structural', { operation, column: col, new_name: newName })
   } else if (operation === 'astype') {
