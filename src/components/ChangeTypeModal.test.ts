@@ -610,7 +610,6 @@ describe('ChangeTypeModal', () => {
   describe('Edge Cases', () => {
     it('handles empty selected columns', () => {
       const wrapper = createWrapper({ selectedColumns: [] })
-      const vm = wrapper.vm as any
       // Should still render without errors
       expect(wrapper.find('.b-modal').exists()).toBe(true)
     })

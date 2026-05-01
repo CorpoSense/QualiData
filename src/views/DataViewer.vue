@@ -771,6 +771,15 @@
             <small class="d-block text-muted">Sort by multiple columns by clicking headers sequentially</small>
           </label>
         </div>
+
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" v-model="enableColumnFilter" id="setting-column-filter">
+          <label class="form-check-label" for="setting-column-filter">
+            <strong>Multi-column filtering</strong>
+            <small class="d-block text-muted">Show filter dropdowns on column headers to filter by selected values</small>
+          </label>
+        </div>
+
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" v-model="showFooter" id="setting-footer" @change="onShowFooterToggle">
           <label class="form-check-label" for="setting-footer">
@@ -778,13 +787,7 @@
             <small class="d-block text-muted">Show summary statistics at bottom of each page</small>
           </label>
         </div>
-        <div class="form-check form-switch">
-          <input class="form-check-input" type="checkbox" v-model="enableColumnFilter" id="setting-column-filter">
-          <label class="form-check-label" for="setting-column-filter">
-            <strong>Column multi-filter</strong>
-            <small class="d-block text-muted">Show filter dropdowns on column headers to filter by selected values</small>
-          </label>
-        </div>
+
         </div>
       <template #footer>
         <BButton variant="primary" size="sm" @click="showTableSettings = false">Done</BButton>
