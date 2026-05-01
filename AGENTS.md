@@ -266,7 +266,7 @@ Multiple routers organized by feature in [`backend/app/routers/`](backend/app/ro
 | `users` | `/api/users` | User CRUD |
 | `projects` | `/api/projects` | Project CRUD |
 | `datasets` | `/api/datasets` | Dataset import/export/preview |
-| `operations*` | `/api/operations` | Data operations (core, extra, structural, cell, datetime, missing values, batch, undo/redo) |
+| `operations*` | `/api/operations` | Data operations (core, extra, structural, cell, datetime, missing values, batch, undo/redo, extract-json, extract-pattern) |
 | `agents` | `/api/agents` | Agent CRUD |
 | `ai*` | `/api/ai` and `/api/operations` | AI endpoints and operations |
 | `assistant` | `/api/assistant` | Assistant wizard |

@@ -266,6 +266,7 @@ async def ai_suggest_preflight(
         {"operation": "remove-duplicates", "label": "Remove Duplicates", "description": "Identify and remove duplicate rows"},
         {"operation": "find-replace", "label": "Find & Replace", "description": "Find and replace text patterns (with regex support)"},
         {"operation": "extract-json", "label": "Extract JSON", "description": "Extract values from JSON-formatted strings"},
+        {"operation": "extract-pattern", "label": "Extract Pattern", "description": "Extract matched text using regex patterns from string values"},
         {"operation": "string-operations", "label": "String Operations", "description": "Transform text (uppercase, lowercase, trim, title case, capitalize)"},
         {"operation": "fuzzy-match", "label": "Fuzzy Match", "description": "Find and merge similar values using algorithms (standard, permutation, levenshtein)"},
         {"operation": "one-hot-encoding", "label": "One-Hot Encoding", "description": "Create binary columns for each unique category"},
@@ -383,8 +384,9 @@ Available operations:
 - fillna: {operation: "fillna", column: "col", params: {method: "constant|drop|forward|backward|mean|median|mode", fill_value: "val"}}
 - remove-duplicates: {operation: "remove-duplicates", params: {}}
 - find-replace: {operation: "find-replace", column: "col", params: {find: "old", replace: "new", regex: false, case_sensitive: true}}
-- extract-json: {operation: "extract-json", column: "col", params: {key: "field"}}
-- string-operations: {operation: "string-operations", column: "col", params: {operation: "upper|lower|trim|title|capitalize"}}
+    - extract-json: {operation: "extract-json", column: "col", params: {key: "field"}}
+    - extract-pattern: {operation: "extract-pattern", column: "col", params: {pattern: "regex", case_sensitive: true}}
+    - string-operations: {operation: "string-operations", column: "col", params: {operation: "upper|lower|trim|title|capitalize"}}
 - one-hot-encoding: {operation: "one-hot-encoding", column: "col", params: {prefix: "col"}}
 - label-encoding: {operation: "label-encoding", column: "col", params: {}}
 - value-mapping: {operation: "value-mapping", column: "col", params: {mapping: {"old1": "new1", "old2": "new2"}}}

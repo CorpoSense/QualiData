@@ -904,6 +904,101 @@ async def extract_json_value(
     return {"status": "success", "message": f"Extracted {changed} value(s) from '{column}' using key '{key}'", "columns": dataset.columns}
 
 
+@router.post("/datasets/{dataset_id}/operations/extract-pattern")
+async def extract_pattern_value(
+    dataset_id: str,
+    request: dict,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Extract matched text from string values using a regex pattern.
+
+    If the pattern contains capture groups, group(1) is returned.
+    Otherwise, the full match (group(0)) is returned.
+    Non-matching values are left unchanged.
+
+    Supports row filtering:
+    - { "column": "url", "pattern": "https?://([^/]+)", "row_indices": [0, 1, 2] }
+    """
+    import re
+
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.data_json or "data" not in dataset.data_json:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+
+    df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns to prevent column reordering issues
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        df = df.reindex(columns=expected_columns)
+
+    column = request.get("column")
+    pattern = request.get("pattern")
+    case_sensitive = request.get("case_sensitive", True)
+    row_indices = request.get("row_indices")
+
+    if not column or column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
+    if not pattern:
+        raise HTTPException(status_code=400, detail="pattern is required")
+
+    # Validate regex
+    try:
+        flags = 0 if case_sensitive else re.IGNORECASE
+        re.compile(pattern, flags)
+    except re.error as e:
+        raise HTTPException(status_code=400, detail=f"Invalid regex pattern: {e}")
+
+    changed = 0
+
+    def _extract(val):
+        nonlocal changed
+        if val is None or (isinstance(val, float) and pd.isna(val)):
+            return val
+        s = str(val).strip()
+        if not s:
+            return val
+        try:
+            match = re.search(pattern, s, flags)
+        except re.error:
+            return val
+        if not match:
+            return val
+        # If pattern has capture groups, return group(1)
+        # Otherwise return the full match (group(0))
+        if match.lastindex and match.lastindex >= 1:
+            result = match.group(1)
+        else:
+            result = match.group(0)
+        changed += 1
+        return result
+
+    if row_indices:
+        # Apply only to specified rows
+        valid_indices = [i for i in row_indices if 0 <= i < len(df)]
+        if valid_indices:
+            for idx in valid_indices:
+                original = df.at[df.index[idx], column]
+                df.at[df.index[idx], column] = _extract(original)
+    else:
+        df[column] = df[column].apply(_extract)
+
+    if changed == 0:
+        return {"status": "no_changes", "message": f"No values matched pattern '{pattern}' in column '{column}'.", "columns": dataset.columns}
+
+    from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
+    dataset.columns = detect_columns(df)
+    dataset.data_json = get_full_data_json(df)
+    after_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": get_preview_data(df)}
+
+    await save_operation(dataset_id, "extract-pattern", {"column": column, "pattern": pattern, "case_sensitive": case_sensitive}, before_snapshot, after_snapshot, session)
+    await session.commit()
+
+    scope_msg = f" in {len(row_indices)} row(s)" if row_indices else ""
+    return {"status": "success", "message": f"Extracted {changed} value(s) from '{column}' using pattern '{pattern}'{scope_msg}", "columns": dataset.columns}
+
+
 @router.post("/datasets/{dataset_id}/operations/find-replace")
 async def find_replace(
     dataset_id: str,
@@ -1739,6 +1834,25 @@ async def import_recipe(
                             except (json.JSONDecodeError, TypeError, KeyError):
                                 return v
                         df[op_column] = df[op_column].apply(extract)
+
+            elif op_type == "extract-pattern":
+                if op_column and op_column in df.columns:
+                    pattern = op_params.get("pattern", "")
+                    case_sensitive = op_params.get("case_sensitive", True)
+                    if pattern:
+                        import re
+                        def extract_pattern(v):
+                            try:
+                                flags = 0 if case_sensitive else re.IGNORECASE
+                                match = re.search(pattern, str(v), flags)
+                                if match:
+                                    if match.lastindex and match.lastindex >= 1:
+                                        return match.group(1)
+                                    return match.group(0)
+                                return v
+                            except (re.error, TypeError):
+                                return v
+                        df[op_column] = df[op_column].apply(extract_pattern)
 
             elif op_type in ("encoding_one_hot", "encoding_label", "encoding_map", "encoding_bin", "one_hot", "label", "map", "bin"):
                 # Encoding operations handled via the encoding endpoint

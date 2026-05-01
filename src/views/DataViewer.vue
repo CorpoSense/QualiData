@@ -88,10 +88,13 @@
             <BDropdownItem @click="showOpConfirmModal('string-capitalize')">
               <i class="bi bi-type me-2"></i>Capitalize
             </BDropdownItem>
-            <BDropdownItem @click="openExtractJsonModal">
-              <i class="bi bi-braces me-2"></i>Extract JSON value…
-            </BDropdownItem>
-            <BDropdownItem @click="showFindReplaceModal = true">
+      <BDropdownItem @click="openExtractJsonModal">
+        <i class="bi bi-braces me-2"></i>Extract JSON value…
+      </BDropdownItem>
+      <BDropdownItem @click="openExtractPatternModal">
+        <i class="bi bi-regex me-2"></i>Extract pattern…
+      </BDropdownItem>
+      <BDropdownItem @click="showFindReplaceModal = true">
               <i class="bi bi-arrow-left-right me-2"></i>Find & Replace…
             </BDropdownItem>
           </BDropdown>
@@ -508,8 +511,19 @@
       </template>
     </BModal>
 
-    <!-- Find & Replace Modal -->
-    <BModal v-model="showFindReplaceModal" title="Find & Replace">
+  <!-- Extract Pattern Modal -->
+  <ExtractPatternModal
+    v-model="showExtractPatternModal"
+    :column="selectedColumns[0] || ''"
+    :samples="extractPatternSamples"
+    :dataset-id="datasetId"
+    :loading="operating"
+    :agent-options="agentOptions"
+    @apply="applyExtractPattern"
+  />
+
+  <!-- Find & Replace Modal -->
+  <BModal v-model="showFindReplaceModal" title="Find & Replace">
       <div class="alert alert-info py-2 mb-3">
         <i class="bi bi-info-circle me-1"></i>
         Replace values in <strong>{{ selectedColumns.length ? selectedColumns.join(', ') : 'selected column(s)' }}</strong>.
@@ -1282,6 +1296,7 @@ import FuzzyMatchModal from '@/components/FuzzyMatchModal.vue'
 import ProfileModal from '@/components/ProfileModal.vue'
 import ColumnReorderModal from '@/components/ColumnReorderModal.vue'
 import ChangeTypeModal from '@/components/ChangeTypeModal.vue'
+import ExtractPatternModal from '@/components/ExtractPatternModal.vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
 import { useToast } from '@/composables/useToast'
 
@@ -1616,6 +1631,8 @@ const showExtractJsonModal = ref(false)
 const extractJsonKey = ref('')
 const extractJsonSamples = ref([])
 const extractJsonSuggestedKeys = ref([])
+const showExtractPatternModal = ref(false)
+const extractPatternSamples = ref([])
 const showFindReplaceModal = ref(false)
 const showOpConfirm = ref(false)
 const opConfirmConfig = ref({ title: '', description: '', operation: '', params: {}, options: [], handler: null })
@@ -2287,6 +2304,41 @@ async function applyExtractJson() {
       showExtractJsonModal.value = false
       await refreshData()
     } else { const err = await res.json(); toast.error(err.detail || 'Extraction failed') }
+  } catch (e) { toast.error(e.message) }
+  finally { operating.value = false }
+}
+
+function openExtractPatternModal() {
+  if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length !== 1) {
+    toast.warning('Select exactly 1 column to extract pattern from')
+    return
+  }
+  const col = effectiveSelectedColumns.value[0]
+  extractPatternSamples.value = data.value.map(row => row[col]).filter(v => v != null).slice(0, 5).map(s => String(s))
+  showExtractPatternModal.value = true
+}
+
+async function applyExtractPattern(payload) {
+  if (!payload.pattern) { toast.warning('Enter a regex pattern'); return }
+  const col = effectiveSelectedColumns.value[0]
+  operating.value = true
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/extract-pattern`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({
+        column: col,
+        pattern: payload.pattern,
+        case_sensitive: payload.case_sensitive,
+        row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined,
+      })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || 'Pattern extracted')
+      showExtractPatternModal.value = false
+      await refreshData()
+    } else { const err = await res.json(); toast.error(err.detail || 'Pattern extraction failed') }
   } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
 }
