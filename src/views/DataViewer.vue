@@ -137,7 +137,7 @@
             <BDropdownItem @click="applyStructuralOp('drop')">
               <i class="bi bi-trash me-2"></i>Drop column
             </BDropdownItem>
-            <BDropdownItem @click="applyStructuralOp('astype')">
+            <BDropdownItem @click="openChangeTypeModal">
               <i class="bi bi-arrow-left-right me-2"></i>Change type
             </BDropdownItem>
             <BDropdownItem @click="openMergeColumnsModal">
@@ -1173,6 +1173,15 @@
       :selected-columns="selectedColumns"
       @apply="applyColumnReorder"
     />
+  
+    <!-- Change Type Modal -->
+    <ChangeTypeModal
+      v-model="showChangeTypeModal"
+      :selected-columns="effectiveSelectedColumns"
+      :dataset-id="datasetId"
+      :operating="operating"
+      @apply="applyChangeType"
+    />
 
     <!-- History Sidebar -->
     <div v-if="showHistory" class="history-sidebar">
@@ -1269,6 +1278,7 @@ import AiCleanModal from '@/components/AiCleanModal.vue'
 import FuzzyMatchModal from '@/components/FuzzyMatchModal.vue'
 import ProfileModal from '@/components/ProfileModal.vue'
 import ColumnReorderModal from '@/components/ColumnReorderModal.vue'
+import ChangeTypeModal from '@/components/ChangeTypeModal.vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
 import { useToast } from '@/composables/useToast'
 
@@ -1524,6 +1534,7 @@ const showCompare = ref(false)
 const showHistory = ref(false)
 const showPivotModal = ref(false)
 const showColumnReorderModal = ref(false)
+const showChangeTypeModal = ref(false)
 const exportZip = ref(false)
 const importText = ref('')
 const importFile = ref(null)
@@ -2089,6 +2100,45 @@ async function applyStringOp(operation) {
   finally { operating.value = false }
 }
 
+// Change type modal
+function openChangeTypeModal() {
+  if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length === 0) {
+    toast.warning('No columns selected'); return
+  }
+  showChangeTypeModal.value = true
+}
+
+async function applyChangeType(payload) {
+  operating.value = true
+  try {
+    const body = {
+      column: payload.column,
+      target_type: payload.targetType,
+      error_handling: payload.errorHandling,
+    }
+    if (payload.errorHandling === 'fallback' && payload.fallbackValue != null) {
+      body.fallback_value = payload.fallbackValue
+    }
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/change-type`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(body),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || 'Type changed successfully')
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Type change failed')
+    }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    operating.value = false
+  }
+}
+
 // Merge columns
 function openMergeColumnsModal() {
   mergeColumns.value = effectiveSelectedColumns.value.length >= 2 ? [...effectiveSelectedColumns.value] : []
@@ -2321,26 +2371,7 @@ async function applyStructuralOp(operation) {
     const col = effectiveSelectedColumns.value[0]
     await applyOperation('structural', { operation, column: col, new_name: newName })
   } else if (operation === 'astype') {
-    if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length === 0) {
-      toast.warning('No columns selected'); return
-    }
-    const dtype = await showPrompt({ title: 'Change Type', message: 'Enter new type (int, float, str, bool):' })
-    if (!dtype) return
-    operating.value = true
-    try {
-      const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/structural`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ operation, columns: effectiveSelectedColumns.value, dtype })
-      })
-      if (res.ok) { 
-        const data = await res.json()
-        toast.success(data.message || 'Operation applied successfully')
-        await refreshData() 
-      }
-      else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
-    } catch (e) { toast.error(e.message) }
-    finally { operating.value = false }
+    openChangeTypeModal()
   } else if (operation === 'drop') {
     if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length === 0) {
       toast.warning('No columns selected'); return

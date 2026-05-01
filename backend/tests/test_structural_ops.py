@@ -37,6 +37,14 @@ _PREVIEW_PATCH = patch(
     side_effect=lambda df: df.to_dict("records"),
 )
 _SAVE_PATCH = patch("app.routers.operations.save_operation", new_callable=AsyncMock)
+_SAVE_PATCH_EXTRA = patch("app.routers.operations_extra.save_operation", new_callable=AsyncMock)
+
+
+def _make_sync_owner_check(dataset):
+    """Patch get_dataset_with_owner_check (sync version in operations_extra) to return our mock."""
+    def fake_check(ds_id, user_id, session):
+        return dataset
+    return fake_check
 
 
 class TestAddColumnOperation:
@@ -1481,3 +1489,745 @@ class TestDeleteRowsOperation:
         assert result["row_count"] == 2
         names = [r["name"] for r in dataset.data_json["data"]]
         assert names == ["B", "D"]
+    
+    
+    class TestDetectType:
+        """Test the detect-type endpoint and detect_column_type helper."""
+    
+        @pytest.mark.asyncio
+        async def test_detect_integer_column(self):
+            """Detects integer type for a string column with numeric values."""
+            from app.routers.operations_extra import detect_type, DetectTypeRequest
+    
+            dataset = _make_mock_dataset([
+                {"name": "Alice", "age": "30"},
+                {"name": "Bob", "age": "25"},
+                {"name": "Carol", "age": "35"},
+            ])
+            mock_session = AsyncMock()
+    
+            with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                        side_effect=_make_sync_owner_check(dataset)):
+                result = await detect_type(
+                    dataset_id="test-ds-id",
+                    request=DetectTypeRequest(columns=["age"]),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+    
+            assert result["status"] == "success"
+            col_result = result["columns"][0]
+            assert col_result["column"] == "age"
+            assert col_result["suggested_type"] == "integer"
+            assert col_result["confidence"] >= 0.8
+            assert "integer" in col_result["type_scores"]
+            assert col_result["type_scores"]["integer"] >= 0.8
+    
+        @pytest.mark.asyncio
+        async def test_detect_boolean_column(self):
+            """Detects boolean type for a column with true/false values."""
+            from app.routers.operations_extra import detect_type, DetectTypeRequest
+    
+            dataset = _make_mock_dataset([
+                {"name": "Alice", "active": "true"},
+                {"name": "Bob", "active": "false"},
+                {"name": "Carol", "active": "yes"},
+            ])
+            mock_session = AsyncMock()
+    
+            with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                        side_effect=_make_sync_owner_check(dataset)):
+                result = await detect_type(
+                    dataset_id="test-ds-id",
+                    request=DetectTypeRequest(columns=["active"]),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+    
+            assert result["status"] == "success"
+            col_result = result["columns"][0]
+            assert col_result["suggested_type"] == "boolean"
+            assert col_result["confidence"] >= 0.8
+    
+        @pytest.mark.asyncio
+        async def test_detect_datetime_column(self):
+            """Detects datetime type for a column with date strings."""
+            from app.routers.operations_extra import detect_type, DetectTypeRequest
+    
+            dataset = _make_mock_dataset([
+                {"name": "Alice", "created": "2024-01-15"},
+                {"name": "Bob", "created": "2024-02-20"},
+                {"name": "Carol", "created": "2024-03-10"},
+            ])
+            mock_session = AsyncMock()
+    
+            with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                        side_effect=_make_sync_owner_check(dataset)):
+                result = await detect_type(
+                    dataset_id="test-ds-id",
+                    request=DetectTypeRequest(columns=["created"]),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+    
+            assert result["status"] == "success"
+            col_result = result["columns"][0]
+            assert col_result["suggested_type"] == "datetime"
+            assert col_result["confidence"] >= 0.8
+    
+        @pytest.mark.asyncio
+        async def test_detect_string_fallback(self):
+            """Falls back to string for mixed data."""
+            from app.routers.operations_extra import detect_type, DetectTypeRequest
+    
+            dataset = _make_mock_dataset([
+                {"name": "Alice", "mixed": "hello"},
+                {"name": "Bob", "mixed": "42"},
+                {"name": "Carol", "mixed": "world"},
+                {"name": "Dave", "mixed": "true"},
+            ])
+            mock_session = AsyncMock()
+    
+            with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                        side_effect=_make_sync_owner_check(dataset)):
+                result = await detect_type(
+                    dataset_id="test-ds-id",
+                    request=DetectTypeRequest(columns=["mixed"]),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+    
+            assert result["status"] == "success"
+            col_result = result["columns"][0]
+            # Mixed data should not suggest a specific type with high confidence
+            assert col_result["suggested_type"] == "string"
+    
+        @pytest.mark.asyncio
+        async def test_detect_multiple_columns(self):
+            """Detects types for multiple columns at once."""
+            from app.routers.operations_extra import detect_type, DetectTypeRequest
+    
+            dataset = _make_mock_dataset([
+                {"name": "Alice", "age": "30", "active": "true"},
+                {"name": "Bob", "age": "25", "active": "false"},
+            ])
+            mock_session = AsyncMock()
+    
+            with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                        side_effect=_make_sync_owner_check(dataset)):
+                result = await detect_type(
+                    dataset_id="test-ds-id",
+                    request=DetectTypeRequest(columns=["age", "active"]),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+    
+            assert result["status"] == "success"
+            assert len(result["columns"]) == 2
+            assert result["columns"][0]["column"] == "age"
+            assert result["columns"][1]["column"] == "active"
+    
+        @pytest.mark.asyncio
+        async def test_detect_type_missing_column_raises(self):
+            """Detecting type for a non-existent column raises 400."""
+            from app.routers.operations_extra import detect_type, DetectTypeRequest
+            from fastapi import HTTPException
+    
+            dataset = _make_mock_dataset(SAMPLE_DATA)
+            mock_session = AsyncMock()
+    
+            with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                        side_effect=_make_sync_owner_check(dataset)):
+                with pytest.raises(HTTPException) as exc_info:
+                    await detect_type(
+                        dataset_id="test-ds-id",
+                        request=DetectTypeRequest(columns=["nonexistent"]),
+                        current_user=MagicMock(id="user-1"),
+                        session=mock_session,
+                    )
+            assert exc_info.value.status_code == 400
+    
+        @pytest.mark.asyncio
+        async def test_detect_type_with_nulls(self):
+            """Type detection handles null values gracefully."""
+            from app.routers.operations_extra import detect_type, DetectTypeRequest
+    
+            dataset = _make_mock_dataset([
+                {"name": "Alice", "age": "30"},
+                {"name": "Bob", "age": None},
+                {"name": "Carol", "age": "35"},
+            ])
+            mock_session = AsyncMock()
+    
+            with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                        side_effect=_make_sync_owner_check(dataset)):
+                result = await detect_type(
+                    dataset_id="test-ds-id",
+                    request=DetectTypeRequest(columns=["age"]),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+    
+            assert result["status"] == "success"
+            col_result = result["columns"][0]
+            assert col_result["null_count"] == 1
+            assert col_result["suggested_type"] == "integer"
+    
+        @pytest.mark.asyncio
+        async def test_detect_float_column(self):
+            """Detects float type for a column with decimal values."""
+            from app.routers.operations_extra import detect_type, DetectTypeRequest
+    
+            dataset = _make_mock_dataset([
+                {"name": "Alice", "score": "3.14"},
+                {"name": "Bob", "score": "2.71"},
+                {"name": "Carol", "score": "1.41"},
+            ])
+            mock_session = AsyncMock()
+    
+            with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                        side_effect=_make_sync_owner_check(dataset)):
+                result = await detect_type(
+                    dataset_id="test-ds-id",
+                    request=DetectTypeRequest(columns=["score"]),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+    
+            assert result["status"] == "success"
+            col_result = result["columns"][0]
+            # Float should be suggested (integers are also valid floats, but float has decimals)
+            assert col_result["suggested_type"] in ("float", "integer")
+            assert col_result["type_scores"]["float"] >= 0.8
+    
+    
+    class TestChangeTypePreview:
+        """Test the change-type-preview endpoint."""
+    
+        @pytest.mark.asyncio
+        async def test_preview_string_to_integer(self):
+            """Preview shows before/after for string→integer conversion."""
+            from app.routers.operations_extra import change_type_preview, ChangeTypePreviewRequest
+    
+            dataset = _make_mock_dataset([
+                {"name": "Alice", "age": "30"},
+                {"name": "Bob", "age": "25"},
+                {"name": "Carol", "age": "N/A"},
+            ])
+            mock_session = AsyncMock()
+    
+            with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                        side_effect=_make_sync_owner_check(dataset)):
+                result = await change_type_preview(
+                    dataset_id="test-ds-id",
+                    request=ChangeTypePreviewRequest(
+                        columns=["age"], target_type="integer", sample_rows=3
+                    ),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+    
+            assert result["status"] == "success"
+            col_result = result["columns"][0]
+            assert col_result["column"] == "age"
+            assert col_result["target_type"] == "integer"
+            assert len(col_result["preview"]) == 3
+            # First two should convert fine
+            assert col_result["preview"][0]["changed"] is True
+            assert col_result["preview"][0]["error"] is False
+            # "N/A" should be an error
+            assert col_result["preview"][2]["error"] is True
+            assert col_result["total_errors"] == 1
+    
+        @pytest.mark.asyncio
+        async def test_preview_with_data_loss_warnings(self):
+            """Preview warns about float→integer precision loss."""
+            from app.routers.operations_extra import change_type_preview, ChangeTypePreviewRequest
+    
+            dataset = _make_mock_dataset([
+                {"name": "Alice", "score": 3.14},
+                {"name": "Bob", "score": 2.71},
+            ])
+            mock_session = AsyncMock()
+    
+            with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                        side_effect=_make_sync_owner_check(dataset)):
+                result = await change_type_preview(
+                    dataset_id="test-ds-id",
+                    request=ChangeTypePreviewRequest(
+                        columns=["score"], target_type="integer", sample_rows=2
+                    ),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+    
+            assert result["status"] == "success"
+            col_result = result["columns"][0]
+            assert len(col_result["data_loss_warnings"]) > 0
+            assert any("Precision loss" in w for w in col_result["data_loss_warnings"])
+    
+        @pytest.mark.asyncio
+        async def test_preview_string_to_datetime(self):
+            """Preview shows before/after for string→datetime conversion."""
+            from app.routers.operations_extra import change_type_preview, ChangeTypePreviewRequest
+    
+            dataset = _make_mock_dataset([
+                {"name": "Alice", "created": "2024-01-15"},
+                {"name": "Bob", "created": "not-a-date"},
+            ])
+            mock_session = AsyncMock()
+    
+            with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                        side_effect=_make_sync_owner_check(dataset)):
+                result = await change_type_preview(
+                    dataset_id="test-ds-id",
+                    request=ChangeTypePreviewRequest(
+                        columns=["created"], target_type="datetime", sample_rows=2
+                    ),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+    
+            assert result["status"] == "success"
+            col_result = result["columns"][0]
+            assert col_result["total_errors"] == 1
+    
+        @pytest.mark.asyncio
+        async def test_preview_invalid_target_type(self):
+            """Preview with invalid target type raises 400."""
+            from app.routers.operations_extra import change_type_preview, ChangeTypePreviewRequest
+            from fastapi import HTTPException
+    
+            dataset = _make_mock_dataset(SAMPLE_DATA)
+            mock_session = AsyncMock()
+    
+            with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                        side_effect=_make_sync_owner_check(dataset)):
+                with pytest.raises(HTTPException) as exc_info:
+                    await change_type_preview(
+                        dataset_id="test-ds-id",
+                        request=ChangeTypePreviewRequest(
+                            columns=["age"], target_type="unknown_type"
+                        ),
+                        current_user=MagicMock(id="user-1"),
+                        session=mock_session,
+                    )
+            assert exc_info.value.status_code == 400
+    
+        @pytest.mark.asyncio
+        async def test_preview_no_errors(self):
+            """Preview with clean data shows no errors."""
+            from app.routers.operations_extra import change_type_preview, ChangeTypePreviewRequest
+    
+            dataset = _make_mock_dataset([
+                {"name": "Alice", "age": "30"},
+                {"name": "Bob", "age": "25"},
+            ])
+            mock_session = AsyncMock()
+    
+            with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                        side_effect=_make_sync_owner_check(dataset)):
+                result = await change_type_preview(
+                    dataset_id="test-ds-id",
+                    request=ChangeTypePreviewRequest(
+                        columns=["age"], target_type="integer", sample_rows=2
+                    ),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+    
+            assert result["status"] == "success"
+            col_result = result["columns"][0]
+            assert col_result["total_errors"] == 0
+    
+    
+class TestEnhancedChangeType:
+    """Test the enhanced change-type endpoint with error_handling and fallback_value."""
+
+    @pytest.mark.asyncio
+    async def test_change_type_coerce_default(self):
+        """Default coerce mode converts invalid values to null (backward compatible)."""
+        from app.routers.operations_extra import change_type, ChangeTypeRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "Alice", "age": "30"},
+            {"name": "Bob", "age": "N/A"},
+            {"name": "Carol", "age": "35"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                    side_effect=_make_sync_owner_check(dataset)), \
+                _SAVE_PATCH_EXTRA, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await change_type(
+                dataset_id="test-ds-id",
+                request=ChangeTypeRequest(column="age", target_type="integer"),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+            assert result.status == "success"
+            # "N/A" should become null
+            data = dataset.data_json["data"]
+            assert data[0]["age"] == 30
+            assert data[1]["age"] is None or pd.isna(data[1]["age"])
+            assert data[2]["age"] == 35
+
+    @pytest.mark.asyncio
+    async def test_change_type_fallback(self):
+        """Fallback mode replaces invalid values with fallback_value."""
+        from app.routers.operations_extra import change_type, ChangeTypeRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "Alice", "age": "30"},
+            {"name": "Bob", "age": "N/A"},
+            {"name": "Carol", "age": "35"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                    side_effect=_make_sync_owner_check(dataset)), \
+                _SAVE_PATCH_EXTRA, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await change_type(
+                dataset_id="test-ds-id",
+                request=ChangeTypeRequest(
+                    column="age", target_type="integer",
+                    error_handling="fallback", fallback_value=0
+                ),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+            assert result.status == "success"
+            data = dataset.data_json["data"]
+            assert data[0]["age"] == 30
+            assert data[1]["age"] == 0  # fallback value
+            assert data[2]["age"] == 35
+
+    @pytest.mark.asyncio
+    async def test_change_type_raise_mode(self):
+        """Raise mode fails the entire operation if any value cannot convert."""
+        from app.routers.operations_extra import change_type, ChangeTypeRequest
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset([
+            {"name": "Alice", "age": "30"},
+            {"name": "Bob", "age": "N/A"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                    side_effect=_make_sync_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await change_type(
+                    dataset_id="test-ds-id",
+                    request=ChangeTypeRequest(
+                        column="age", target_type="integer",
+                        error_handling="raise"
+                    ),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+            assert exc_info.value.status_code == 400
+            assert "cannot be converted" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_change_type_category(self):
+        """Category type conversion works."""
+        from app.routers.operations_extra import change_type, ChangeTypeRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "Alice", "status": "active"},
+            {"name": "Bob", "status": "inactive"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                    side_effect=_make_sync_owner_check(dataset)), \
+                _SAVE_PATCH_EXTRA, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await change_type(
+                dataset_id="test-ds-id",
+                request=ChangeTypeRequest(column="status", target_type="category"),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+            assert result.status == "success"
+
+    @pytest.mark.asyncio
+    async def test_change_type_boolean_smart_conversion(self):
+        """Boolean conversion maps common boolean strings."""
+        from app.routers.operations_extra import change_type, ChangeTypeRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "Alice", "active": "yes"},
+            {"name": "Bob", "active": "no"},
+            {"name": "Carol", "active": "true"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                    side_effect=_make_sync_owner_check(dataset)), \
+                _SAVE_PATCH_EXTRA, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await change_type(
+                dataset_id="test-ds-id",
+                request=ChangeTypeRequest(column="active", target_type="boolean"),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+            assert result.status == "success"
+            data = dataset.data_json["data"]
+            assert data[0]["active"] is True
+            assert data[1]["active"] is False
+            assert data[2]["active"] is True
+
+    @pytest.mark.asyncio
+    async def test_change_type_invalid_error_handling(self):
+        """Invalid error_handling value raises 400."""
+        from app.routers.operations_extra import change_type, ChangeTypeRequest
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                    side_effect=_make_sync_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await change_type(
+                    dataset_id="test-ds-id",
+                    request=ChangeTypeRequest(
+                        column="age", target_type="integer",
+                        error_handling="invalid_mode"
+                    ),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+            assert exc_info.value.status_code == 400
+            assert "error_handling" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_change_type_invalid_target_type(self):
+        """Invalid target type raises 400."""
+        from app.routers.operations_extra import change_type, ChangeTypeRequest
+        from fastapi import HTTPException
+
+        dataset = _make_mock_dataset(SAMPLE_DATA)
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                    side_effect=_make_sync_owner_check(dataset)):
+            with pytest.raises(HTTPException) as exc_info:
+                await change_type(
+                    dataset_id="test-ds-id",
+                    request=ChangeTypeRequest(column="age", target_type="unknown"),
+                    current_user=MagicMock(id="user-1"),
+                    session=mock_session,
+                )
+            assert exc_info.value.status_code == 400
+            assert "Unknown target type" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_change_type_message_includes_error_count(self):
+        """Success message includes error count when conversions fail."""
+        from app.routers.operations_extra import change_type, ChangeTypeRequest
+
+        dataset = _make_mock_dataset([
+            {"name": "Alice", "age": "30"},
+            {"name": "Bob", "age": "N/A"},
+        ])
+        mock_session = AsyncMock()
+
+        with patch("app.routers.operations_extra.get_dataset_with_owner_check",
+                    side_effect=_make_sync_owner_check(dataset)), \
+                _SAVE_PATCH_EXTRA, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await change_type(
+                dataset_id="test-ds-id",
+                request=ChangeTypeRequest(column="age", target_type="integer"),
+                current_user=MagicMock(id="user-1"),
+                session=mock_session,
+            )
+
+            assert result.status == "success"
+            assert "1 value(s)" in result.message
+            assert "null" in result.message
+
+class TestDetectColumnTypeHelper:
+    """Test the detect_column_type helper function directly."""
+
+    def test_detect_empty_column(self):
+        """Empty column defaults to string."""
+        import pandas as pd
+        from app.routers.operations_extra import detect_column_type
+
+        s = pd.Series([], dtype=object)
+        result = detect_column_type(s)
+        assert result["suggested_type"] == "string"
+        assert result["total_rows"] == 0
+
+    def test_detect_all_null_column(self):
+        """All-null column defaults to string."""
+        import pandas as pd
+        from app.routers.operations_extra import detect_column_type
+
+        s = pd.Series([None, None, None])
+        result = detect_column_type(s)
+        assert result["suggested_type"] == "string"
+        assert result["null_count"] == 3
+
+    def test_detect_integer_scores(self):
+        """Integer detection returns correct scores."""
+        import pandas as pd
+        from app.routers.operations_extra import detect_column_type
+
+        s = pd.Series(["1", "2", "3", "4", "5"])
+        result = detect_column_type(s)
+        assert result["type_scores"]["integer"] == 1.0
+        assert result["type_scores"]["float"] == 1.0  # integers are valid floats
+        # "1" is in _BOOLEAN_VALUES, so boolean score may be > 0 for pure integer series
+        assert result["type_scores"]["boolean"] < 0.5  # but should not dominate
+
+    def test_detect_boolean_scores(self):
+        """Boolean detection returns correct scores."""
+        import pandas as pd
+        from app.routers.operations_extra import detect_column_type
+
+        s = pd.Series(["true", "false", "yes", "no"])
+        result = detect_column_type(s)
+        assert result["type_scores"]["boolean"] == 1.0
+        assert result["suggested_type"] == "boolean"
+
+    def test_detect_mixed_scores(self):
+        """Mixed data returns low scores for specific types."""
+        import pandas as pd
+        from app.routers.operations_extra import detect_column_type
+
+        s = pd.Series(["hello", "42", "true", "2024-01-01", "world"])
+        result = detect_column_type(s)
+        # No single type should dominate
+        assert result["type_scores"]["integer"] < 0.8
+        assert result["type_scores"]["boolean"] < 0.8
+        assert result["suggested_type"] == "string"
+
+
+class TestConvertColumnHelper:
+    """Test the convert_column helper function directly."""
+
+    def test_convert_to_string(self):
+        """Converting to string always succeeds."""
+        import pandas as pd
+        from app.routers.operations_extra import convert_column
+
+        s = pd.Series([1, 2, 3])
+        converted, errors, indices = convert_column(s, "string")
+        assert errors == 0
+        assert converted.tolist() == ["1", "2", "3"]
+
+    def test_convert_to_integer_with_errors(self):
+        """Converting to integer counts errors correctly."""
+        import pandas as pd
+        from app.routers.operations_extra import convert_column
+
+        s = pd.Series(["1", "2", "abc", "4"])
+        converted, errors, indices = convert_column(s, "integer", "coerce")
+        assert errors == 1
+        assert len(indices) == 1
+
+    def test_convert_to_integer_raise_mode(self):
+        """Raise mode throws ValueError on conversion errors."""
+        import pandas as pd
+        from app.routers.operations_extra import convert_column
+
+        s = pd.Series(["1", "2", "abc"])
+        with pytest.raises(ValueError):
+            convert_column(s, "integer", "raise")
+
+    def test_convert_to_integer_fallback_mode(self):
+        """Fallback mode replaces errors with fallback value."""
+        import pandas as pd
+        from app.routers.operations_extra import convert_column
+
+        s = pd.Series(["1", "2", "abc", "4"])
+        converted, errors, indices = convert_column(s, "integer", "fallback", 0)
+        assert errors == 1
+        # The error value should be replaced with 0
+        assert converted.iloc[2] == 0
+
+    def test_convert_to_boolean_smart_mapping(self):
+        """Boolean conversion maps common boolean strings."""
+        import pandas as pd
+        from app.routers.operations_extra import convert_column
+
+        s = pd.Series(["yes", "no", "true", "false", "1", "0"])
+        converted, errors, indices = convert_column(s, "boolean")
+        assert errors == 0
+        assert converted.tolist() == [True, False, True, False, True, False]
+
+    def test_convert_to_category(self):
+        """Category conversion always succeeds."""
+        import pandas as pd
+        from app.routers.operations_extra import convert_column
+
+        s = pd.Series(["a", "b", "c"])
+        converted, errors, indices = convert_column(s, "category")
+        assert errors == 0
+        assert converted.dtype.name == "category"
+
+    def test_convert_unknown_type_raises(self):
+        """Unknown target type raises ValueError."""
+        import pandas as pd
+        from app.routers.operations_extra import convert_column
+
+        s = pd.Series([1, 2, 3])
+        with pytest.raises(ValueError):
+            convert_column(s, "unknown_type")
+
+
+class TestGenerateDataLossWarnings:
+    """Test the generate_data_loss_warnings helper function."""
+
+    def test_float_to_integer_precision_warning(self):
+        """Warns about precision loss when converting float to integer."""
+        import pandas as pd
+        from app.routers.operations_extra import generate_data_loss_warnings
+
+        s = pd.Series([1.5, 2.7, 3.0])
+        warnings = generate_data_loss_warnings(s, "float64", "integer", 0)
+        assert any("Precision loss" in w for w in warnings)
+
+    def test_numeric_to_string_warning(self):
+        """Warns about losing numeric operations when converting to string."""
+        import pandas as pd
+        from app.routers.operations_extra import generate_data_loss_warnings
+
+        s = pd.Series([1, 2, 3])
+        warnings = generate_data_loss_warnings(s, "int64", "string", 0)
+        assert any("numeric operations" in w for w in warnings)
+
+    def test_to_category_warning(self):
+        """Warns about category limitations."""
+        import pandas as pd
+        from app.routers.operations_extra import generate_data_loss_warnings
+
+        s = pd.Series(["a", "b", "c"])
+        warnings = generate_data_loss_warnings(s, "object", "category", 0)
+        assert any("categories" in w for w in warnings)
+
+    def test_no_warnings_for_safe_conversion(self):
+        """No warnings for safe conversions like integer to float."""
+        import pandas as pd
+        from app.routers.operations_extra import generate_data_loss_warnings
+
+        s = pd.Series([1, 2, 3])
+        warnings = generate_data_loss_warnings(s, "int64", "float", 0)
+        assert len(warnings) == 0
+
+    def test_error_count_warning(self):
+        """Warns about conversion errors."""
+        import pandas as pd
+        from app.routers.operations_extra import generate_data_loss_warnings
+
+        s = pd.Series(["1", "abc", "3"])
+        warnings = generate_data_loss_warnings(s, "object", "integer", 1)
+        assert any("1 of 3" in w for w in warnings)
+
