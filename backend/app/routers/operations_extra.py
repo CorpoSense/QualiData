@@ -75,12 +75,12 @@ class OperationResponse(BaseModel):
     row_count: int | None = None
 
 
-def get_dataset_with_owner_check(dataset_id: str, user_id: str, session: AsyncSession):
-    result = session.execute(select(Dataset).where(Dataset.id == dataset_id))
+async def get_dataset_with_owner_check(dataset_id: str, user_id: str, session: AsyncSession):
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
     dataset = result.scalar_one_or_none()
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
-    project_result = session.execute(
+    project_result = await session.execute(
         select(Project).where(
             Project.id == dataset.project_id, Project.user_id == user_id
         )
@@ -392,7 +392,7 @@ async def filter_rows(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
@@ -431,7 +431,7 @@ async def sort_data(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
@@ -473,7 +473,7 @@ async def remove_duplicates(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
@@ -519,7 +519,7 @@ async def find_replace(
     current_user: User = Depends(get_current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ):
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
@@ -578,7 +578,7 @@ async def detect_type(
     Returns current type, suggested type, confidence score, and per-type scores
     for each requested column.
     """
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
@@ -610,7 +610,7 @@ async def change_type_preview(
 
     Returns before/after sample values, data loss warnings, and error counts.
     """
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 
@@ -730,7 +730,7 @@ async def change_type(
 
     Also supports 'category' type in addition to the original types.
     """
-    dataset = get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.data_json or "data" not in dataset.data_json:
         raise HTTPException(status_code=400, detail="No data to operate on")
 

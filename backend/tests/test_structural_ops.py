@@ -41,8 +41,8 @@ _SAVE_PATCH_EXTRA = patch("app.routers.operations_extra.save_operation", new_cal
 
 
 def _make_sync_owner_check(dataset):
-    """Patch get_dataset_with_owner_check (sync version in operations_extra) to return our mock."""
-    def fake_check(ds_id, user_id, session):
+    """Patch get_dataset_with_owner_check (now async in operations_extra) to return our mock."""
+    async def fake_check(ds_id, user_id, session):
         return dataset
     return fake_check
 
@@ -2230,4 +2230,135 @@ class TestGenerateDataLossWarnings:
         s = pd.Series(["1", "abc", "3"])
         warnings = generate_data_loss_warnings(s, "object", "integer", 1)
         assert any("1 of 3" in w for w in warnings)
+
+
+class TestGetDatasetWithOwnerCheck:
+    """Test the get_dataset_with_owner_check async function.
+
+    Regression test for the bug where session.execute was not awaited,
+    causing 'coroutine object has no attribute scalar_one_or_none' error.
+    """
+
+    @pytest.mark.asyncio
+    async def test_get_dataset_with_owner_check_returns_dataset(self):
+        """Should return dataset when user has access."""
+        from app.routers.operations_extra import get_dataset_with_owner_check
+        from unittest.mock import MagicMock
+
+        # Create mock dataset
+        mock_dataset = MagicMock()
+        mock_dataset.id = "test-dataset-id"
+        mock_dataset.project_id = "test-project-id"
+
+        # Create mock session with async execute that returns a result mock
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_dataset
+        mock_session.execute.return_value = mock_result
+
+        # Also need to mock the project check
+        mock_project_result = MagicMock()
+        mock_project_result.scalar_one_or_none.return_value = MagicMock()  # Project exists
+        mock_session.execute.side_effect = [mock_result, mock_project_result]
+
+        # Call the function
+        result = await get_dataset_with_owner_check(
+            dataset_id="test-dataset-id",
+            user_id="test-user-id",
+            session=mock_session
+        )
+
+        # Should return the dataset
+        assert result == mock_dataset
+        # Verify execute was called twice (once for dataset, once for project)
+        assert mock_session.execute.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_get_dataset_with_owner_check_dataset_not_found(self):
+        """Should raise 404 when dataset doesn't exist."""
+        from app.routers.operations_extra import get_dataset_with_owner_check
+        from fastapi import HTTPException
+
+        # Create mock session where dataset is not found
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_dataset_with_owner_check(
+                dataset_id="nonexistent-id",
+                user_id="test-user-id",
+                session=mock_session
+            )
+
+        assert exc_info.value.status_code == 404
+        assert "Dataset not found" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_get_dataset_with_owner_check_access_denied(self):
+        """Should raise 403 when user doesn't own the dataset's project."""
+        from app.routers.operations_extra import get_dataset_with_owner_check
+        from fastapi import HTTPException
+
+        # Create mock dataset
+        mock_dataset = MagicMock()
+        mock_dataset.id = "test-dataset-id"
+        mock_dataset.project_id = "test-project-id"
+
+        mock_session = AsyncMock()
+        # First execute returns dataset
+        dataset_result = MagicMock()
+        dataset_result.scalar_one_or_none.return_value = mock_dataset
+        # Second execute returns no project (access denied)
+        project_result = MagicMock()
+        project_result.scalar_one_or_none.return_value = None
+
+        mock_session.execute.side_effect = [dataset_result, project_result]
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_dataset_with_owner_check(
+                dataset_id="test-dataset-id",
+                user_id="wrong-user-id",
+                session=mock_session
+            )
+
+        assert exc_info.value.status_code == 403
+        assert "Access denied" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_get_dataset_with_owner_check_awaits_execute(self):
+        """Verify that session.execute is properly awaited (not returned as coroutine).
+
+        This is the key regression test: ensures that the function is async
+        and properly awaits session.execute, preventing the error:
+        'coroutine object has no attribute scalar_one_or_none'
+        """
+        from app.routers.operations_extra import get_dataset_with_owner_check
+
+        mock_dataset = MagicMock()
+        mock_dataset.id = "test-id"
+        mock_dataset.project_id = "proj-id"
+
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_dataset
+        mock_project_result = MagicMock()
+        mock_project_result.scalar_one_or_none.return_value = MagicMock()
+        mock_session.execute.side_effect = [mock_result, mock_project_result]
+
+        # Call with await - this should not raise AttributeError
+        result = await get_dataset_with_owner_check(
+            dataset_id="test-id",
+            user_id="user-id",
+            session=mock_session
+        )
+
+        # If we get here without AttributeError, the bug is fixed
+        assert result is mock_dataset
+
+        # Verify that execute was actually awaited (not just returned coroutine)
+        # The fact that mock_session.execute was called and returned a value
+        # that we can use confirms proper awaiting
+        assert mock_session.execute.await_count == 2
 

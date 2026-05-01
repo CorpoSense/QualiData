@@ -24,7 +24,6 @@ Track tasks and improvements for the project.
 ### Fix bugs:
 - [x] Persist column(s) selection after any operation where possible (moving column, refresh page...)
 - [x] Persist columns order after any operation.
-- [-] Fix update cell after sorting dataset. 
 - [x] Update a cell's value is not working
 - [x] Display correct number of dataset in each project.
 - [x] Profile is only showing 500 rows!
@@ -34,7 +33,8 @@ Track tasks and improvements for the project.
 
 ## Improvments:
 
-- [ ] Default value for rename column.
+- [ ] Improve error handling in Pivot table by displaying more explicit error message (rather than `Failed to fetch` which may occurs in certains situations when trying to use numerical values in rows or columns titles) to help user understand the issue and solve it.
+- [x] Default value for rename column.
 - [x] Make the "Projects" menu item in the navbar a dropdown menu to list projects and theirs datasets.
 - [x] Add an extended menu for multi-filtering that is almost similar to Excel's while showing unique values and theirs counts.
 - [x] The user is able to hide some columns to save some screen space and work easily on the visible columns.
