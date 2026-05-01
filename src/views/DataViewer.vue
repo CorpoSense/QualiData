@@ -88,10 +88,10 @@
             <BDropdownItem @click="showOpConfirmModal('string-capitalize')">
               <i class="bi bi-type me-2"></i>Capitalize
             </BDropdownItem>
-      <BDropdownItem @click="openExtractJsonModal">
+      <BDropdownItem @click="openExtractJsonModal" :disabled="selectedColumns.length > 1">
         <i class="bi bi-braces me-2"></i>Extract JSON value…
       </BDropdownItem>
-      <BDropdownItem @click="openExtractPatternModal">
+      <BDropdownItem @click="openExtractPatternModal" :disabled="selectedColumns.length > 1">
         <i class="bi bi-regex me-2"></i>Extract pattern…
       </BDropdownItem>
       <BDropdownItem @click="showFindReplaceModal = true">
@@ -2323,15 +2323,19 @@ async function applyExtractPattern(payload) {
   const col = effectiveSelectedColumns.value[0]
   operating.value = true
   try {
+    const body = {
+      column: col,
+      pattern: payload.pattern,
+      case_sensitive: payload.case_sensitive,
+      row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined,
+    }
+    if (payload.new_column) {
+      body.new_column = payload.new_column
+    }
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/extract-pattern`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({
-        column: col,
-        pattern: payload.pattern,
-        case_sensitive: payload.case_sensitive,
-        row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined,
-      })
+      body: JSON.stringify(body)
     })
     if (res.ok) {
       const data = await res.json()

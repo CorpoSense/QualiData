@@ -42,7 +42,7 @@
           size="sm"
           variant="outline-info"
           @click="suggestPatternWithAI"
-          :disabled="aiLoading || !pattern"
+          :disabled="aiLoading"
           title="Use AI to help write a regex pattern"
         >
           <i class="bi bi-stars me-1"></i>AI
@@ -61,6 +61,23 @@
     <div class="form-check mb-3">
       <input class="form-check-input" type="checkbox" v-model="caseSensitive" id="ep-case-sensitive">
       <label class="form-check-label" for="ep-case-sensitive">Case sensitive</label>
+    </div>
+
+    <!-- Create new column option -->
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="checkbox" v-model="createNewColumn" id="ep-new-column">
+      <label class="form-check-label" for="ep-new-column">Create new column</label>
+    </div>
+    <div v-if="createNewColumn" class="ms-4 mb-3">
+      <BFormGroup label="New column name" label-for="new-column-name" label-size="sm">
+        <BFormInput
+          id="new-column-name"
+          v-model="newColumnName"
+          size="sm"
+          :placeholder="column + '_extracted'"
+        />
+      </BFormGroup>
+      <small class="text-muted">Original column values will be preserved. Extracted values go to the new column.</small>
     </div>
 
     <!-- Live preview -->
@@ -85,6 +102,14 @@
         <i class="bi bi-stars me-1"></i>
         Describe what you want to extract, and the AI will suggest a regex pattern.
       </div>
+      <BFormGroup label="AI Agent" label-for="ai-agent-select" class="mb-3">
+        <BFormSelect
+          id="ai-agent-select"
+          v-model="selectedAgentId"
+          :options="agentOptions"
+          size="sm"
+        />
+      </BFormGroup>
       <BFormGroup label="Describe what to extract" label-for="ai-prompt-input">
         <BFormInput
           id="ai-prompt-input"
@@ -109,7 +134,7 @@
       </div>
       <template #footer>
         <BButton @click="showAiModal = false">Cancel</BButton>
-        <BButton variant="primary" :disabled="!aiPrompt || aiLoading" :loading="aiLoading" @click="callAiSuggest">
+        <BButton variant="primary" :disabled="!aiPrompt || !selectedAgentId || aiLoading" :loading="aiLoading" @click="callAiSuggest">
           <i class="bi bi-stars me-1"></i>Suggest
         </BButton>
       </template>
@@ -126,7 +151,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { BModal, BFormGroup, BFormInput, BButton } from 'bootstrap-vue-next'
+import { BModal, BFormGroup, BFormInput, BFormSelect, BButton } from 'bootstrap-vue-next'
 import { getApiUrl } from '@/utils/api'
 import { useToast } from '@/composables/useToast'
 
@@ -153,9 +178,12 @@ const pattern = ref('')
 const caseSensitive = ref(true)
 const patternError = ref('')
 const preview = ref([])
+const createNewColumn = ref(false)
+const newColumnName = ref('')
 
 // AI suggestion state
 const showAiModal = ref(false)
+const selectedAgentId = ref(null)
 const aiPrompt = ref('')
 const aiSuggestion = ref('')
 const aiReasoning = ref('')
@@ -205,10 +233,14 @@ function truncate(str, max) {
 
 function apply() {
   if (!pattern.value || patternError.value) return
-  emit('apply', {
+  const payload = {
     pattern: pattern.value,
     case_sensitive: caseSensitive.value,
-  })
+  }
+  if (createNewColumn.value && newColumnName.value.trim()) {
+    payload.new_column = newColumnName.value.trim()
+  }
+  emit('apply', payload)
 }
 
 function onHidden() {
@@ -216,6 +248,9 @@ function onHidden() {
   caseSensitive.value = true
   patternError.value = ''
   preview.value = []
+  createNewColumn.value = false
+  newColumnName.value = ''
+  selectedAgentId.value = null
   aiSuggestion.value = ''
   aiReasoning.value = ''
   aiPrompt.value = ''
@@ -231,7 +266,7 @@ function suggestPatternWithAI() {
 }
 
 async function callAiSuggest() {
-  if (!aiPrompt.value) return
+  if (!aiPrompt.value || !selectedAgentId.value) return
   aiLoading.value = true
   aiError.value = ''
   aiSuggestion.value = ''
@@ -239,17 +274,15 @@ async function callAiSuggest() {
 
   try {
     const token = localStorage.getItem('token')
-    // Use the first available agent, or fallback to a simple chat endpoint
-    const agentId = props.agentOptions.length > 1 ? props.agentOptions[1]?.value : null
 
-    const systemPrompt = `You are a regex expert. Given a description of what to extract from text and sample values, suggest a Python-compatible regex pattern.
+    const userPrompt = `You are a regex expert. Given a description of what to extract from text and sample values, suggest a Python-compatible regex pattern.
 Rules:
 - Respond with JSON only: {"pattern": "regex_here", "reasoning": "explanation"}
 - Use capture groups () for the part to extract
 - The pattern should work with Python's re.search()
-- Be precise and test against the sample values`
+- Be precise and test against the sample values
 
-    const userPrompt = `I want to extract: ${aiPrompt.value}
+I want to extract: ${aiPrompt.value}
 
 Sample values from the column "${props.column}":
 ${props.samples.slice(0, 5).map(s => `- "${s}"`).join('\n')}
@@ -258,7 +291,6 @@ Current pattern (if any): ${pattern.value || 'none'}
 
 Suggest a regex pattern that extracts the desired value from these strings.`
 
-    // Try using the AI chat endpoint
     const res = await fetch(`${apiUrl}/api/ai/chat`, {
       method: 'POST',
       headers: {
@@ -266,39 +298,14 @@ Suggest a regex pattern that extracts the desired value from these strings.`
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        provider: agentId ? undefined : 'openai',
-        model: undefined,
+        agent_id: selectedAgentId.value,
         message: userPrompt,
       }),
     })
 
     if (!res.ok) {
-      // Fallback: try the suggest-fix endpoint
-      const res2 = await fetch(`${apiUrl}/api/ai/suggest-fix`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          provider: 'openai',
-          issue_description: userPrompt,
-        }),
-      })
-      if (!res2.ok) {
-        aiError.value = 'AI service unavailable. Please write the regex manually.'
-        aiLoading.value = false
-        return
-      }
-      const data2 = await res2.json()
-      // Try to extract pattern from the suggestion text
-      const patternMatch = data2.suggestion?.match(/["']([^"']+)["']/)
-      if (patternMatch) {
-        aiSuggestion.value = patternMatch[1]
-        aiReasoning.value = data2.suggestion
-      } else {
-        aiError.value = 'Could not parse AI suggestion. Please write the regex manually.'
-      }
+      const errData = await res.json().catch(() => ({}))
+      aiError.value = errData.detail || 'AI service unavailable. Please write the regex manually.'
       aiLoading.value = false
       return
     }

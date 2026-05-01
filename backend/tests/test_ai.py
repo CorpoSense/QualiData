@@ -98,3 +98,25 @@ async def test_ai_clean_accepts_multiple_columns(client):
     )
     # Should fail auth or dataset not found, but not 422 (validation error)
     assert response.status_code in [401, 404, 422]
+
+
+@pytest.mark.asyncio
+async def test_chat_with_agent_id_requires_auth(client):
+    """Test that chat endpoint with agent_id requires authentication."""
+    response = await client.post(
+        "/api/ai/chat",
+        json={"agent_id": "some-agent-id", "message": "test"},
+    )
+    # Should require auth (401) since agent_id path needs current_user
+    assert response.status_code in [401, 403]
+
+
+@pytest.mark.asyncio
+async def test_chat_without_agent_id_requires_auth(client):
+    """Test that chat endpoint without agent_id now also requires auth."""
+    response = await client.post(
+        "/api/ai/chat",
+        json={"provider": "openai", "message": "test"},
+    )
+    # Now requires auth since the endpoint always depends on current_user
+    assert response.status_code in [401, 403]

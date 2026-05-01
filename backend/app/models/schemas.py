@@ -66,6 +66,7 @@ class ChatRequest(BaseModel):
     provider: str | None = "openai"
     model: str | None = None
     message: str
+    agent_id: str | None = None
 
 
 class ChatResponse(BaseModel):

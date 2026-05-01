@@ -936,11 +936,17 @@ async def extract_pattern_value(
     pattern = request.get("pattern")
     case_sensitive = request.get("case_sensitive", True)
     row_indices = request.get("row_indices")
+    new_column = request.get("new_column")  # Optional: write to new column instead of replacing
 
     if not column or column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
     if not pattern:
         raise HTTPException(status_code=400, detail="pattern is required")
+    if new_column and new_column in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{new_column}' already exists")
+
+    # Determine target column name
+    target_column = new_column if new_column else column
 
     # Validate regex
     try:
@@ -973,7 +979,10 @@ async def extract_pattern_value(
         changed += 1
         return result
 
-    if row_indices:
+    if new_column:
+        # Create new column with extracted values, preserving original
+        df[target_column] = df[column].apply(_extract)
+    elif row_indices:
         # Apply only to specified rows
         valid_indices = [i for i in row_indices if 0 <= i < len(df)]
         if valid_indices:
@@ -992,11 +1001,15 @@ async def extract_pattern_value(
     dataset.data_json = get_full_data_json(df)
     after_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": get_preview_data(df)}
 
-    await save_operation(dataset_id, "extract-pattern", {"column": column, "pattern": pattern, "case_sensitive": case_sensitive}, before_snapshot, after_snapshot, session)
+    op_params = {"column": column, "pattern": pattern, "case_sensitive": case_sensitive}
+    if new_column:
+        op_params["new_column"] = new_column
+    await save_operation(dataset_id, "extract-pattern", op_params, before_snapshot, after_snapshot, session)
     await session.commit()
 
     scope_msg = f" in {len(row_indices)} row(s)" if row_indices else ""
-    return {"status": "success", "message": f"Extracted {changed} value(s) from '{column}' using pattern '{pattern}'{scope_msg}", "columns": dataset.columns}
+    target_msg = f" into new column '{new_column}'" if new_column else ""
+    return {"status": "success", "message": f"Extracted {changed} value(s) from '{column}' using pattern '{pattern}'{scope_msg}{target_msg}", "columns": dataset.columns}
 
 
 @router.post("/datasets/{dataset_id}/operations/find-replace")
@@ -1839,6 +1852,7 @@ async def import_recipe(
                 if op_column and op_column in df.columns:
                     pattern = op_params.get("pattern", "")
                     case_sensitive = op_params.get("case_sensitive", True)
+                    new_col = op_params.get("new_column")
                     if pattern:
                         import re
                         def extract_pattern(v):
@@ -1852,7 +1866,8 @@ async def import_recipe(
                                 return v
                             except (re.error, TypeError):
                                 return v
-                        df[op_column] = df[op_column].apply(extract_pattern)
+                        target = new_col if new_col and new_col not in df.columns else op_column
+                        df[target] = df[op_column].apply(extract_pattern)
 
             elif op_type in ("encoding_one_hot", "encoding_label", "encoding_map", "encoding_bin", "one_hot", "label", "map", "bin"):
                 # Encoding operations handled via the encoding endpoint

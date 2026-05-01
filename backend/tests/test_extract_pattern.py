@@ -351,7 +351,7 @@ class TestExtractPatternOperation:
             {"col": ""},
         ])
         with patch("app.routers.operations.get_dataset_with_owner_check",
-                    side_effect=_make_owner_check(ds)), \
+                     side_effect=_make_owner_check(ds)), \
                 _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
             result = await extract_pattern_value(
                 dataset_id="ds-1",
@@ -362,3 +362,72 @@ class TestExtractPatternOperation:
         assert result["status"] == "success"
         assert ds.data_json["data"][0]["col"] == "42"
         assert ds.data_json["data"][1]["col"] == ""
+
+    @pytest.mark.asyncio
+    async def test_new_column_creates_column(self):
+        """When new_column is provided, extracted values go to a new column."""
+        from app.routers.operations import extract_pattern_value
+
+        ds = _make_mock_dataset([
+            {"url": "https://example.com/page"},
+            {"url": "https://foo.org/api"},
+        ])
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                     side_effect=_make_owner_check(ds)), \
+                _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await extract_pattern_value(
+                dataset_id="ds-1",
+                request={"column": "url", "pattern": r"https?://([^/]+)", "new_column": "domain"},
+                current_user=MagicMock(id="u1"),
+                session=AsyncMock(),
+            )
+        assert result["status"] == "success"
+        # Original column preserved
+        assert ds.data_json["data"][0]["url"] == "https://example.com/page"
+        assert ds.data_json["data"][1]["url"] == "https://foo.org/api"
+        # New column has extracted values
+        assert ds.data_json["data"][0]["domain"] == "example.com"
+        assert ds.data_json["data"][1]["domain"] == "foo.org"
+
+    @pytest.mark.asyncio
+    async def test_new_column_already_exists_returns_error(self):
+        """When new_column already exists, returns 400 error."""
+        from app.routers.operations import extract_pattern_value
+
+        ds = _make_mock_dataset([
+            {"url": "https://example.com/page", "domain": "old"},
+        ])
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                     side_effect=_make_owner_check(ds)), \
+                _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            with pytest.raises(Exception) as exc_info:
+                await extract_pattern_value(
+                    dataset_id="ds-1",
+                    request={"column": "url", "pattern": r"https?://([^/]+)", "new_column": "domain"},
+                    current_user=MagicMock(id="u1"),
+                    session=AsyncMock(),
+                )
+            assert exc_info.value.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_new_column_no_match_preserves_original(self):
+        """When new_column is set and no match, new column has original values."""
+        from app.routers.operations import extract_pattern_value
+
+        ds = _make_mock_dataset([
+            {"col": "hello world"},
+            {"col": "no numbers here"},
+        ])
+        with patch("app.routers.operations.get_dataset_with_owner_check",
+                     side_effect=_make_owner_check(ds)), \
+                _SAVE_PATCH, _DETECT_PATCH, _PREVIEW_PATCH:
+            result = await extract_pattern_value(
+                dataset_id="ds-1",
+                request={"column": "col", "pattern": r"\d+", "new_column": "extracted"},
+                current_user=MagicMock(id="u1"),
+                session=AsyncMock(),
+            )
+        assert result["status"] == "no_changes"
+        # Original column unchanged
+        assert ds.data_json["data"][0]["col"] == "hello world"
+        assert ds.data_json["data"][1]["col"] == "no numbers here"

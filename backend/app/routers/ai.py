@@ -3,8 +3,13 @@
 import os
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from langchain_core.messages import HumanMessage, SystemMessage
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.database import get_async_session
+from app.db.models import Agent, User
 from app.models.schemas import (
     AnalyzeDataRequest,
     AnalyzeDataResponse,
@@ -17,7 +22,8 @@ from app.models.schemas import (
     SuggestFixRequest,
     SuggestFixResponse,
 )
-from app.services.ai_provider import AIProvider, list_providers
+from app.routers.auth import get_current_active_user
+from app.services.ai_provider import AIProvider, get_chat_model, list_providers
 from app.services.cleaner import DataCleaningAssistant
 
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -220,8 +226,50 @@ async def generate_code(request: GenerateCodeRequest):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    """General chat with the data cleaning assistant."""
+async def chat(
+    request: ChatRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """General chat with the data cleaning assistant.
+
+    When agent_id is provided, uses the agent's configured provider, model,
+    API key, and system prompt instead of the request-level provider/model.
+    """
+    # If agent_id is provided, resolve agent config and use it directly
+    if request.agent_id:
+        from app.routers.ai_operations import _get_agent_config
+
+        agent_config = await _get_agent_config(request.agent_id, current_user.id, session)
+        provider = AIProvider(agent_config["provider"])
+        llm_kwargs = {}
+        if agent_config.get("api_key"):
+            llm_kwargs["api_key"] = agent_config["api_key"]
+        if agent_config.get("base_url"):
+            llm_kwargs["base_url"] = agent_config["base_url"]
+        llm = get_chat_model(
+            provider,
+            model=agent_config.get("model"),
+            temperature=agent_config.get("temperature", 0.3),
+            **llm_kwargs,
+        )
+        system_prompt = agent_config.get("system_prompt") or "You are a helpful data cleaning assistant."
+        try:
+            response = await llm.ainvoke([
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=request.message),
+            ])
+            response_text = response.content
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+        return ChatResponse(
+            response=response_text,
+            provider=provider.value,
+            model=agent_config.get("model") or llm.model_name,
+        )
+
+    # Fallback: use provider/model from request (legacy behavior)
     provider = _get_provider(request.provider)
     assistant = DataCleaningAssistant(
         provider=provider,
