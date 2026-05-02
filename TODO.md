@@ -22,9 +22,9 @@ Track tasks and improvements for the project.
 - `AGENTS.md` - Default models reference
 
 ### Fix bugs:
+- [x] Update a cell's value is not working when dataset in filtered.
 - [x] Persist column(s) selection after any operation where possible (moving column, refresh page...)
 - [x] Persist columns order after any operation.
-- [x] Update a cell's value is not working
 - [x] Display correct number of dataset in each project.
 - [x] Profile is only showing 500 rows!
 - [x] Pivot need some bug fixes:
@@ -34,6 +34,7 @@ Track tasks and improvements for the project.
 ## Improvments:
 
 - [ ] Improve error handling in Pivot table by displaying more explicit error message (rather than `Failed to fetch` which may occurs in certains situations when trying to use numerical values in rows or columns titles) to help user understand the issue and solve it.
+- [x] Add extract pattern in string column.
 - [x] Default value for rename column.
 - [x] Make the "Projects" menu item in the navbar a dropdown menu to list projects and theirs datasets.
 - [x] Add an extended menu for multi-filtering that is almost similar to Excel's while showing unique values and theirs counts.

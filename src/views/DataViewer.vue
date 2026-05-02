@@ -1509,8 +1509,24 @@ async function applyEncoding() {
   finally { operating.value = false }
 }
 
+function resolveAbsoluteRowIndex(displayRowIndex) {
+  // When server-side filters are active, data rows are non-contiguous slices
+  // of the full dataset. Use filteredMatchingIndices to map display position
+  // to the original dataset row index.
+  if (filteredMatchingIndices.value && filteredMatchingIndices.value.length > 0) {
+    const pageOffset = (page.value - 1) * limit.value
+    const indexInMatching = pageOffset + displayRowIndex
+    if (indexInMatching < filteredMatchingIndices.value.length) {
+      return filteredMatchingIndices.value[indexInMatching]
+    }
+  }
+  // No filter active: rows are a contiguous slice, use arithmetic offset
+  return (page.value - 1) * limit.value + displayRowIndex
+}
+
 function openCellEditor({ row, column, value }) {
-  cellEdit.value = { row: (page.value - 1) * limit.value + row, column, value: String(value ?? '') }
+  const absoluteRow = resolveAbsoluteRowIndex(row)
+  cellEdit.value = { row: absoluteRow, column, value: String(value ?? '') }
   showCellEdit.value = true
 }
 
@@ -2666,8 +2682,8 @@ function onColumnFilterChanged({ column, selectedValues }) {
 }
 
 function toggleRowSelection(pageIndex) {
-  // Convert page-relative index to absolute index
-  const absoluteIndex = (page.value - 1) * limit.value + pageIndex
+  // Convert page-relative index to absolute dataset index
+  const absoluteIndex = resolveAbsoluteRowIndex(pageIndex)
   const idx = selectedRowIndices.value.indexOf(absoluteIndex)
   if (idx >= 0) selectedRowIndices.value.splice(idx, 1)
   else selectedRowIndices.value.push(absoluteIndex)
@@ -2677,7 +2693,7 @@ function toggleAllRows() {
   if (selectedRowIndices.value.length === filteredData.value.length) {
     selectedRowIndices.value = []
   } else {
-    selectedRowIndices.value = filteredData.value.map((_, i) => (page.value - 1) * limit.value + i)
+    selectedRowIndices.value = filteredData.value.map((_, i) => resolveAbsoluteRowIndex(i))
   }
 }
 

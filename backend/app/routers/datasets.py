@@ -169,7 +169,8 @@ def get_preview_data(df: pd.DataFrame, max_rows: int = 500, offset: int = 0) -> 
         elif pd.api.types.is_timedelta64_dtype(df_copy[col]):
             df_copy[col] = df_copy[col].astype(str)
         # Handle period
-        elif pd.api.types.is_period_dtype(df_copy[col]):
+        # elif pd.api.types.is_period_dtype(df_copy[col]):
+        elif isinstance(df_copy[col], pd.PeriodDtype):
             df_copy[col] = df_copy[col].astype(str)
     
     # Replace NaN/inf with None for JSON compatibility
@@ -196,7 +197,9 @@ def get_full_data_json(df: pd.DataFrame) -> dict:
         elif pd.api.types.is_timedelta64_dtype(df_copy[col]):
             df_copy[col] = df_copy[col].astype(str)
         # Handle period
-        elif pd.api.types.is_period_dtype(df_copy[col]):
+        # elif pd.api.types.is_period_dtype(df_copy[col]):
+        elif isinstance(df_copy[col], pd.PeriodDtype):
+        # elif isinstance(df_copy[col], pd.PeriodDtype, pd.IntervalDtype):
             df_copy[col] = df_copy[col].astype(str)
     
     # Replace NaN/inf with None for JSON compatibility
