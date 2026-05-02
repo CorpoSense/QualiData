@@ -129,8 +129,8 @@ describe('ColumnReorderModal.vue', () => {
     })
     expect(wrapper.text()).toContain('Select All')
     expect(wrapper.text()).toContain('Clear')
-    expect(wrapper.text()).toContain('Move Selected Up')
-    expect(wrapper.text()).toContain('Move Selected Down')
+    expect(wrapper.text()).toContain('Move Up')
+    expect(wrapper.text()).toContain('Move Down')
   })
 
   it('shows info message', () => {
