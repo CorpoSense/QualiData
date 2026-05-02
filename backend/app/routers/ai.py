@@ -1,15 +1,17 @@
 """AI endpoints for data cleaning assistance."""
 
+import json as json_mod
 import os
+import uuid
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
-from app.db.models import Agent, User
+from app.db.models import Agent, Dataset, Project, User
 from app.models.schemas import (
     AnalyzeDataRequest,
     AnalyzeDataResponse,
@@ -225,6 +227,65 @@ async def generate_code(request: GenerateCodeRequest):
     )
 
 
+async def _build_dataset_context(
+    dataset_id: str,
+    user_id: str,
+    session: AsyncSession,
+    rows: int = 10,
+) -> str:
+    """Build a text context from a dataset for AI consumption.
+
+    Returns a formatted string with column metadata and sample rows,
+    or an empty string if the dataset cannot be loaded.
+    """
+    import pandas as pd
+
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        return ""
+
+    # Verify ownership
+    project_result = await session.execute(
+        select(Project).where(Project.id == dataset.project_id, Project.user_id == user_id)
+    )
+    if not project_result.scalar_one_or_none():
+        return ""
+
+    if not dataset.data_json or "data" not in dataset.data_json:
+        return ""
+
+    df = pd.DataFrame(dataset.data_json["data"])
+    rows = min(rows, 100)
+
+    column_info = []
+    for col in df.columns:
+        nulls = int(df[col].isna().sum())
+        dtype = str(df[col].dtype)
+        unique = int(df[col].nunique())
+        sample = df[col].dropna().head(3).tolist()
+        column_info.append({
+            "name": col,
+            "dtype": dtype,
+            "null_count": nulls,
+            "unique_count": unique,
+            "sample_values": [str(s) for s in sample],
+        })
+
+    sample_rows = df.head(rows).to_dict("records")
+
+    context = f"Dataset Context:\n"
+    context += f"- Total rows: {len(df)}\n"
+    context += f"- Total columns: {len(df.columns)}\n\n"
+    context += f"Columns ({len(df.columns)}):\n{json_mod.dumps(column_info, indent=2)}\n\n"
+    context += f"Sample rows ({rows}):\n{json_mod.dumps(sample_rows, indent=2, default=str)}\n"
+
+    if dataset.description:
+        context += f"\nDataset description: {dataset.description}\n"
+
+    return context
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
     request: ChatRequest,
@@ -235,7 +296,20 @@ async def chat(
 
     When agent_id is provided, uses the agent's configured provider, model,
     API key, and system prompt instead of the request-level provider/model.
+
+    Supports conversation_history for multi-turn conversations and
+    dataset_id for injecting dataset context into the system prompt.
     """
+    # Build dataset context if requested
+    dataset_context = ""
+    if request.dataset_id:
+        dataset_context = await _build_dataset_context(
+            request.dataset_id,
+            current_user.id,
+            session,
+            rows=request.dataset_context_rows,
+        )
+
     # If agent_id is provided, resolve agent config and use it directly
     if request.agent_id:
         from app.routers.ai_operations import _get_agent_config
@@ -254,11 +328,23 @@ async def chat(
             **llm_kwargs,
         )
         system_prompt = agent_config.get("system_prompt") or "You are a helpful data cleaning assistant."
+
+        # Prepend dataset context to system prompt if available
+        if dataset_context:
+            system_prompt = f"{dataset_context}\n\n{system_prompt}"
+
+        # Build message list with conversation history
+        messages = [SystemMessage(content=system_prompt)]
+        if request.conversation_history:
+            for msg in request.conversation_history:
+                if msg.role == "user":
+                    messages.append(HumanMessage(content=msg.content))
+                elif msg.role == "assistant":
+                    messages.append(AIMessage(content=msg.content))
+        messages.append(HumanMessage(content=request.message))
+
         try:
-            response = await llm.ainvoke([
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=request.message),
-            ])
+            response = await llm.ainvoke(messages)
             response_text = response.content
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
@@ -271,10 +357,39 @@ async def chat(
 
     # Fallback: use provider/model from request (legacy behavior)
     provider = _get_provider(request.provider)
+
+    # Build system prompt with dataset context for legacy mode too
+    system_content = "You are a helpful data cleaning assistant."
+    if dataset_context:
+        system_content = f"{dataset_context}\n\n{system_content}"
+
     assistant = DataCleaningAssistant(
         provider=provider,
         model=request.model,
     )
+
+    # For legacy mode with conversation history, use LLM directly
+    if request.conversation_history or dataset_context:
+        llm = get_chat_model(provider, model=request.model, temperature=0.3)
+        messages = [SystemMessage(content=system_content)]
+        if request.conversation_history:
+            for msg in request.conversation_history:
+                if msg.role == "user":
+                    messages.append(HumanMessage(content=msg.content))
+                elif msg.role == "assistant":
+                    messages.append(AIMessage(content=msg.content))
+        messages.append(HumanMessage(content=request.message))
+        try:
+            response = await llm.ainvoke(messages)
+            response_text = response.content
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+        return ChatResponse(
+            response=response_text,
+            provider=provider.value,
+            model=request.model or llm.model_name,
+        )
 
     try:
         response = await assistant.chat(request.message)

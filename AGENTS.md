@@ -217,9 +217,21 @@ async def health_check():
 **Key Files:**
 - [`backend/app/services/ai_provider.py`](backend/app/services/ai_provider.py) - Provider factory
 - [`backend/app/services/cleaner.py`](backend/app/services/cleaner.py) - Data cleaning assistant
-- [`backend/app/routers/ai.py`](backend/app/routers/ai.py) - AI endpoints
+- [`backend/app/routers/ai.py`](backend/app/routers/ai.py) - AI endpoints (chat, analyze, suggest-fix, generate-code)
 - [`backend/app/routers/ai_operations.py`](backend/app/routers/ai_operations.py) - AI-powered operations
 - [`backend/app/routers/assistant.py`](backend/app/routers/assistant.py) - Assistant wizard
+- [`src/components/AiChatModal.vue`](src/components/AiChatModal.vue) - AI Chat modal (DataViewer)
+
+**AI Chat Feature:**
+- Full chat interface in DataViewer via "AI Chat" button
+- User selects an AI Agent to chat with
+- Dataset context (columns + N sample rows) injected into system prompt
+- Multi-turn conversations with history sent to backend
+- Chat sessions stored in localStorage (`ai-chat-sessions`)
+- Text-to-speech via Web Speech API (toggle button)
+- Markdown rendering for AI responses (code blocks, tables, lists)
+- Backend endpoint: `POST /api/ai/chat` with `conversation_history`, `dataset_id`, `dataset_context_rows`
+- Future: function calling for data operations, file upload for context
 
 **Configuration:** API keys in `backend/.env` or per-agent
 

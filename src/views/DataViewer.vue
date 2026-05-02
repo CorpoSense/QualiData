@@ -37,6 +37,9 @@
             <BButton size="sm" variant="secondary" @click="showHistory = !showHistory">
               <i class="bi bi-clock-history me-1"></i> History
             </BButton>
+            <BButton size="sm" variant="primary" @click="showAiChat = true">
+              <i class="bi bi-chat-dots me-1"></i> AI
+            </BButton>
             <BButton size="sm" variant="warning" outline @click="showClipboardImport = true">
               <i class="bi bi-clipboard me-1"></i> Paste
             </BButton>
@@ -1190,7 +1193,17 @@
       :selected-columns="selectedColumns"
       @apply="applyColumnReorder"
     />
-  
+
+    <!-- AI Chat Modal -->
+    <AiChatModal
+      v-model="showAiChat"
+      :dataset-id="datasetId"
+      :columns="columns"
+      :data="data"
+      :total-rows="totalRows"
+      :agent-options="agentOptions"
+    />
+
     <!-- Change Type Modal -->
     <ChangeTypeModal
       v-model="showChangeTypeModal"
@@ -1292,6 +1305,7 @@ import DataTable from '@/components/DataTable.vue'
 import PromptModal from '@/components/PromptModal.vue'
 import OperationConfirmModal from '@/components/OperationConfirmModal.vue'
 import AiCleanModal from '@/components/AiCleanModal.vue'
+import AiChatModal from '@/components/AiChatModal.vue'
 import FuzzyMatchModal from '@/components/FuzzyMatchModal.vue'
 import ProfileModal from '@/components/ProfileModal.vue'
 import ColumnReorderModal from '@/components/ColumnReorderModal.vue'
@@ -1581,6 +1595,7 @@ const showFillnaModal = ref(false)
 const showStructuralAiModal = ref(false)
 const showFuzzyMatchModal = ref(false)
 const showDataAiModal = ref(false)
+const showAiChat = ref(false)
 const showExportRecipe = ref(false)
 const showImportRecipe = ref(false)
 const agents = ref([])

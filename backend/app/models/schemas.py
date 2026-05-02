@@ -60,6 +60,13 @@ class GenerateCodeResponse(BaseModel):
     model: str
 
 
+class ChatMessage(BaseModel):
+    """A single message in the conversation history."""
+
+    role: str  # "user" or "assistant"
+    content: str
+
+
 class ChatRequest(BaseModel):
     """Request model for general chat."""
 
@@ -67,6 +74,9 @@ class ChatRequest(BaseModel):
     model: str | None = None
     message: str
     agent_id: str | None = None
+    conversation_history: list[ChatMessage] | None = None
+    dataset_id: str | None = None
+    dataset_context_rows: int = 10
 
 
 class ChatResponse(BaseModel):
@@ -75,6 +85,7 @@ class ChatResponse(BaseModel):
     response: str
     provider: str
     model: str
+    conversation_id: str | None = None
 
 
 class ProviderInfo(BaseModel):

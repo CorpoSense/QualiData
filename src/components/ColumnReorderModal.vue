@@ -83,7 +83,7 @@
         :disabled="selectedCols.length === 0"
         @click="moveSelectedUp"
       >
-        <i class="bi bi-arrow-up me-1"></i> Move Selected Up
+        <i class="bi bi-arrow-up me-1"></i> Move Up
       </BButton>
       <BButton 
         size="sm" 
@@ -91,7 +91,7 @@
         :disabled="selectedCols.length === 0"
         @click="moveSelectedDown"
       >
-        <i class="bi bi-arrow-down me-1"></i> Move Selected Down
+        <i class="bi bi-arrow-down me-1"></i> Move Down
       </BButton>
     </div>
 

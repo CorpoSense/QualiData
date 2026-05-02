@@ -120,3 +120,52 @@ async def test_chat_without_agent_id_requires_auth(client):
     )
     # Now requires auth since the endpoint always depends on current_user
     assert response.status_code in [401, 403]
+
+
+@pytest.mark.asyncio
+async def test_chat_with_conversation_history_requires_auth(client):
+    """Test that chat with conversation_history requires authentication."""
+    response = await client.post(
+        "/api/ai/chat",
+        json={
+            "agent_id": "some-agent-id",
+            "message": "follow-up question",
+            "conversation_history": [
+                {"role": "user", "content": "first question"},
+                {"role": "assistant", "content": "first answer"},
+            ],
+        },
+    )
+    assert response.status_code in [401, 403]
+
+
+@pytest.mark.asyncio
+async def test_chat_with_dataset_context_requires_auth(client):
+    """Test that chat with dataset_id requires authentication."""
+    response = await client.post(
+        "/api/ai/chat",
+        json={
+            "agent_id": "some-agent-id",
+            "message": "analyze this dataset",
+            "dataset_id": "some-dataset-id",
+            "dataset_context_rows": 20,
+        },
+    )
+    assert response.status_code in [401, 403]
+
+
+@pytest.mark.asyncio
+async def test_chat_request_accepts_new_fields(client):
+    """Test that ChatRequest schema accepts conversation_history, dataset_id, dataset_context_rows."""
+    response = await client.post(
+        "/api/ai/chat",
+        json={
+            "provider": "openai",
+            "message": "test",
+            "conversation_history": [],
+            "dataset_id": None,
+            "dataset_context_rows": 25,
+        },
+    )
+    # Should not be 422 (validation error) — the new fields are valid
+    assert response.status_code in [401, 403]

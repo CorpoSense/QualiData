@@ -33,6 +33,20 @@ Track tasks and improvements for the project.
 
 ## Improvments:
 
+- [ ] Mapping multiple values with the ability to use regex
+
+### AI Chat Feature (Future)
+
+- [-] AI Chat with Context
+  - [x] Full chat interface with conversation history
+  - [x] Context: N rows/columns as input
+  - [x] Baisc Features:
+    - Sidebar with chat history
+    - Text-to-speech (optional)
+  - [ ] Advanced Features:
+    - File upload support
+    - Function calling to execute data operations
+
 - [x] Improve error handling in Pivot table by displaying more explicit error message (rather than `Failed to fetch` which may occurs in certains situations when trying to use numerical values in rows or columns titles) to help user understand the issue and solve it.
 - [x] Add extract pattern in string column.
 - [x] Default value for rename column.
@@ -219,20 +233,6 @@ Track tasks and improvements for the project.
   - Generate invoices
   - Add upgrade/downgrade flows
   - Required before public launch
-
----
-
-### AI Chat Feature (Future)
-
-- [ ] **Free AI Chat with Context**
-  - Full chat interface with conversation history
-  - Context: N rows/columns as input
-  - Features:
-    - Sidebar with chat history
-    - File upload support
-    - Text-to-speech (optional)
-    - Function calling to execute data operations
-  - **Note:** Very high effort - major feature requiring careful planning
 
 ---
 
