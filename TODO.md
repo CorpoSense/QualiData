@@ -33,7 +33,7 @@ Track tasks and improvements for the project.
 
 ## Improvments:
 
-- [ ] Improve error handling in Pivot table by displaying more explicit error message (rather than `Failed to fetch` which may occurs in certains situations when trying to use numerical values in rows or columns titles) to help user understand the issue and solve it.
+- [x] Improve error handling in Pivot table by displaying more explicit error message (rather than `Failed to fetch` which may occurs in certains situations when trying to use numerical values in rows or columns titles) to help user understand the issue and solve it.
 - [x] Add extract pattern in string column.
 - [x] Default value for rename column.
 - [x] Make the "Projects" menu item in the navbar a dropdown menu to list projects and theirs datasets.

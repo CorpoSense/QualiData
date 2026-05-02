@@ -1,15 +1,18 @@
 """Pivot table operations for data analysis."""
 
+import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
 from app.db.models import Dataset, Project, User
 from app.routers.auth import get_current_active_user
 from app.services.pivot_service import PivotService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["pivot"])
 
@@ -59,7 +62,7 @@ class PivotResponse(BaseModel):
 
     status: str
     pivot: list[dict[str, Any]]
-    columns: list[str]
+    columns: list[Any]  # Allow Any to handle tuple column names from MultiIndex
     summary: dict[str, Any]
 
 
@@ -81,7 +84,7 @@ class ColumnTypesResponse(BaseModel):
     datetime: list[str]
 
 
-@router.post("/datasets/{dataset_id}/pivot", response_model=PivotResponse)
+@router.post("/datasets/{dataset_id}/pivot")
 async def create_pivot_table(
     dataset_id: str,
     request: PivotRequest,
@@ -141,16 +144,59 @@ async def create_pivot_table(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error("Pivot table creation failed: %s", str(e), exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Failed to create pivot table: {str(e)}"
         )
 
-    return PivotResponse(
-        status="success",
-        pivot=result["pivot"],
-        columns=result["columns"],
-        summary=result["summary"],
-    )
+    # Ensure all column names are JSON-serializable strings
+    # (handles tuple column names from MultiIndex and any remaining Interval objects)
+    safe_columns = []
+    for col in result["columns"]:
+        if isinstance(col, tuple):
+            safe_columns.append([str(c) for c in col])
+        else:
+            safe_columns.append(str(col))
+    result["columns"] = safe_columns
+
+    # Ensure pivot data values are all JSON-serializable
+    safe_pivot = []
+    for row in result["pivot"]:
+        safe_row = {}
+        for key, val in row.items():
+            # Convert any non-serializable keys
+            safe_key = str(key) if not isinstance(key, str) else key
+            # Convert any non-serializable values
+            try:
+                if hasattr(val, "left") and hasattr(val, "right"):
+                    safe_val = str(val)
+                elif isinstance(val, (int, float, bool, str, type(None))):
+                    safe_val = val
+                elif isinstance(val, (list, dict)):
+                    safe_val = val
+                else:
+                    safe_val = str(val)
+            except Exception:
+                safe_val = str(val)
+            safe_row[safe_key] = safe_val
+        safe_pivot.append(safe_row)
+    result["pivot"] = safe_pivot
+
+    try:
+        return PivotResponse(
+            status="success",
+            pivot=result["pivot"],
+            columns=result["columns"],
+            summary=result["summary"],
+        )
+    except ValidationError as e:
+        logger.error("Pivot response validation failed: %s", str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="Pivot table result could not be serialized. "
+                   "This may occur when using numerical columns as row/column headers. "
+                   "Try enabling 'Bin continuous columns' or using categorical columns instead.",
+        )
 
 
 @router.get(

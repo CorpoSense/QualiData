@@ -192,8 +192,20 @@ class PivotService:
         if not include_nulls:
             df = df.dropna(subset=[value_column])
 
+        # Pre-validate: check if continuous columns are used as column axes
+        # without binning, which would produce an enormous pivot table
+        for col in column_columns:
+            col_type = self.detect_column_type(col, unique_threshold)
+            if col_type == "continuous" and not bin_continuous:
+                raise ValueError(
+                    f"Column '{col}' is continuous (numerical with many unique values). "
+                    f"Using it as a column header without binning would create too many columns. "
+                    f"Please enable 'Bin continuous columns' or choose a categorical column instead."
+                )
+
         # Bin continuous columns if needed
         binned_columns = []
+        bin_failures = []
         if bin_continuous:
             for col in index_columns + column_columns:
                 col_type = self.detect_column_type(col, unique_threshold)
@@ -208,8 +220,18 @@ class PivotService:
                             df[bin_col_name] = pd.cut(df[col], bins=bins)
                         binned_columns.append((col, bin_col_name))
                     except Exception as e:
-                        # If binning fails, use original column
-                        pass
+                        # If binning fails, record the failure
+                        bin_failures.append((col, str(e)))
+
+        # If binning failed for any column used as column axis, raise an error
+        # (unlike index columns, column axis with raw continuous values produces
+        # an unmanageable number of columns)
+        for col, err_msg in bin_failures:
+            if col in column_columns:
+                raise ValueError(
+                    f"Failed to bin continuous column '{col}' for use as column header: {err_msg}. "
+                    f"Try using a different binning strategy or choose a categorical column instead."
+                )
 
         # Replace continuous columns with binned versions
         final_index = []
@@ -238,14 +260,29 @@ class PivotService:
         # Convert to serializable format
         pivot_data = pivot_df.reset_index()
 
-        # Convert interval columns to strings for JSON serialization
+        # Convert interval values in data cells to strings for JSON serialization
         for col in pivot_data.columns:
-            # Check if column contains interval objects
             if len(pivot_data) > 0:
                 first_val = pivot_data[col].iloc[0]
-                # Check if it's an interval object (has 'left' and 'right' attributes)
                 if hasattr(first_val, "left") and hasattr(first_val, "right"):
                     pivot_data[col] = pivot_data[col].astype(str)
+
+        # Convert interval objects in column names to strings for JSON serialization
+        # When continuous columns are binned and used as column axes, the MultiIndex
+        # column names contain Interval objects which are not JSON-serializable
+        new_columns = []
+        for col in pivot_data.columns:
+            if isinstance(col, tuple):
+                # MultiIndex column: convert each element
+                new_columns.append(tuple(
+                    str(c) if hasattr(c, "left") and hasattr(c, "right") else c
+                    for c in col
+                ))
+            elif hasattr(col, "left") and hasattr(col, "right"):
+                new_columns.append(str(col))
+            else:
+                new_columns.append(col)
+        pivot_data.columns = new_columns
 
         # Calculate summary statistics
         summary = {

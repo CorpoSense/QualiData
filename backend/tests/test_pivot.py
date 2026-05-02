@@ -293,6 +293,119 @@ class TestPivotService:
         assert "column_types" in summary
 
 
+    def test_create_pivot_continuous_as_column_without_binning(self, sample_df):
+        """Test that using a continuous column as column axis without binning raises ValueError."""
+        service = PivotService(sample_df)
+        with pytest.raises(ValueError, match="continuous"):
+            service.create_pivot(
+                index_columns=["category"],
+                column_columns=["price"],  # continuous column as column axis
+                value_column="quantity",
+                aggfunc="sum",
+                bin_continuous=False,
+            )
+
+    def test_create_pivot_continuous_as_column_with_binning(self, sample_df):
+        """Test that using a continuous column as column axis with binning works."""
+        service = PivotService(sample_df)
+        result = service.create_pivot(
+            index_columns=["category"],
+            column_columns=["price"],  # continuous column as column axis
+            value_column="quantity",
+            aggfunc="sum",
+            bin_continuous=True,
+            bins=3,
+        )
+        assert "pivot" in result
+        assert "price" in result["summary"]["binned_columns"]
+        # Verify all column names are strings (no Interval objects)
+        for col in result["columns"]:
+            assert isinstance(col, (str, list, tuple)), f"Column name {col} is not serializable"
+
+    def test_create_pivot_interval_columns_are_strings(self, sample_df):
+        """Test that Interval objects in column names are converted to strings."""
+        service = PivotService(sample_df)
+        result = service.create_pivot(
+            index_columns=["category"],
+            column_columns=["price"],
+            value_column="quantity",
+            aggfunc="count",
+            bin_continuous=True,
+            bins=3,
+        )
+        # All column names should be JSON-serializable (strings or lists of strings)
+        for col in result["columns"]:
+            if isinstance(col, tuple):
+                for part in col:
+                    assert isinstance(part, str), f"Tuple column part {part} is not a string"
+            else:
+                assert isinstance(col, str), f"Column name {col} is not a string"
+
+    def test_create_pivot_continuous_column_without_binning_api(self):
+        """Test that the API returns 400 when continuous column is used as column axis without binning."""
+        mock_user = MagicMock()
+        mock_user.id = "test-user-id"
+        mock_user.email = "test@example.com"
+        mock_user.is_active = True
+
+        mock_session = MagicMock()
+
+        async def mock_execute(query):
+            result = MagicMock()
+            query_str = str(query)
+            if "dataset" in query_str.lower():
+                mock_dataset = MagicMock()
+                mock_dataset.id = "test-dataset-id"
+                mock_dataset.project_id = "test-project-id"
+                mock_dataset.row_count = 1000
+                mock_dataset.data_json = {"data": [
+                    {"category": "A", "status": "active", "price": 10.5, "quantity": 100, "value": 1050},
+                    {"category": "B", "status": "inactive", "price": 20.3, "quantity": 200, "value": 4060},
+                    {"category": "A", "status": "active", "price": 15.2, "quantity": 150, "value": 2280},
+                    {"category": "B", "status": "active", "price": 25.1, "quantity": 250, "value": 6275},
+                    {"category": "C", "status": "inactive", "price": 30.0, "quantity": 300, "value": 9000},
+                ]}
+                mock_dataset.columns = [
+                    {"name": "category", "dtype": "str"},
+                    {"name": "status", "dtype": "str"},
+                    {"name": "price", "dtype": "float"},
+                    {"name": "quantity", "dtype": "int"},
+                    {"name": "value", "dtype": "int"},
+                ]
+                result.scalar_one_or_none.return_value = mock_dataset
+            elif "project" in query_str.lower():
+                mock_project = MagicMock()
+                mock_project.id = "test-project-id"
+                mock_project.user_id = "test-user-id"
+                result.scalar_one_or_none.return_value = mock_project
+            return result
+
+        mock_session.execute = mock_execute
+
+        from app.routers.auth import get_current_active_user
+        from app.routers.datasets import get_async_session
+
+        app.dependency_overrides[get_current_active_user] = lambda: mock_user
+        app.dependency_overrides[get_async_session] = lambda: mock_session
+
+        try:
+            response = client.post(
+                "/api/datasets/test-dataset-id/pivot",
+                json={
+                    "index_columns": ["category"],
+                    "column_columns": ["price"],  # continuous column as column axis
+                    "value_column": "quantity",
+                    "aggfunc": "count",
+                    "bin_continuous": False,  # No binning!
+                    "unique_threshold": 3,  # Low threshold so price (5 unique) is detected as continuous
+                },
+            )
+            assert response.status_code == 400
+            assert "continuous" in response.json()["detail"].lower()
+        finally:
+            app.dependency_overrides.clear()
+
+
 class TestPivotAPI:
     """Tests for pivot API endpoints."""
 

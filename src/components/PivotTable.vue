@@ -122,15 +122,20 @@
               v-for="col in config.columnColumns"
               :key="col"
               class="column-tag"
+              :class="{ 'column-tag-warning': columnTypes.continuous?.includes(col) && !config.binContinuous }"
               draggable="true"
               @dragstart="onDragStart($event, col, 'column')"
             >
               {{ col }}
+              <i v-if="columnTypes.continuous?.includes(col) && !config.binContinuous" class="bi bi-exclamation-triangle text-warning ms-1" title="Numerical column — enable binning for best results"></i>
               <button class="btn-close btn-close-sm ms-1" @click="removeColumnColumn(col)"></button>
             </div>
             <div v-if="config.columnColumns.length === 0" class="text-muted small">
               Drag columns here
             </div>
+          </div>
+          <div v-if="continuousColumnWarning" class="alert alert-warning py-1 px-2 mt-1 small mb-0">
+            <i class="bi bi-exclamation-triangle me-1"></i>{{ continuousColumnWarning }}
           </div>
         </div>
 
@@ -450,6 +455,18 @@ const canApply = computed(() => {
   )
 })
 
+// Warn when continuous columns are used as column headers without binning
+const continuousColumnWarning = computed(() => {
+  if (config.value.binContinuous) return null
+  const continuousCols = config.value.columnColumns.filter(
+    col => columnTypes.value.continuous?.includes(col)
+  )
+  if (continuousCols.length > 0) {
+    return `Numerical column(s) "${continuousCols.join(', ')}" used as column header(s) without binning. This may produce too many columns or cause errors. Enable "Bin continuous columns" for better results.`
+  }
+  return null
+})
+
 // Calculate row totals
 const rowTotals = computed(() => {
   if (!pivotData.value || !config.value.showRowTotals) return null
@@ -567,8 +584,20 @@ async function fetchColumnTypes() {
   }
 }
 
+// Track the active AbortController so we can cancel in-flight requests
+let pivotAbortController = null
+
 async function applyPivot(silent = false) {
   if (!canApply.value) return
+
+  // Cancel any in-flight pivot request
+  if (pivotAbortController) {
+    pivotAbortController.abort()
+  }
+
+  // Create a new AbortController with a 30-second timeout
+  pivotAbortController = new AbortController()
+  const timeoutId = setTimeout(() => pivotAbortController.abort(), 30_000)
 
   loading.value = true
   error.value = null
@@ -590,7 +619,8 @@ async function applyPivot(silent = false) {
         binning_strategy: config.value.binningStrategy,
         include_nulls: config.value.includeNulls,
         unique_threshold: config.value.uniqueThreshold
-      })
+      }),
+      signal: pivotAbortController.signal
     })
 
     if (res.ok) {
@@ -599,19 +629,39 @@ async function applyPivot(silent = false) {
         toast.success('Pivot table created')
       }
     } else {
-      const err = await res.json()
-      error.value = err.detail || 'Failed to create pivot table'
+      // Try to parse error detail from response
+      let detail = 'Failed to create pivot table'
+      try {
+        const errBody = await res.json()
+        detail = errBody.detail || detail
+      } catch {
+        // Response body is not JSON (e.g. 405 Method Not Allowed HTML page)
+        if (res.status === 405) {
+          detail = 'Server rejected the pivot request. This can happen when numerical columns are used as row or column headers. Try enabling "Bin continuous columns" or use categorical columns instead.'
+        } else {
+          detail = `Server error (${res.status}). If you used a numerical column as row/column header, try enabling "Bin continuous columns" or choose a categorical column.`
+        }
+      }
+      error.value = detail
       if (!silent) {
-        toast.error(error.value)
+        toast.error(detail)
       }
     }
   } catch (e) {
-    error.value = e.message
+    if (e.name === 'AbortError') {
+      error.value = 'Pivot table request timed out. The dataset may be too large or the column configuration produces too many combinations. Try using categorical columns or enabling "Bin continuous columns".'
+    } else if (e instanceof TypeError && e.message === 'Failed to fetch') {
+      error.value = 'Could not reach the server. Please check your connection and try again. If the problem persists, the pivot configuration may produce too many results — try using categorical columns or enabling "Bin continuous columns".'
+    } else {
+      error.value = e.message || 'An unexpected error occurred while creating the pivot table.'
+    }
     if (!silent) {
-      toast.error(e.message)
+      toast.error(error.value)
     }
   } finally {
+    clearTimeout(timeoutId)
     loading.value = false
+    pivotAbortController = null
   }
 }
 
@@ -829,6 +879,11 @@ onMounted(() => {
 
 .column-tag:active {
   cursor: grabbing;
+}
+
+.column-tag-warning {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
 }
 
 .pivot-display {
