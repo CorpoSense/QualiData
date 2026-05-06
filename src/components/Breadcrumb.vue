@@ -22,28 +22,15 @@
 </template>
 
 <script setup lang="ts">
-// import { computed } from 'vue'
-// import { useRoute } from 'vue-router'
-
 interface BreadcrumbItem {
   label: string
   path?: string
   icon?: string
 }
 
-/*const props = */defineProps<{
+defineProps<{
   items: BreadcrumbItem[]
 }>()
-
-/*const route = useRoute()
-
-// Allow dynamic items override from props or compute from route
-const breadcrumbItems = computed(() => {
-  if (props.items.length > 0) {
-    return props.items
-  }
-  return []
-})*/
 </script>
 
 <style scoped>

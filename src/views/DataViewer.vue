@@ -172,21 +172,6 @@
             </BDropdownItem>
           </BDropdown>
 
-          <BDropdown text="ML Encode" size="sm">
-            <BDropdownItem @click="openEncodingModal('one_hot')">
-              <i class="bi bi-grid-3x3-gap me-2"></i>One-Hot Encoding
-            </BDropdownItem>
-            <BDropdownItem @click="openEncodingModal('label')">
-              <i class="bi bi-123 me-2"></i>Label Encoding
-            </BDropdownItem>
-            <BDropdownItem @click="openEncodingModal('map')">
-              <i class="bi bi-arrow-left-right me-2"></i>Map Values
-            </BDropdownItem>
-            <BDropdownItem @click="openEncodingModal('bin')">
-              <i class="bi bi-bar-chart-steps me-2"></i>Binning
-            </BDropdownItem>
-          </BDropdown>
-
           <BDropdown text="Rows" size="sm">
             <BDropdownItem @click="showRowFilterModal = true">
               <i class="bi bi-funnel me-2"></i>Filter rows
@@ -211,6 +196,21 @@
             </BDropdownItem>
           </BDropdown>
 
+          <BDropdown text="ML Encode" size="sm">
+            <BDropdownItem @click="openEncodingModal('one_hot')">
+              <i class="bi bi-grid-3x3-gap me-2"></i>One-Hot Encoding
+            </BDropdownItem>
+            <BDropdownItem @click="openEncodingModal('label')">
+              <i class="bi bi-123 me-2"></i>Label Encoding
+            </BDropdownItem>
+            <BDropdownItem @click="openEncodingModal('map')">
+              <i class="bi bi-arrow-left-right me-2"></i>Map Values
+            </BDropdownItem>
+            <BDropdownItem @click="openEncodingModal('bin')">
+              <i class="bi bi-bar-chart-steps me-2"></i>Binning
+            </BDropdownItem>
+          </BDropdown>
+                    
           <BDropdown text="AI Clean" size="sm">
             <BDropdownItem @click="showStructuralAiModal = true">
               <i class="bi bi-list-task me-2"></i> Structural (Columns)
