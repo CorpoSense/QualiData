@@ -333,7 +333,6 @@
     <BModal
       v-model="showDeleteConfirm"
       title="Confirm Delete"
-      :hide-footer="true"
     >
       <div class="alert alert-danger">
         <strong>Are you sure you want to delete this agent?</strong><br />

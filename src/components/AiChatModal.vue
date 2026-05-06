@@ -1,5 +1,5 @@
 <template>
-  <BModal v-model="isOpen" size="fullscreen" hide-footer hide-header-close no-close-on-backdrop>
+  <BModal v-model="isOpen" size="fullscreen" no-footer hide-header-close no-close-on-backdrop>
     <template #header>
       <div class="d-flex align-items-center gap-2 w-100">
         <i class="bi bi-chat-dots fs-5 text-primary"></i>
