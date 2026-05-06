@@ -21,7 +21,7 @@
     </BAlert>
 
     <BAlert variant="warning" show v-if="!loading && agents.length === 0">
-      No agents yet. Click “New Agent” to create your first AI configuration.
+      No agents yet. Click "New Agent" to create your first AI configuration.
     </BAlert>
 
     <BTable
@@ -37,6 +37,12 @@
     >
       <template #cell(provider_model)="data">
         <b>{{ data.item.provider }}</b>: {{ data.item.model }}
+      </template>
+      <template #cell(memory_type)="data">
+        <BBadge v-if="data.item.memory_config" variant="info" pill class="small">
+          {{ memoryTypeLabel(data.item.memory_config?.type) }}
+        </BBadge>
+        <span v-else class="text-muted small">—</span>
       </template>
       <template #cell(created_at)="data">
         {{ formatShortDate(data.item.created_at) }}
@@ -96,111 +102,197 @@
       title="Create New AI Agent"
       @ok="createAgentFn"
       :ok-disabled="creating || !createFormValid"
+      size="lg"
     >
-      <BForm ref="createForm">
-        <BFormGroup label="Agent Name *:" label-for="create-name">
-          <BFormInput
-            id="create-name"
-            v-model="createAgent.name"
-            type="text"
-            required
-            placeholder="e.g., My OpenAI Agent"
-          ></BFormInput>
-          <BFormInvalidFeedback
-            v-if="( !createForm || !createForm.$el.checkValidity() ) && !createAgent.name"
-          >
-            Name is required.
-          </BFormInvalidFeedback>
-        </BFormGroup>
+      <BTabs>
+        <BTab title="Basic" active>
+          <BForm ref="createForm" class="mt-3">
+            <BFormGroup label="Agent Name *:" label-for="create-name">
+              <BFormInput
+                id="create-name"
+                v-model="createAgent.name"
+                type="text"
+                required
+                placeholder="e.g., My OpenAI Agent"
+              ></BFormInput>
+              <BFormInvalidFeedback
+                v-if="( !createForm || !createForm.$el.checkValidity() ) && !createAgent.name"
+              >
+                Name is required.
+              </BFormInvalidFeedback>
+            </BFormGroup>
 
-        <BFormGroup label="Description:" label-for="create-desc">
-          <BFormTextarea
-            id="create-desc"
-            v-model="createAgent.description"
-            rows="2"
-            placeholder="Optional description of what this agent does"
-          ></BFormTextarea>
-        </BFormGroup>
+            <BFormGroup label="Description:" label-for="create-desc">
+              <BFormTextarea
+                id="create-desc"
+                v-model="createAgent.description"
+                rows="2"
+                placeholder="Optional description of what this agent does"
+              ></BFormTextarea>
+            </BFormGroup>
 
-        <BFormGroup label="Provider *:" label-for="create-provider">
-          <BFormSelect
-            id="create-provider"
-            v-model="createAgent.provider"
-            :options="providerOptions"
-            required
-          ></BFormSelect>
-        </BFormGroup>
+            <BFormGroup label="Provider *:" label-for="create-provider">
+              <BFormSelect
+                id="create-provider"
+                v-model="createAgent.provider"
+                :options="providerOptions"
+                required
+              ></BFormSelect>
+            </BFormGroup>
 
-        <BFormGroup label="Model *:" label-for="create-model">
-          <BFormInput
-            id="create-model"
-            v-model="createAgent.model"
-            type="text"
-            required
-            placeholder="e.g., gpt-4o-mini"
-            list="model-suggestions"
-          ></BFormInput>
-          <datalist id="model-suggestions">
-            <option v-for="m in providerModels" :key="m" :value="m"></option>
-          </datalist>
-          <small v-if="!providerModels.length" class="text-muted">
-            Enter API key above to load available models, or type a model name manually.
-          </small>
-        </BFormGroup>
+            <BFormGroup label="Model *:" label-for="create-model">
+              <BFormInput
+                id="create-model"
+                v-model="createAgent.model"
+                type="text"
+                required
+                placeholder="e.g., gpt-4o-mini"
+                list="model-suggestions"
+              ></BFormInput>
+              <datalist id="model-suggestions">
+                <option v-for="m in providerModels" :key="m" :value="m"></option>
+              </datalist>
+              <small v-if="!providerModels.length" class="text-muted">
+                Enter API key above to load available models, or type a model name manually.
+              </small>
+            </BFormGroup>
 
-        <BFormGroup label="API Key:" label-for="create-api-key">
-          <BFormInput
-            id="create-api-key"
-            v-model="createAgent.api_key"
-            type="password"
-            placeholder="Your provider API key"
-          ></BFormInput>
-        </BFormGroup>
+            <BFormGroup label="API Key:" label-for="create-api-key">
+              <BFormInput
+                id="create-api-key"
+                v-model="createAgent.api_key"
+                type="password"
+                placeholder="Your provider API key"
+              ></BFormInput>
+            </BFormGroup>
 
-        <BFormGroup v-if="providersWithBaseUrl.includes(createAgent.provider)" label="Custom Base URL (optional):" label-for="create-base-url">
-          <BFormInput
-            id="create-base-url"
-            v-model="createAgent.base_url"
-            type="url"
-            placeholder="e.g., http://localhost:11434 or https://your-proxy.com/v1"
-          ></BFormInput>
-        </BFormGroup>
+            <BFormGroup v-if="providersWithBaseUrl.includes(createAgent.provider)" label="Custom Base URL (optional):" label-for="create-base-url">
+              <BFormInput
+                id="create-base-url"
+                v-model="createAgent.base_url"
+                type="url"
+                placeholder="e.g., http://localhost:11434 or https://your-proxy.com/v1"
+              ></BFormInput>
+            </BFormGroup>
 
-        <BFormGroup label="System Prompt (optional):" label-for="create-system">
-          <BFormTextarea
-            id="create-system"
-            v-model="createAgent.system_prompt"
-            rows="2"
-            placeholder="Optional system‑level instructions"
-          ></BFormTextarea>
-        </BFormGroup>
+            <BFormGroup label="System Prompt (optional):" label-for="create-system">
+              <BFormTextarea
+                id="create-system"
+                v-model="createAgent.system_prompt"
+                rows="2"
+                placeholder="Optional system‑level instructions"
+              ></BFormTextarea>
+            </BFormGroup>
 
-        <BFormGroup label="Prompt Template (optional):" label-for="create-template">
-          <BFormTextarea
-            id="create-template"
-            v-model="createAgent.prompt_template"
-            rows="2"
-            placeholder="E.g., &quot;Extract {field} from the following text:&quot;"
-          ></BFormTextarea>
-        </BFormGroup>
+            <BFormGroup label="Prompt Template (optional):" label-for="create-template">
+              <BFormTextarea
+                id="create-template"
+                v-model="createAgent.prompt_template"
+                rows="2"
+                placeholder='E.g., "Extract {field} from the following text:"'
+              ></BFormTextarea>
+            </BFormGroup>
 
-        <BFormGroup label="Temperature (0‑2) *:" label-for="create-temp">
-          <BFormInput
-            id="create-temp"
-            v-model="createAgent.temperature"
-            type="number"
-            min="0"
-            max="2"
-            step="0.1"
-            required
-          ></BFormInput>
-          <BFormInvalidFeedback
-            v-if="createAgent.temperature < 0 || createAgent.temperature > 2"
-          >
-            Must be between 0 and 2.
-          </BFormInvalidFeedback>
-        </BFormGroup>
-      </BForm>
+            <BFormGroup label="Temperature (0‑2) *:" label-for="create-temp">
+              <BFormInput
+                id="create-temp"
+                v-model="createAgent.temperature"
+                type="number"
+                min="0"
+                max="2"
+                step="0.1"
+                required
+              ></BFormInput>
+              <BFormInvalidFeedback
+                v-if="createAgent.temperature < 0 || createAgent.temperature > 2"
+              >
+                Must be between 0 and 2.
+              </BFormInvalidFeedback>
+            </BFormGroup>
+          </BForm>
+        </BTab>
+
+        <BTab title="Advanced">
+          <div class="mt-3">
+            <BFormGroup label="Memory Strategy:" label-for="create-memory-type">
+              <BFormSelect
+                id="create-memory-type"
+                v-model="createMemoryType"
+                :options="memoryTypeOptions"
+              ></BFormSelect>
+              <small class="text-muted d-block mt-1">
+                {{ memoryTypeDescription(createMemoryType) }}
+              </small>
+            </BFormGroup>
+
+            <!-- Sliding Window params -->
+            <BFormGroup
+              v-if="createMemoryType === 'sliding_window'"
+              label="Max Messages:"
+              label-for="create-max-messages"
+              class="mt-2"
+            >
+              <BFormInput
+                id="create-max-messages"
+                v-model.number="createMemoryParams.max_messages"
+                type="range"
+                min="5"
+                max="100"
+                step="5"
+              ></BFormInput>
+              <div class="d-flex justify-content-between small text-muted">
+                <span>5</span>
+                <span class="fw-bold text-body">{{ createMemoryParams.max_messages }}</span>
+                <span>100</span>
+              </div>
+            </BFormGroup>
+
+            <!-- Summarizer params -->
+            <template v-if="createMemoryType === 'summarizer'">
+              <BFormGroup label="Trigger Tokens:" label-for="create-trigger-tokens" class="mt-2">
+                <BFormInput
+                  id="create-trigger-tokens"
+                  v-model.number="createMemoryParams.trigger_tokens"
+                  type="number"
+                  min="1000"
+                  max="128000"
+                  step="500"
+                ></BFormInput>
+                <small class="text-muted">Summarize when conversation exceeds this token count</small>
+              </BFormGroup>
+              <BFormGroup label="Keep Messages:" label-for="create-keep-messages" class="mt-2">
+                <BFormInput
+                  id="create-keep-messages"
+                  v-model.number="createMemoryParams.keep_messages"
+                  type="number"
+                  min="5"
+                  max="50"
+                  step="5"
+                ></BFormInput>
+                <small class="text-muted">Number of recent messages to keep after summarization</small>
+              </BFormGroup>
+            </template>
+
+            <!-- Trim Tokens params -->
+            <BFormGroup
+              v-if="createMemoryType === 'trim_tokens'"
+              label="Keep Recent Messages:"
+              label-for="create-keep-recent"
+              class="mt-2"
+            >
+              <BFormInput
+                id="create-keep-recent"
+                v-model.number="createMemoryParams.keep_recent"
+                type="number"
+                min="2"
+                max="20"
+                step="1"
+              ></BFormInput>
+              <small class="text-muted">Keep only the system message + this many recent messages</small>
+            </BFormGroup>
+          </div>
+        </BTab>
+      </BTabs>
 
       <template #footer>
         <BButton @click="showCreateModal = false">Cancel</BButton>
@@ -221,103 +313,189 @@
       title="Edit Agent"
       @ok="updateAgentFn"
       :ok-disabled="updating || !editFormValid"
+      size="lg"
     >
-      <BForm ref="editForm">
-        <BFormGroup label="Agent Name *:" label-for="edit-name">
-          <BFormInput
-            id="edit-name"
-            v-model="editAgent.name"
-            type="text"
-            required
-          ></BFormInput>
-          <BFormInvalidFeedback
-            v-if="( !editForm || !editForm.$el.checkValidity() ) && !editAgent.name"
-          >
-            Name is required.
-          </BFormInvalidFeedback>
-        </BFormGroup>
+      <BTabs>
+        <BTab title="Basic" active>
+          <BForm ref="editForm" class="mt-3">
+            <BFormGroup label="Agent Name *:" label-for="edit-name">
+              <BFormInput
+                id="edit-name"
+                v-model="editAgent.name"
+                type="text"
+                required
+              ></BFormInput>
+              <BFormInvalidFeedback
+                v-if="( !editForm || !editForm.$el.checkValidity() ) && !editAgent.name"
+              >
+                Name is required.
+              </BFormInvalidFeedback>
+            </BFormGroup>
 
-        <BFormGroup label="Description:" label-for="edit-desc">
-          <BFormTextarea
-            id="edit-desc"
-            v-model="editAgent.description"
-            rows="2"
-          ></BFormTextarea>
-        </BFormGroup>
+            <BFormGroup label="Description:" label-for="edit-desc">
+              <BFormTextarea
+                id="edit-desc"
+                v-model="editAgent.description"
+                rows="2"
+              ></BFormTextarea>
+            </BFormGroup>
 
-        <BFormGroup label="Provider *:" label-for="edit-provider">
-          <BFormSelect
-            id="edit-provider"
-            v-model="editAgent.provider"
-            :options="providerOptions"
-            required
-          ></BFormSelect>
-        </BFormGroup>
+            <BFormGroup label="Provider *:" label-for="edit-provider">
+              <BFormSelect
+                id="edit-provider"
+                v-model="editAgent.provider"
+                :options="providerOptions"
+                required
+              ></BFormSelect>
+            </BFormGroup>
 
-        <BFormGroup label="Model *:" label-for="edit-model">
-          <BFormInput
-            id="edit-model"
-            v-model="editAgent.model"
-            type="text"
-            required
-            list="model-suggestions"
-          ></BFormInput>
-        </BFormGroup>
+            <BFormGroup label="Model *:" label-for="edit-model">
+              <BFormInput
+                id="edit-model"
+                v-model="editAgent.model"
+                type="text"
+                required
+                list="model-suggestions"
+              ></BFormInput>
+            </BFormGroup>
 
-        <BFormGroup label="API Key:" label-for="edit-api-key">
-          <BFormInput
-            id="edit-api-key"
-            v-model="editAgent.api_key"
-            type="password"
-            :placeholder="editAgent.has_api_key ? '•••••••• (leave blank to keep current)' : 'Your provider API key'"
-          ></BFormInput>
-          <small v-if="editAgent.has_api_key && !editAgent.api_key" class="text-muted">
-            API key is set. Enter a new value to replace it.
-          </small>
-        </BFormGroup>
+            <BFormGroup label="API Key:" label-for="edit-api-key">
+              <BFormInput
+                id="edit-api-key"
+                v-model="editAgent.api_key"
+                type="password"
+                :placeholder="editAgent.has_api_key ? '•••••••• (leave blank to keep current)' : 'Your provider API key'"
+              ></BFormInput>
+              <small v-if="editAgent.has_api_key && !editAgent.api_key" class="text-muted">
+                API key is set. Enter a new value to replace it.
+              </small>
+            </BFormGroup>
 
-        <BFormGroup v-if="providersWithBaseUrl.includes(editAgent.provider)" label="Custom Base URL (optional):" label-for="edit-base-url">
-          <BFormInput
-            id="edit-base-url"
-            v-model="editAgent.base_url"
-            type="url"
-            :placeholder="editAgent.base_url || 'e.g., http://localhost:11434'"
-          ></BFormInput>
-        </BFormGroup>
+            <BFormGroup v-if="providersWithBaseUrl.includes(editAgent.provider)" label="Custom Base URL (optional):" label-for="edit-base-url">
+              <BFormInput
+                id="edit-base-url"
+                v-model="editAgent.base_url"
+                type="url"
+                :placeholder="editAgent.base_url || 'e.g., http://localhost:11434'"
+              ></BFormInput>
+            </BFormGroup>
 
-        <BFormGroup label="System Prompt (optional):" label-for="edit-system">
-          <BFormTextarea
-            id="edit-system"
-            v-model="editAgent.system_prompt"
-            rows="2"
-          ></BFormTextarea>
-        </BFormGroup>
+            <BFormGroup label="System Prompt (optional):" label-for="edit-system">
+              <BFormTextarea
+                id="edit-system"
+                v-model="editAgent.system_prompt"
+                rows="2"
+              ></BFormTextarea>
+            </BFormGroup>
 
-        <BFormGroup label="Prompt Template (optional):" label-for="edit-template">
-          <BFormTextarea
-            id="edit-template"
-            v-model="editAgent.prompt_template"
-            rows="2"
-          ></BFormTextarea>
-        </BFormGroup>
+            <BFormGroup label="Prompt Template (optional):" label-for="edit-template">
+              <BFormTextarea
+                id="edit-template"
+                v-model="editAgent.prompt_template"
+                rows="2"
+              ></BFormTextarea>
+            </BFormGroup>
 
-        <BFormGroup label="Temperature (0‑2) *:" label-for="edit-temp">
-          <BFormInput
-            id="edit-temp"
-            v-model="editAgent.temperature"
-            type="number"
-            min="0"
-            max="2"
-            step="0.1"
-            required
-          ></BFormInput>
-          <BFormInvalidFeedback
-            v-if="editAgent.temperature < 0 || editAgent.temperature > 2"
-          >
-            Must be between 0 and 2.
-          </BFormInvalidFeedback>
-        </BFormGroup>
-      </BForm>
+            <BFormGroup label="Temperature (0‑2) *:" label-for="edit-temp">
+              <BFormInput
+                id="edit-temp"
+                v-model="editAgent.temperature"
+                type="number"
+                min="0"
+                max="2"
+                step="0.1"
+                required
+              ></BFormInput>
+              <BFormInvalidFeedback
+                v-if="editAgent.temperature < 0 || editAgent.temperature > 2"
+              >
+                Must be between 0 and 2.
+              </BFormInvalidFeedback>
+            </BFormGroup>
+          </BForm>
+        </BTab>
+
+        <BTab title="Advanced">
+          <div class="mt-3">
+            <BFormGroup label="Memory Strategy:" label-for="edit-memory-type">
+              <BFormSelect
+                id="edit-memory-type"
+                v-model="editMemoryType"
+                :options="memoryTypeOptions"
+              ></BFormSelect>
+              <small class="text-muted d-block mt-1">
+                {{ memoryTypeDescription(editMemoryType) }}
+              </small>
+            </BFormGroup>
+
+            <!-- Sliding Window params -->
+            <BFormGroup
+              v-if="editMemoryType === 'sliding_window'"
+              label="Max Messages:"
+              label-for="edit-max-messages"
+              class="mt-2"
+            >
+              <BFormInput
+                id="edit-max-messages"
+                v-model.number="editMemoryParams.max_messages"
+                type="range"
+                min="5"
+                max="100"
+                step="5"
+              ></BFormInput>
+              <div class="d-flex justify-content-between small text-muted">
+                <span>5</span>
+                <span class="fw-bold text-body">{{ editMemoryParams.max_messages }}</span>
+                <span>100</span>
+              </div>
+            </BFormGroup>
+
+            <!-- Summarizer params -->
+            <template v-if="editMemoryType === 'summarizer'">
+              <BFormGroup label="Trigger Tokens:" label-for="edit-trigger-tokens" class="mt-2">
+                <BFormInput
+                  id="edit-trigger-tokens"
+                  v-model.number="editMemoryParams.trigger_tokens"
+                  type="number"
+                  min="1000"
+                  max="128000"
+                  step="500"
+                ></BFormInput>
+                <small class="text-muted">Summarize when conversation exceeds this token count</small>
+              </BFormGroup>
+              <BFormGroup label="Keep Messages:" label-for="edit-keep-messages" class="mt-2">
+                <BFormInput
+                  id="edit-keep-messages"
+                  v-model.number="editMemoryParams.keep_messages"
+                  type="number"
+                  min="5"
+                  max="50"
+                  step="5"
+                ></BFormInput>
+                <small class="text-muted">Number of recent messages to keep after summarization</small>
+              </BFormGroup>
+            </template>
+
+            <!-- Trim Tokens params -->
+            <BFormGroup
+              v-if="editMemoryType === 'trim_tokens'"
+              label="Keep Recent Messages:"
+              label-for="edit-keep-recent"
+              class="mt-2"
+            >
+              <BFormInput
+                id="edit-keep-recent"
+                v-model.number="editMemoryParams.keep_recent"
+                type="number"
+                min="2"
+                max="20"
+                step="1"
+              ></BFormInput>
+              <small class="text-muted">Keep only the system message + this many recent messages</small>
+            </BFormGroup>
+          </div>
+        </BTab>
+      </BTabs>
 
       <template #footer>
         <BButton @click="showEditModal = false">Cancel</BButton>
@@ -357,7 +535,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import {
   BButton,
   BModal,
@@ -370,6 +548,9 @@ import {
   BAlert,
   BTable,
   BButtonGroup,
+  BTabs,
+  BTab,
+  BBadge,
 } from 'bootstrap-vue-next';
 import { useToast } from '@/composables/useToast';
 import Breadcrumb from '@/components/Breadcrumb.vue';
@@ -428,6 +609,74 @@ const createAgent = ref({
 const editAgent = ref({});
 let selectedAgentId = null;
 
+// --- Memory config state ---
+const createMemoryType = ref('none');
+const createMemoryParams = ref({
+  max_messages: 20,
+  trigger_tokens: 4000,
+  keep_messages: 20,
+  keep_recent: 4,
+});
+
+const editMemoryType = ref('none');
+const editMemoryParams = ref({
+  max_messages: 20,
+  trigger_tokens: 4000,
+  keep_messages: 20,
+  keep_recent: 4,
+});
+
+const memoryTypeOptions = [
+  { value: 'none', text: 'None (default)' },
+  { value: 'sliding_window', text: 'Sliding Window' },
+  { value: 'summarizer', text: 'Summarizer' },
+  { value: 'trim_tokens', text: 'Trim Tokens' },
+];
+
+const memoryTypeDescriptions = {
+  none: 'No memory management. The full conversation history is sent every time.',
+  sliding_window: 'Removes the oldest messages when the conversation exceeds a message count threshold. Simple and predictable.',
+  summarizer: 'Summarizes older messages into a condensed summary when the token count exceeds a threshold. Best for preserving context in long tasks.',
+  trim_tokens: 'Keeps only the system message and the most recent N messages. Discards everything else. Good for small context models.',
+};
+
+function memoryTypeDescription(type) {
+  return memoryTypeDescriptions[type] || '';
+}
+
+function memoryTypeLabel(type) {
+  const opt = memoryTypeOptions.find(o => o.value === type);
+  return opt ? opt.text : type;
+}
+
+function buildMemoryConfig(memoryType, memoryParams) {
+  if (memoryType === 'none') return null;
+  if (memoryType === 'sliding_window') {
+    return { type: 'sliding_window', max_messages: memoryParams.max_messages };
+  }
+  if (memoryType === 'summarizer') {
+    return { type: 'summarizer', trigger_tokens: memoryParams.trigger_tokens, keep_messages: memoryParams.keep_messages };
+  }
+  if (memoryType === 'trim_tokens') {
+    return { type: 'trim_tokens', keep_recent: memoryParams.keep_recent };
+  }
+  return null;
+}
+
+function parseMemoryConfig(config) {
+  if (!config || typeof config !== 'object') {
+    return { type: 'none', params: { max_messages: 20, trigger_tokens: 4000, keep_messages: 20, keep_recent: 4 } };
+  }
+  const type = config.type || 'none';
+  const params = {
+    max_messages: config.max_messages || 20,
+    trigger_tokens: config.trigger_tokens || 4000,
+    keep_messages: config.keep_messages || 20,
+    keep_recent: config.keep_recent || 4,
+  };
+  return { type, params };
+}
+
 // Template refs
 const createForm = ref(null);
 const editForm = ref(null);
@@ -443,6 +692,7 @@ const agentFields = computed(() => [
     label: 'Provider: Model',
     sortable: false,
   },
+  { key: 'memory_type', label: 'Memory', sortable: false },
   { key: 'description', label: 'Description', sortable: false },
   { key: 'created_at', label: 'Created', sortable: true },
   { key: 'actions', label: 'Actions', sortable: false },
@@ -464,16 +714,16 @@ const providersWithBaseUrl = ['openai', 'huggingface', 'ollama', 'groq', 'deepse
 const createFormValid = computed(() => {
   // Depend on dirty counter to force re-evaluation
   createFormDirty.value;
-  
+
   // Check basic validity from our model first
   const hasName = !!createAgent.value.name;
   const tempValid = createAgent.value.temperature >= 0 && createAgent.value.temperature <= 2;
-  
+
   // If form ref is not available yet, rely on basic model validation
   if (!createForm.value) {
     return hasName && tempValid;
   }
-  
+
   // Form is available, check its validity along with our model constraints
   return createForm.value.$el.checkValidity() && hasName && tempValid;
 });
@@ -481,16 +731,16 @@ const createFormValid = computed(() => {
 const editFormValid = computed(() => {
   // Depend on dirty counter to force re-evaluation
   editFormDirty.value;
-  
+
   // Check basic validity from our model first
   const hasName = !!editAgent.value.name;
   const tempValid = editAgent.value.temperature >= 0 && editAgent.value.temperature <= 2;
-  
+
   // If form ref is not available yet, rely on basic model validation
   if (!editForm.value) {
     return hasName && tempValid;
   }
-  
+
   // Form is available, check its validity along with our model constraints
   return editForm.value.$el.checkValidity() && hasName && tempValid;
 });
@@ -522,13 +772,17 @@ const fetchAgents = async () => {
 const createAgentFn = async () => {
   creating.value = true;
   try {
+    const payload = {
+      ...createAgent.value,
+      memory_config: buildMemoryConfig(createMemoryType.value, createMemoryParams.value),
+    };
     const res = await fetch(`${API_URL}/agents/`, {
       method: 'POST',
       headers: {
         ...getAuthHeader(),
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(createAgent.value),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -548,6 +802,8 @@ const createAgentFn = async () => {
       prompt_template: '',
       temperature: 0.3,
     });
+    createMemoryType.value = 'none';
+    createMemoryParams.value = { max_messages: 20, trigger_tokens: 4000, keep_messages: 20, keep_recent: 4 };
     await fetchAgents();
   } catch (e) {
     console.error(e);
@@ -560,6 +816,10 @@ const createAgentFn = async () => {
 const editAgentFn = (agent) => {
   // clone to avoid mutating the source until save
   editAgent.value = { ...agent };
+  // Parse existing memory config
+  const { type, params } = parseMemoryConfig(agent.memory_config);
+  editMemoryType.value = type;
+  editMemoryParams.value = { ...params };
   selectedAgentId = agent.id;
   showEditModal.value = true;
   fetchModels(agent.provider);
@@ -568,13 +828,17 @@ const editAgentFn = (agent) => {
 const updateAgentFn = async () => {
   updating.value = true;
   try {
+    const payload = {
+      ...editAgent.value,
+      memory_config: buildMemoryConfig(editMemoryType.value, editMemoryParams.value),
+    };
     const res = await fetch(`${API_URL}/agents/${selectedAgentId}`, {
       method: 'PATCH',
       headers: {
         ...getAuthHeader(),
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(editAgent.value),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -638,6 +902,11 @@ watch(
     createAgent.value.system_prompt,
     createAgent.value.prompt_template,
     createAgent.value.temperature,
+    createMemoryType.value,
+    createMemoryParams.value.max_messages,
+    createMemoryParams.value.trigger_tokens,
+    createMemoryParams.value.keep_messages,
+    createMemoryParams.value.keep_recent,
   ],
   () => { createFormDirty.value++ }
 )
@@ -653,6 +922,11 @@ watch(
     editAgent.value.system_prompt,
     editAgent.value.prompt_template,
     editAgent.value.temperature,
+    editMemoryType.value,
+    editMemoryParams.value.max_messages,
+    editMemoryParams.value.trigger_tokens,
+    editMemoryParams.value.keep_messages,
+    editMemoryParams.value.keep_recent,
   ],
   () => { editFormDirty.value++ }
 )

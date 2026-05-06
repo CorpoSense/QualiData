@@ -217,6 +217,7 @@ async def health_check():
 **Key Files:**
 - [`backend/app/services/ai_provider.py`](backend/app/services/ai_provider.py) - Provider factory
 - [`backend/app/services/cleaner.py`](backend/app/services/cleaner.py) - Data cleaning assistant
+- [`backend/app/services/agent_factory.py`](backend/app/services/agent_factory.py) - LangGraph agent factory with memory middleware
 - [`backend/app/routers/ai.py`](backend/app/routers/ai.py) - AI endpoints (chat, analyze, suggest-fix, generate-code)
 - [`backend/app/routers/ai_operations.py`](backend/app/routers/ai_operations.py) - AI-powered operations
 - [`backend/app/routers/assistant.py`](backend/app/routers/assistant.py) - Assistant wizard
@@ -230,8 +231,18 @@ async def health_check():
 - Chat sessions stored in localStorage (`ai-chat-sessions`)
 - Text-to-speech via Web Speech API (toggle button)
 - Markdown rendering for AI responses (code blocks, tables, lists)
-- Backend endpoint: `POST /api/ai/chat` with `conversation_history`, `dataset_id`, `dataset_context_rows`
+- Backend endpoint: `POST /api/ai/chat` with `conversation_history`, `dataset_id`, `dataset_context_rows`, `conversation_id`
 - Future: function calling for data operations, file upload for context
+
+**Agent Memory Feature:**
+- Optional memory management for long conversations (Advanced tab in Agent Manager)
+- When `memory_config` is set on an agent, chat uses LangGraph agent with middleware + InMemorySaver
+- When `memory_config` is null (default), chat uses legacy stateless path (llm.ainvoke)
+- Memory strategies: `sliding_window` (removes oldest messages), `summarizer` (condenses old messages), `trim_tokens` (keeps only recent messages)
+- `conversation_id` in ChatRequest maps to LangGraph `thread_id` for server-side checkpointing
+- Agent instances are cached per agent_id; cache invalidated when memory_config changes
+- **Limitation (v1):** InMemorySaver is volatile — conversation state is lost on backend restart
+- **Future (Phase 4):** Replace InMemorySaver with PostgresSaver for persistent checkpointing
 
 **Configuration:** API keys in `backend/.env` or per-agent
 

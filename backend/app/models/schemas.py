@@ -77,6 +77,7 @@ class ChatRequest(BaseModel):
     conversation_history: list[ChatMessage] | None = None
     dataset_id: str | None = None
     dataset_context_rows: int = 10
+    conversation_id: str | None = None
 
 
 class ChatResponse(BaseModel):

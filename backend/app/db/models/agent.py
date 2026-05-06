@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
@@ -46,6 +46,9 @@ class Agent(Base):
 
     # Generation settings
     temperature: Mapped[float] = mapped_column(Float, default=0.3)
+
+    # Memory configuration (optional, Advanced tab)
+    memory_config: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
 
     # Template status
     is_template: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
+from typing import List, Literal, Union
 
 from app.db.database import get_async_session
 from app.db.models import Agent, User
@@ -15,6 +15,32 @@ from datetime import datetime
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
+
+# --- Memory configuration schemas ---
+
+
+class SlidingWindowConfig(BaseModel):
+    """Sliding window memory: removes oldest messages when count exceeds threshold."""
+    type: Literal["sliding_window"] = "sliding_window"
+    max_messages: int = Field(default=20, ge=5, le=100)
+
+
+class SummarizerConfig(BaseModel):
+    """Summarizer memory: condenses older messages into a summary when token threshold is hit."""
+    type: Literal["summarizer"] = "summarizer"
+    trigger_tokens: int = Field(default=4000, ge=1000, le=128000)
+    keep_messages: int = Field(default=20, ge=5, le=50)
+
+
+class TrimTokensConfig(BaseModel):
+    """Trim tokens memory: keeps only system message + recent N messages."""
+    type: Literal["trim_tokens"] = "trim_tokens"
+    keep_recent: int = Field(default=4, ge=2, le=20)
+
+
+MemoryConfig = Union[SlidingWindowConfig, SummarizerConfig, TrimTokensConfig]
+
+
 class AgentBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: str | None = None
@@ -23,6 +49,7 @@ class AgentBase(BaseModel):
     system_prompt: str | None = None
     prompt_template: str | None = None
     temperature: float = Field(default=0.3, ge=0, le=2)
+    memory_config: MemoryConfig | None = None
     is_template: bool = False
     is_builtin: bool = False
 
@@ -40,6 +67,7 @@ class AgentUpdate(BaseModel):
     system_prompt: str | None = None
     prompt_template: str | None = None
     temperature: float | None = Field(None, ge=0, le=2)
+    memory_config: MemoryConfig | None = None
     is_template: bool | None = None
     is_builtin: bool | None = None
     api_key: str | None = None
@@ -56,6 +84,7 @@ class AgentResponse(BaseModel):
     system_prompt: str | None = None
     prompt_template: str | None = None
     temperature: float
+    memory_config: dict | None = None
     is_template: bool
     is_builtin: bool
     created_at: datetime
@@ -76,6 +105,7 @@ def _agent_to_response(agent: Agent) -> dict:
         "system_prompt": agent.system_prompt,
         "prompt_template": agent.prompt_template,
         "temperature": agent.temperature,
+        "memory_config": agent.memory_config,
         "is_template": agent.is_template,
         "is_builtin": agent.is_builtin,
         "base_url": agent.base_url,

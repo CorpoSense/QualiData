@@ -297,6 +297,9 @@ async def chat(
     When agent_id is provided, uses the agent's configured provider, model,
     API key, and system prompt instead of the request-level provider/model.
 
+    If the agent has memory_config set, uses a LangGraph agent with memory
+    middleware for server-side conversation state management.
+
     Supports conversation_history for multi-turn conversations and
     dataset_id for injecting dataset context into the system prompt.
     """
@@ -315,6 +318,14 @@ async def chat(
         from app.routers.ai_operations import _get_agent_config
 
         agent_config = await _get_agent_config(request.agent_id, current_user.id, session)
+        memory_config = agent_config.get("memory_config")
+
+        # If agent has memory_config, use LangGraph agent with memory
+        if memory_config:
+            return await _chat_with_memory(
+                request, agent_config, dataset_context,
+            )
+
         provider = AIProvider(agent_config["provider"])
         llm_kwargs = {}
         if agent_config.get("api_key"):
@@ -400,4 +411,66 @@ async def chat(
         response=response,
         provider=provider.value,
         model=request.model or assistant.llm.model_name,
+    )
+
+
+async def _chat_with_memory(
+    request: ChatRequest,
+    agent_config: dict,
+    dataset_context: str,
+) -> ChatResponse:
+    """Chat using a LangGraph agent with memory middleware.
+
+    This path is used when the agent has memory_config set. The agent
+    uses InMemorySaver for server-side conversation state, keyed by
+    conversation_id (or agent_id as fallback).
+    """
+    from app.services.agent_factory import get_or_create_agent
+
+    provider = AIProvider(agent_config["provider"])
+    llm_kwargs = {}
+    if agent_config.get("api_key"):
+        llm_kwargs["api_key"] = agent_config["api_key"]
+    if agent_config.get("base_url"):
+        llm_kwargs["base_url"] = agent_config["base_url"]
+    llm = get_chat_model(
+        provider,
+        model=agent_config.get("model"),
+        temperature=agent_config.get("temperature", 0.3),
+        **llm_kwargs,
+    )
+
+    system_prompt = agent_config.get("system_prompt") or "You are a helpful data cleaning assistant."
+    if dataset_context:
+        system_prompt = f"{dataset_context}\n\n{system_prompt}"
+
+    agent_id = request.agent_id
+    memory_config = agent_config.get("memory_config")
+
+    # Get or create a cached agent instance
+    agent = get_or_create_agent(
+        llm,
+        agent_id=agent_id,
+        memory_config=memory_config,
+        system_prompt=system_prompt,
+    )
+
+    # Use conversation_id as thread_id for checkpointing, fallback to agent_id
+    thread_id = request.conversation_id or agent_id
+    config = {"configurable": {"thread_id": thread_id}}
+
+    try:
+        result = await agent.ainvoke(
+            {"messages": [{"role": "user", "content": request.message}]},
+            config,
+        )
+        response_text = result["messages"][-1].content
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return ChatResponse(
+        response=response_text,
+        provider=provider.value,
+        model=agent_config.get("model") or llm.model_name,
+        conversation_id=thread_id,
     )

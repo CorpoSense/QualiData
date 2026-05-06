@@ -408,6 +408,7 @@ async function sendMessage() {
       conversation_history: conversationHistory.length > 0 ? conversationHistory : undefined,
       dataset_id: props.datasetId || undefined,
       dataset_context_rows: contextRows.value,
+      conversation_id: activeSessionId.value || undefined,
     }
 
     const res = await fetch(`${apiUrl}/api/ai/chat`, {

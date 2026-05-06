@@ -267,12 +267,12 @@ class TestAiOperationsDecryption:
         assert config["api_key"] is None
 
     @pytest.mark.asyncio
-    async def test_get_agent_config_no_agent_id_returns_defaults(self):
-        """No agent_id returns default config."""
+    async def test_get_agent_config_no_agent_id_returns_none(self):
+        """No agent_id returns None (no default config dict)."""
         from app.routers.ai_operations import _get_agent_config
 
         mock_session = AsyncMock()
 
         config = await _get_agent_config(None, "user-1", mock_session)
-        assert config["provider"] == "openai"
-        assert config["api_key"] is None
+        # _get_agent_config returns None when agent_id is None
+        assert config is None
