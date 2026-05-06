@@ -16,6 +16,22 @@ router = APIRouter(tags=["dataset-operations"])
 
 
 # Operation schemas
+class MapValuesMapping(BaseModel):
+    from_value: str  # Exact value or regex pattern
+    to_value: str  # Replacement value
+    is_regex: bool = False  # Whether from_value is a regex pattern
+    case_sensitive: bool = True  # Regex flag (only when is_regex=True)
+
+
+class MapValuesRequest(BaseModel):
+    column: str  # Target column
+    mappings: list[MapValuesMapping]  # Ordered mapping rules
+    missing_value_action: str = "keep"  # keep | fill | drop | ignore
+    missing_value_fill: str | None = None  # Fill value when action="fill"
+    default_value: str | None = None  # Fallback for unmatched non-null values
+    row_indices: list[int] | None = None  # Optional row filtering
+
+
 class AddColumnRequest(BaseModel):
     column_name: str
     default_value: str | None = None
@@ -1917,6 +1933,50 @@ async def import_recipe(
                             except (ValueError, TypeError):
                                 pass
 
+            elif op_type == "map-values":
+                if op_column and op_column in df.columns:
+                    mappings = op_params.get("mappings", [])
+                    missing_action = op_params.get("missing_value_action", "keep")
+                    missing_fill = op_params.get("missing_value_fill")
+                    default_val = op_params.get("default_value")
+
+                    # Handle missing values
+                    if missing_action == "drop":
+                        df = df.dropna(subset=[op_column]).reset_index(drop=True)
+                    elif missing_action == "fill" and missing_fill is not None:
+                        df[op_column] = df[op_column].fillna(missing_fill)
+
+                    # Apply exact matches
+                    exact = {m["from_value"]: m["to_value"] for m in mappings if not m.get("is_regex")}
+                    if exact:
+                        df[op_column] = df[op_column].replace(exact)
+
+            # Apply regex matches with first-match-wins semantics
+                import re as _re
+                regex_mappings = [m for m in mappings if m.get("is_regex")]
+                if regex_mappings:
+                    compiled_regex = []
+                    for m in regex_mappings:
+                        flags = 0 if m.get("case_sensitive", True) else _re.IGNORECASE
+                        compiled_regex.append((_re.compile(m["from_value"], flags), m["to_value"]))
+
+                    def _apply_regex_first_match(val):
+                        if val is None or (isinstance(val, float) and pd.isna(val)):
+                            return val
+                        s = str(val)
+                        for compiled_pat, replacement in compiled_regex:
+                            if compiled_pat.search(s):
+                                return compiled_pat.sub(replacement, s)
+                        return val
+
+                    df[op_column] = df[op_column].apply(_apply_regex_first_match)
+
+                # Apply default
+                if default_val is not None:
+                        all_from = {m["from_value"] for m in mappings if not m.get("is_regex")}
+                        mask = ~df[op_column].isin(all_from) & df[op_column].notna()
+                        df.loc[mask, op_column] = default_val
+
             elif op_type == "reorder_columns":
                 new_order = op_params.get("columns", op.get("columns", []))
                 if new_order and set(new_order) == set(df.columns):
@@ -2315,6 +2375,202 @@ async def fuzzy_advanced(
         "columns": dataset.columns,
         "row_count": dataset.row_count,
         "changed_count": changed
+    }
+
+
+# Map Values endpoint
+@router.post("/datasets/{dataset_id}/operations/map-values")
+async def map_values(
+    dataset_id: str,
+    request: MapValuesRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Map values in a column using exact matches, regex patterns, and default values.
+
+    Supports:
+    - Exact value mapping (e.g., "USA" → "US")
+    - Regex pattern mapping (e.g., "^Neth.*" → "NL")
+    - Missing value handling (keep, fill, drop, ignore)
+    - Default value for unmatched non-null values
+    - Row filtering via row_indices
+    """
+    import re
+
+    dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
+    if not dataset.data_json or "data" not in dataset.data_json:
+        raise HTTPException(status_code=400, detail="No data to operate on")
+
+    df = pd.DataFrame(dataset.data_json["data"])
+    # Ensure DataFrame column order matches dataset.columns
+    if dataset.columns:
+        expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+        df = df.reindex(columns=expected_columns)
+
+    column = request.column
+
+    # Validate column exists
+    if column not in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{column}' not found")
+
+    # Validate mappings list is non-empty
+    if not request.mappings:
+        raise HTTPException(status_code=400, detail="Mappings list cannot be empty")
+
+    # Validate all regex patterns before any data modification
+    for i, m in enumerate(request.mappings):
+        if m.is_regex:
+            try:
+                flags = 0 if m.case_sensitive else re.IGNORECASE
+                re.compile(m.from_value, flags)
+            except re.error as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid regex pattern at index {i}: '{m.from_value}' — {e}"
+                )
+
+    # Store original values for change counting
+    original_col = df[column].copy()
+
+    # Handle missing values FIRST
+    nulls_handled = 0
+    if request.missing_value_action == "drop":
+        nulls_handled = int(df[column].isna().sum())
+        df = df.dropna(subset=[column]).reset_index(drop=True)
+    elif request.missing_value_action == "fill" and request.missing_value_fill is not None:
+        nulls_handled = int(df[column].isna().sum())
+        df[column] = df[column].fillna(request.missing_value_fill)
+    # "keep" and "ignore": no-op, nulls stay null
+
+    # Separate mappings into exact matches and regex matches
+    exact_matches = {m.from_value: m.to_value for m in request.mappings if not m.is_regex}
+    regex_matches = [(m.from_value, m.to_value, m.case_sensitive) for m in request.mappings if m.is_regex]
+
+    # Apply exact matches
+    if exact_matches:
+        df[column] = df[column].replace(exact_matches)
+
+    # Apply regex matches (in order) with first-match-wins semantics
+    # For each cell, only the first matching regex is applied
+    if regex_matches:
+        compiled_regex = []
+        for pattern, replacement, case_sensitive in regex_matches:
+            flags = 0 if case_sensitive else re.IGNORECASE
+            compiled_regex.append((re.compile(pattern, flags), replacement))
+
+        def apply_regex_first_match(val):
+            """Apply the first matching regex pattern to a value."""
+            if val is None or (isinstance(val, float) and pd.isna(val)):
+                return val
+            s = str(val)
+            for compiled_pat, replacement in compiled_regex:
+                if compiled_pat.search(s):
+                    return compiled_pat.sub(replacement, s)
+            return val
+
+        df[column] = df[column].apply(apply_regex_first_match)
+
+    # Apply default value for unmatched non-null values
+    default_matched = 0
+    if request.default_value is not None:
+        all_from_values = {m.from_value for m in request.mappings if not m.is_regex}
+        # Values that are not in exact match keys and not null (original)
+        mask = ~df[column].isin(all_from_values) & df[column].notna()
+        # Also exclude values that were already changed by exact matches
+        # (they won't be in all_from_values anymore since they were replaced)
+        # We need to check against original values
+        original_not_in_exact = ~original_col.isin(all_from_values) & original_col.notna()
+        # After regex, some values may have been replaced. Apply default only to
+        # values that were NOT matched by any exact mapping and are not null
+        # Use a simpler approach: values not in any from_value and not matching any regex
+        if regex_matches:
+            # For regex, check if the original value would have matched any regex
+            def was_regex_matched(orig_val):
+                if pd.isna(orig_val):
+                    return False
+                s = str(orig_val)
+                for pat, _, cs in regex_matches:
+                    fl = 0 if cs else re.IGNORECASE
+                    if re.search(pat, s, fl):
+                        return True
+                return False
+
+            # Apply default to values not in exact matches and not matched by regex
+            for idx in df.index:
+                orig_val = original_col.iloc[idx] if idx < len(original_col) else None
+                curr_val = df.at[idx, column]
+                if pd.isna(curr_val):
+                    continue
+                # Check if original value was in exact matches
+                if orig_val is not None and not pd.isna(orig_val) and str(orig_val) in all_from_values:
+                    continue
+                # Check if original value was matched by regex
+                if orig_val is not None and not pd.isna(orig_val) and was_regex_matched(orig_val):
+                    continue
+                # This value is unmatched — apply default
+                df.at[idx, column] = request.default_value
+                default_matched += 1
+        else:
+            # No regex — just check against exact match keys
+            for idx in df.index:
+                curr_val = df.at[idx, column]
+                orig_val = original_col.iloc[idx] if idx < len(original_col) else None
+                if pd.isna(curr_val):
+                    continue
+                if orig_val is not None and not pd.isna(orig_val) and str(orig_val) in all_from_values:
+                    continue
+                df.at[idx, column] = request.default_value
+                default_matched += 1
+
+    # Apply row filtering if specified
+    if request.row_indices is not None:
+        # Only apply changes to specified rows, restore others
+        full_df = pd.DataFrame(dataset.data_json["data"])
+        if dataset.columns:
+            expected_columns = [c['name'] if isinstance(c, dict) else c for c in dataset.columns]
+            full_df = full_df.reindex(columns=expected_columns)
+        valid_indices = [i for i in request.row_indices if 0 <= i < len(full_df)]
+        for idx in valid_indices:
+            full_df.at[idx, column] = df.at[idx, column]
+        df = full_df
+
+    # Count changes
+    # Re-align original_col with df for comparison (drop may have changed length)
+    if len(original_col) == len(df):
+        changed_count = int((original_col != df[column]).sum())
+    else:
+        # After drop, we can't directly compare — count from what we know
+        changed_count = int((df[column] != original_col[:len(df)]).sum())
+
+    exact_matched = sum(1 for m in request.mappings if not m.is_regex and m.from_value in original_col.values)
+    regex_matched = changed_count - exact_matched if changed_count > exact_matched else 0
+
+    if changed_count == 0 and nulls_handled == 0 and default_matched == 0:
+        return {
+            "status": "no_changes",
+            "message": f"No values matched any mapping in column '{column}'",
+            "columns": dataset.columns,
+        }
+
+    before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
+    dataset.columns = detect_columns(df)
+    dataset.data_json = get_full_data_json(df)
+    dataset.row_count = len(df)
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+
+    await save_operation(dataset_id, "map-values", request.model_dump(), before_snapshot, after_snapshot, session)
+    await session.commit()
+
+    return {
+        "status": "success",
+        "message": f"Mapped {changed_count} values in column '{column}' ({exact_matched} exact, {regex_matched} regex, {default_matched} default)",
+        "columns": dataset.columns,
+        "row_count": dataset.row_count,
+        "changed_count": changed_count,
+        "exact_matched": exact_matched,
+        "regex_matched": regex_matched,
+        "default_matched": default_matched,
+        "nulls_handled": nulls_handled,
     }
 
 

@@ -98,9 +98,13 @@
         <i class="bi bi-regex me-2"></i>Extract pattern…
       </BDropdownItem>
       <BDropdownItem @click="showFindReplaceModal = true">
-              <i class="bi bi-arrow-left-right me-2"></i>Find & Replace…
-            </BDropdownItem>
-          </BDropdown>
+        <i class="bi bi-arrow-left-right me-2"></i>Find & Replace…
+      </BDropdownItem>
+      <BDropdownItem @click="openValueMappingModal" :disabled="selectedColumns.length !== 1">
+        <i class="bi bi-map me-2"></i>Map Values…
+        <span v-if="selectedColumns.length !== 1" class="text-muted small ms-2">(select 1)</span>
+      </BDropdownItem>
+    </BDropdown>
 
           <BDropdown text="Date Ops" size="sm">
             <BDropdownItem @click="showOpConfirmModal('datetime-parse-datetime')">
@@ -1204,14 +1208,24 @@
       :agent-options="agentOptions"
     />
 
-    <!-- Change Type Modal -->
-    <ChangeTypeModal
-      v-model="showChangeTypeModal"
-      :selected-columns="effectiveSelectedColumns"
-      :dataset-id="datasetId"
-      :operating="operating"
-      @apply="applyChangeType"
-    />
+  <!-- Change Type Modal -->
+  <ChangeTypeModal
+    v-model="showChangeTypeModal"
+    :selected-columns="effectiveSelectedColumns"
+    :dataset-id="datasetId"
+    :operating="operating"
+    @apply="applyChangeType"
+  />
+
+  <!-- Value Mapping Modal -->
+  <ValueMappingModal
+    v-model="showValueMappingModal"
+    :column="selectedColumns[0] || ''"
+    :dataset-id="datasetId"
+    :unique-values="getValueMappingUniqueValues()"
+    :operating="operating"
+    @apply="applyValueMapping"
+  />
 
     <!-- History Sidebar -->
     <div v-if="showHistory" class="history-sidebar">
@@ -1311,6 +1325,7 @@ import ProfileModal from '@/components/ProfileModal.vue'
 import ColumnReorderModal from '@/components/ColumnReorderModal.vue'
 import ChangeTypeModal from '@/components/ChangeTypeModal.vue'
 import ExtractPatternModal from '@/components/ExtractPatternModal.vue'
+import ValueMappingModal from '@/components/ValueMappingModal.vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
 import { useToast } from '@/composables/useToast'
 
@@ -1665,6 +1680,7 @@ const extractJsonSuggestedKeys = ref([])
 const showExtractPatternModal = ref(false)
 const extractPatternSamples = ref([])
 const showFindReplaceModal = ref(false)
+const showValueMappingModal = ref(false)
 const showOpConfirm = ref(false)
 const opConfirmConfig = ref({ title: '', description: '', operation: '', params: {}, options: [], handler: null })
 const showMergeModal = ref(false)
@@ -2182,6 +2198,53 @@ async function applyChangeType(payload) {
     } else {
       const err = await res.json()
       toast.error(err.detail || 'Type change failed')
+    }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    operating.value = false
+  }
+}
+
+function openValueMappingModal() {
+  if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length !== 1) {
+    toast.warning('Select exactly 1 column to map values')
+    return
+  }
+  showValueMappingModal.value = true
+}
+
+function getValueMappingUniqueValues() {
+  const col = selectedColumns.value[0]
+  if (!col || !data.value.length) return []
+  const unique = [...new Set(data.value.map(r => r[col]).filter(v => v != null))]
+  return unique.map(v => String(v))
+}
+
+async function applyValueMapping(payload) {
+  operating.value = true
+  try {
+    const body = {
+      column: payload.column,
+      mappings: payload.mappings,
+      missing_value_action: payload.missing_value_action,
+      missing_value_fill: payload.missing_value_fill,
+      default_value: payload.default_value,
+      row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined,
+    }
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/map-values`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(body),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      toast.success(data.message || 'Value mapping applied')
+      showValueMappingModal.value = false
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Value mapping failed')
     }
   } catch (e) {
     toast.error(e.message)

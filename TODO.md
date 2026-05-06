@@ -33,14 +33,14 @@ Track tasks and improvements for the project.
 
 ## Improvments:
 
-- [ ] Mapping multiple values with the ability to use regex
+- [x] Mapping multiple values with the ability to use regex
 
 ### AI Chat Feature (Future)
 
 - [-] AI Chat with Context
   - [x] Full chat interface with conversation history
   - [x] Context: N rows/columns as input
-  - [x] Baisc Features:
+  - [x] Basic Features:
     - Sidebar with chat history
     - Text-to-speech (optional)
   - [ ] Advanced Features:
