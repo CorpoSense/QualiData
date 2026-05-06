@@ -36,7 +36,10 @@
       outline
     >
       <template #cell(provider_model)="data">
-        {{ data.item.provider }} / {{ data.item.model }}
+        <b>{{ data.item.provider }}</b>: {{ data.item.model }}
+      </template>
+      <template #cell(created_at)="data">
+        {{ formatShortDate(data.item.created_at) }}
       </template>
       <template #cell(actions)="data">
         <BButton
@@ -437,7 +440,7 @@ const agentFields = computed(() => [
   { key: 'name', label: 'Name', sortable: true },
   {
     key: 'provider_model',
-    label: 'Provider / Model',
+    label: 'Provider: Model',
     sortable: false,
   },
   { key: 'description', label: 'Description', sortable: false },
@@ -669,6 +672,18 @@ const onSortChange = (val) => {
     sortBy.value = val;
     sortDesc.value = val.length > 0 && val[0].order === 'desc';
   }
+};
+
+const formatShortDate = (dateStr) => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
 };
 
 const breadcrumbItems = [

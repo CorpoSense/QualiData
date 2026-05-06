@@ -1,3 +1,4 @@
+
 # TODO - MasterDataCleaner
 
 Track tasks and improvements for the project.
@@ -5,6 +6,10 @@ Track tasks and improvements for the project.
 ---
 
 ## Pending Tasks
+
+#### AI Agent Capabilities
+- [ ] Support different type of memories
+- [ ] Support uploading a file.
 
 ### AI Provider Updates
 
@@ -21,20 +26,6 @@ Track tasks and improvements for the project.
 - `docs/features/ai-providers.md` - Provider comparison table
 - `AGENTS.md` - Default models reference
 
-### Fix bugs:
-- [x] Update a cell's value is not working when dataset in filtered.
-- [x] Persist column(s) selection after any operation where possible (moving column, refresh page...)
-- [x] Persist columns order after any operation.
-- [x] Display correct number of dataset in each project.
-- [x] Profile is only showing 500 rows!
-- [x] Pivot need some bug fixes:
-  - [x] Ability to select columns (display list of columns with the ability to drag a column to either "rows" or "columns" section which both accept drop)
-  - [x] Fix resize issue it get's reset to default width after resizing
-
-## Improvments:
-
-- [x] Mapping multiple values with the ability to use regex
-
 ### AI Chat Feature (Future)
 
 - [-] AI Chat with Context
@@ -47,111 +38,8 @@ Track tasks and improvements for the project.
     - File upload support
     - Function calling to execute data operations
 
-- [x] Improve error handling in Pivot table by displaying more explicit error message (rather than `Failed to fetch` which may occurs in certains situations when trying to use numerical values in rows or columns titles) to help user understand the issue and solve it.
-- [x] Add extract pattern in string column.
-- [x] Default value for rename column.
-- [x] Make the "Projects" menu item in the navbar a dropdown menu to list projects and theirs datasets.
-- [x] Add an extended menu for multi-filtering that is almost similar to Excel's while showing unique values and theirs counts.
-- [x] The user is able to hide some columns to save some screen space and work easily on the visible columns.
-- [x] Add an option to allow the user choose whether to apply operation on the invisible columns.
-
-#### AI Agent Capabilities
-- [ ] Support different type of memories
-- [ ] Support uploading a file.
-
-#### Apply on selected rows/columns
-- [x] The ability to apply any operation to any selected combination of: rows, columns or rows and columns.
-
-#### Fuzzy matching
-- [x] Add the footer option to the data table.
-
-#### Fuzzy matching
-- [x] Add the ability to merge similar values instead of deleting them with a visual selection and AI suggestion
-
-#### Moving columns
-- [x] Display a modal with all existing columns and the ability to move up/down any selected column(s)
-
-
-#### Database schema
-- [x] Consider reviewing the database structure (the `preview_data` looks redandunt, why there is an empty `data_json`...)
-
 #### Video
 - [ ] Create a video presenation and place it in the home page
-
----
-
-### Pivot Tables
-- [x] Provide a multple and flexible ways to display a pivot tables
-- [x] Provide a checkbox option to enable/disable including None values.
-- [x] Add totals for both: rows and columns
----
-
-### Export Features
-
-- [x] **Export to Database**
-  - Export cleaned data to same or different database connection
-  - Options: create new table or append to existing table
-  - Support same databases as import (PostgreSQL, MySQL, SQLite, SQL Server)
-  - Add database tab to export modal (similar to import)
-  - Reuse connection UI components from import feature
-  - Add validation and warnings for schema mismatches
-
-- [x] **Export to Parquet format**
-  - Add Parquet export option (simple, uncompressed)
-  - Support standard .parquet files
-
----
-
-### Dataset Management
-
-- [x] **Clone Dataset**
-  - Add "Clone" option to dataset card menu
-  - Create exact copy with different name
-  - Support multi-select for bulk clone
-
-- [x] **Bulk Delete Datasets**
-  - Add multi-select checkboxes to dataset cards
-  - Add bulk delete action with confirmation
-  - Update existing multi-check UI from merge feature
-
-- [x] **Copy/Move Datasets to Another Project**
-  - Add "Copy to Project" and "Move to Project" buttons in selection bar
-  - Modal to select target project from dropdown
-  - Backend endpoint `/api/datasets/copy-move` with copy/move actions
-  - Updates project stats (row_count, storage_bytes) for both source and target
-  - Copy: clones datasets to target project (originals remain)
-  - Move: transfers datasets to target project (originals removed)
-
----
-
-### Free Plan Restrictions
-
-- [ ] **Implement Free Plan Limits**
-  - Scan codebase for features requiring restrictions
-  - Implement plan-based profiling at backend
-  - Show friendly limit warnings (not errors) when hitting limits
-  - Display upgrade prompts at limit boundaries
-  - Reference SPEC.md for tier limits:
-    - Free: 1 project, 1,000 rows, 5 MB storage
-    - Pro: 10 projects, 50,000 rows, 100 MB storage
-    - Enterprise: Unlimited projects, 500,000 rows, 1 GB storage
-
----
-
-### Documentation
-
-- [x] **Comprehensive Documentation**
-  - Create hierarchical markdown documentation in `docs/` directory
-  - Include: overview, getting started, features, architecture, API reference, guides
-  - Target audience: users, developers, AI agents
-  - Exclude: bug reports, package versions, irrelevant technical details
-  - **Completed:** 15 markdown files created in `docs/` directory
-
-- [x] **Update README.md**
-  - Sync with current project state
-  - Add links to new documentation
-  - Update feature list and tech stack
-  - **Completed:** README.md updated with full documentation links and current features
 
 ---
 
@@ -169,6 +57,7 @@ Track tasks and improvements for the project.
 - Authentication via API keys
 - Webhook support for async operations
 - SDK examples for common languages
+
 
 ---
 
@@ -236,6 +125,20 @@ Track tasks and improvements for the project.
 
 ---
 
+### Free Plan Restrictions
+
+- [ ] **Implement Free Plan Limits**
+  - Scan codebase for features requiring restrictions
+  - Implement plan-based profiling at backend
+  - Show friendly limit warnings (not errors) when hitting limits
+  - Display upgrade prompts at limit boundaries
+  - Reference SPEC.md for tier limits:
+    - Free: 1 project, 1,000 rows, 5 MB storage
+    - Pro: 10 projects, 50,000 rows, 100 MB storage
+    - Enterprise: Unlimited projects, 500,000 rows, 1 GB storage
+
+---
+
 ### Project Naming
 
 - [ ] **Consider Renaming Project**
@@ -245,7 +148,104 @@ Track tasks and improvements for the project.
 
 ---
 
-## Completed Tasks
+### Fix bugs:
+- [x] Update a cell's value is not working when dataset in filtered.
+- [x] Persist column(s) selection after any operation where possible (moving column, refresh page...)
+- [x] Persist columns order after any operation.
+- [x] Display correct number of dataset in each project.
+- [x] Profile is only showing 500 rows!
+- [x] Pivot need some bug fixes:
+  - [x] Ability to select columns (display list of columns with the ability to drag a column to either "rows" or "columns" section which both accept drop)
+  - [x] Fix resize issue it get's reset to default width after resizing
+
+## Improvments:
+
+- [x] Mapping multiple values with the ability to use regex
+- [x] Improve error handling in Pivot table by displaying more explicit error message (rather than `Failed to fetch` which may occurs in certains situations when trying to use numerical values in rows or columns titles) to help user understand the issue and solve it.
+- [x] Add extract pattern in string column.
+- [x] Default value for rename column.
+- [x] Make the "Projects" menu item in the navbar a dropdown menu to list projects and theirs datasets.
+- [x] Add an extended menu for multi-filtering that is almost similar to Excel's while showing unique values and theirs counts.
+- [x] The user is able to hide some columns to save some screen space and work easily on the visible columns.
+- [x] Add an option to allow the user choose whether to apply operation on the invisible columns.
+
+#### Apply on selected rows/columns
+- [x] The ability to apply any operation to any selected combination of: rows, columns or rows and columns.
+
+#### Fuzzy matching
+- [x] Add the footer option to the data table.
+
+#### Fuzzy matching
+- [x] Add the ability to merge similar values instead of deleting them with a visual selection and AI suggestion
+
+#### Moving columns
+- [x] Display a modal with all existing columns and the ability to move up/down any selected column(s)
+
+
+#### Database schema
+- [x] Consider reviewing the database structure (the `preview_data` looks redandunt, why there is an empty `data_json`...)
+
+---
+
+### Pivot Tables
+- [x] Provide a multple and flexible ways to display a pivot tables
+- [x] Provide a checkbox option to enable/disable including None values.
+- [x] Add totals for both: rows and columns
+---
+
+### Export Features
+
+- [x] **Export to Database**
+  - Export cleaned data to same or different database connection
+  - Options: create new table or append to existing table
+  - Support same databases as import (PostgreSQL, MySQL, SQLite, SQL Server)
+  - Add database tab to export modal (similar to import)
+  - Reuse connection UI components from import feature
+  - Add validation and warnings for schema mismatches
+
+- [x] **Export to Parquet format**
+  - Add Parquet export option (simple, uncompressed)
+  - Support standard .parquet files
+
+---
+
+### Dataset Management
+
+- [x] **Clone Dataset**
+  - Add "Clone" option to dataset card menu
+  - Create exact copy with different name
+  - Support multi-select for bulk clone
+
+- [x] **Bulk Delete Datasets**
+  - Add multi-select checkboxes to dataset cards
+  - Add bulk delete action with confirmation
+  - Update existing multi-check UI from merge feature
+
+- [x] **Copy/Move Datasets to Another Project**
+  - Add "Copy to Project" and "Move to Project" buttons in selection bar
+  - Modal to select target project from dropdown
+  - Backend endpoint `/api/datasets/copy-move` with copy/move actions
+  - Updates project stats (row_count, storage_bytes) for both source and target
+  - Copy: clones datasets to target project (originals remain)
+  - Move: transfers datasets to target project (originals removed)
+
+---
+
+### Documentation
+
+- [x] **Comprehensive Documentation**
+  - Create hierarchical markdown documentation in `docs/` directory
+  - Include: overview, getting started, features, architecture, API reference, guides
+  - Target audience: users, developers, AI agents
+  - Exclude: bug reports, package versions, irrelevant technical details
+  - **Completed:** 15 markdown files created in `docs/` directory
+
+- [x] **Update README.md**
+  - Sync with current project state
+  - Add links to new documentation
+  - Update feature list and tech stack
+  - **Completed:** README.md updated with full documentation links and current features
+
 
 ### AI Operations
 - [x] AI Clean operations with loop/cycle through rows
