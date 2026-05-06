@@ -175,7 +175,7 @@
               ref="inputRef"
               v-model="inputMessage"
               class="form-control form-control-sm"
-              rows="1"
+              rows="3"
               placeholder="Ask about your data… (Enter to send, Shift+Enter for newline)"
               @keydown="onKeyDown"
               @input="autoResize"

@@ -301,15 +301,4 @@ Track tasks and improvements for the project.
 
 ---
 
-## Discussion Items
-
-These items require discussion/decision before implementation:
-
-- **AI Chat Feature** - Major undertaking, needs detailed planning
-- **Project Renaming** - Branding decision
-- **Better-auth Integration** - Evaluate if current auth is sufficient
-- **Data Analysis Scope** - Prioritize which algorithms/charts first
-
----
-
-*Last updated: March 2026*
+*Last updated: May 2026*
