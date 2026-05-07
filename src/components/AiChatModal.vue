@@ -17,39 +17,49 @@
 
     <div class="ai-chat-container d-flex">
       <!-- Left Sidebar: Chat History -->
-      <div class="chat-sidebar">
-        <div class="d-flex justify-content-between align-items-center mb-3 px-2">
-          <span class="fw-bold small text-uppercase text-muted">Chats</span>
-          <BButton size="sm" variant="outline-primary" @click="newChat" title="New chat">
+      <div class="chat-sidebar" :class="{ collapsed: !sidebarOpen }">
+        <div v-if="sidebarOpen" class="chat-sidebar-content">
+          <div class="d-flex justify-content-between align-items-center mb-3 px-2">
+            <span class="fw-bold small text-uppercase text-muted">Chats</span>
+            <BButton size="sm" variant="outline-primary" @click="newChat" title="New chat">
+              <i class="bi bi-plus-lg"></i>
+            </BButton>
+          </div>
+          <div class="chat-list">
+            <div
+              v-for="session in sortedSessions"
+              :key="session.id"
+              class="chat-list-item"
+              :class="{ active: session.id === activeSessionId }"
+              @click="loadChat(session.id)"
+            >
+              <div class="d-flex justify-content-between align-items-start">
+                <div class="text-truncate flex-grow-1" style="min-width: 0;">
+                  <div class="small fw-medium text-truncate">{{ session.title }}</div>
+                  <div class="text-muted" style="font-size: 0.7rem;">{{ formatTime(session.updatedAt) }}</div>
+                </div>
+                <button
+                  class="btn btn-sm btn-link text-muted p-0 ms-1"
+                  @click.stop="deleteChat(session.id)"
+                  title="Delete chat"
+                >
+                  <i class="bi bi-trash3" style="font-size: 0.7rem;"></i>
+                </button>
+              </div>
+            </div>
+            <div v-if="sortedSessions.length === 0" class="text-center text-muted py-4 small">
+              <i class="bi bi-chat-square d-block mb-1" style="font-size: 1.5rem;"></i>
+              No chats yet
+            </div>
+          </div>
+        </div>
+        <div v-else class="chat-sidebar-collapsed-inner d-flex flex-column align-items-center pt-2">
+          <BButton size="sm" variant="outline-secondary" @click="newChat" title="New chat" class="mb-2">
             <i class="bi bi-plus-lg"></i>
           </BButton>
         </div>
-        <div class="chat-list">
-          <div
-            v-for="session in sortedSessions"
-            :key="session.id"
-            class="chat-list-item"
-            :class="{ active: session.id === activeSessionId }"
-            @click="loadChat(session.id)"
-          >
-            <div class="d-flex justify-content-between align-items-start">
-              <div class="text-truncate flex-grow-1" style="min-width: 0;">
-                <div class="small fw-medium text-truncate">{{ session.title }}</div>
-                <div class="text-muted" style="font-size: 0.7rem;">{{ formatTime(session.updatedAt) }}</div>
-              </div>
-              <button
-                class="btn btn-sm btn-link text-muted p-0 ms-1"
-                @click.stop="deleteChat(session.id)"
-                title="Delete chat"
-              >
-                <i class="bi bi-trash3" style="font-size: 0.7rem;"></i>
-              </button>
-            </div>
-          </div>
-          <div v-if="sortedSessions.length === 0" class="text-center text-muted py-4 small">
-            <i class="bi bi-chat-square d-block mb-1" style="font-size: 1.5rem;"></i>
-            No chats yet
-          </div>
+        <div class="sidebar-toggle" @click="sidebarOpen = !sidebarOpen" :title="sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'">
+          <i :class="sidebarOpen ? 'bi bi-chevron-left' : 'bi bi-chevron-right'"></i>
         </div>
       </div>
 
@@ -234,6 +244,7 @@ const messagesContainer = ref(null)
 const inputRef = ref(null)
 const activeSessionId = ref(null)
 const chatSessions = ref([])
+const sidebarOpen = ref(true)
 
 // Context row options
 const contextRowOptions = [
@@ -670,6 +681,47 @@ watch(() => props.datasetId, () => {
   padding: 12px 8px;
   overflow-y: auto;
   background: #f8fafc;
+  position: relative;
+  transition: width 0.25s ease, min-width 0.25s ease, padding 0.25s ease;
+}
+
+.chat-sidebar.collapsed {
+  width: 44px;
+  min-width: 44px;
+  padding: 12px 4px;
+  overflow: visible;
+}
+
+.chat-sidebar.collapsed .chat-sidebar-content {
+  display: none;
+}
+
+.chat-sidebar-collapsed-inner {
+  width: 100%;
+}
+
+.sidebar-toggle {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  transition: background 0.15s, color 0.15s;
+  z-index: 1;
+}
+
+.sidebar-toggle:hover {
+  background: #e2e8f0;
+  color: #334155;
 }
 
 .chat-list-item {
