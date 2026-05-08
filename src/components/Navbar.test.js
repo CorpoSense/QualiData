@@ -113,7 +113,7 @@ describe('Navbar', () => {
     it('renders AI Agents link', () => {
       const wrapper = createWrapper()
       const links = wrapper.findAll('.nav-link')
-      const agentsLink = links.find(l => l.text().includes('AI Agents'))
+      const agentsLink = links.find(l => l.text().includes('Agents'))
       expect(agentsLink).toBeTruthy()
     })
 

@@ -125,7 +125,8 @@
         </ul>
       </li>
 
-      <li class="nav-item"><router-link class="nav-link" to="/agents">AI Agents</router-link></li>
+      <li class="nav-item"><router-link class="nav-link" to="/agents">Agents</router-link></li>
+      <li class="nav-item"><router-link class="nav-link" to="/integrations">Integrations</router-link></li>
       <li class="nav-item" v-if="canManageUsers(user)"><router-link class="nav-link" to="/admin/users">Users</router-link></li>
 
       <!-- Notifications -->

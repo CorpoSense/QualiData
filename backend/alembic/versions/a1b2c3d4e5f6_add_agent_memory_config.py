@@ -18,8 +18,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Add memory_config column to agents table."""
-    op.add_column('agents', sa.Column('memory_config', sa.JSON(), nullable=True))
+    """Add memory_config column to agents table (idempotent)."""
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    agents_columns = [col["name"] for col in inspector.get_columns("agents")]
+    if "memory_config" not in agents_columns:
+        op.add_column('agents', sa.Column('memory_config', sa.JSON(), nullable=True))
 
 
 def downgrade() -> None:

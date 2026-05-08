@@ -246,6 +246,31 @@ async def health_check():
 
 **Configuration:** API keys in `backend/.env` or per-agent
 
+**Integrations — Search Engines:**
+- Users can configure search engines in the Integrations page (`/integrations`)
+- Search engines are optionally attached to AI Agents (Advanced tab in Agent Manager)
+- When an agent has a search engine, the AI chat uses LangGraph agent with search tools
+- Search-aware system prompt is used when agent has search engine (unless custom system prompt is set)
+- API keys for search engines are encrypted at rest (same pattern as agent API keys)
+
+**Supported Search Providers:**
+| Provider | Requires API Key | Description |
+|----------|-----------------|-------------|
+| DuckDuckGo | No | Free, no API key needed |
+| Serper | Yes | Google search via Serper API |
+| Brave Search | Yes | Privacy-focused search |
+| SerpAPI | Yes | Google search via SerpAPI |
+| Google Custom Search | Yes | Google Programmable Search Engine |
+| Exa | Yes | AI-optimized search |
+| SearXNG | No | Self-hosted metasearch engine |
+| Custom REST API | No | Any REST API endpoint |
+
+**Key Files:**
+- [`backend/app/db/models/search_engine.py`](backend/app/db/models/search_engine.py) - SearchEngine ORM model
+- [`backend/app/routers/search_engines.py`](backend/app/routers/search_engines.py) - Search engine CRUD endpoints
+- [`backend/app/services/search_tools.py`](backend/app/services/search_tools.py) - Search tool factory (LangChain tool wrappers)
+- [`src/views/Integrations.vue`](src/views/Integrations.vue) - Integrations management page
+
 **Default Models:**
 - OpenAI: `gpt-4o-mini`
 - Anthropic: `claude-sonnet-4-20250514`
@@ -266,6 +291,7 @@ async def health_check():
 | **Dataset** | `project.py` | Dataset data and metadata |
 | **OperationHistory** | `project.py` | Undo/redo functionality |
 | **Agent** | `agent.py` | AI agent configurations |
+| **SearchEngine** | `search_engine.py` | Search engine integrations (web search for agents) |
 
 **Migrations:** [`backend/alembic/`](backend/alembic/) - Auto-run on startup via lifespan events
 
@@ -291,6 +317,7 @@ Multiple routers organized by feature in [`backend/app/routers/`](backend/app/ro
 | `datasets` | `/api/datasets` | Dataset import/export/preview |
 | `operations*` | `/api/operations` | Data operations (core, extra, structural, cell, datetime, missing values, batch, undo/redo, extract-json, extract-pattern, map-values) |
 | `agents` | `/api/agents` | Agent CRUD |
+| `search_engines` | `/api/search-engines` | Search engine CRUD & providers |
 | `ai*` | `/api/ai` and `/api/operations` | AI endpoints and operations |
 | `assistant` | `/api/assistant` | Assistant wizard |
 | `profiling` | `/api/profiling` | Column profiling |

@@ -30,6 +30,7 @@ const routes = [
   { path: '/oauth/callback/:provider', component: OAuthCallback },
   { path: '/profile', component: Profile, meta: { requiresAuth: true } },
   { path: '/agents', component: () => import('@/views/AgentManager.vue'), meta: { requiresAuth: true } },
+  { path: '/integrations', component: () => import('@/views/Integrations.vue'), meta: { requiresAuth: true } },
   { path: '/admin/users', component: Users, meta: { requiresAuth: true, requiresAdmin: true } },
 ]
 

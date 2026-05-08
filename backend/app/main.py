@@ -34,6 +34,7 @@ from app.routers import (
     profiling,
     projects,
     rate_limit,
+    search_engines,
     structural_ops,
     undo_redo,
 )
@@ -54,80 +55,84 @@ async def lifespan(app: FastAPI):
 
 
 async def run_migrations():
-    """Run database migrations on startup.
+    """Initialize database schema on startup.
 
-    Uses Alembic for schema migrations, with create_all as fallback
-    for initial table creation when alembic_version table doesn't exist.
+    Uses SQLAlchemy create_all to create missing tables, then applies
+    idempotent column additions for any new columns added to existing
+    tables. Works with both SQLite and PostgreSQL.
+
+    Alembic is kept for offline/manual migrations only (run `alembic
+    upgrade head` from the CLI when needed).
     """
+    from sqlalchemy import inspect as sa_inspect, text
     from app.db.database import get_async_engine
     from app.db.database import Base
 
+    # Ensure all models are imported so Base.metadata knows about them
+    import app.db.models  # noqa: F401
+
+    engine = get_async_engine()
+
     try:
-        # Run Alembic migrations
-        from alembic.config import Config as AlembicConfig
-        from alembic.script import ScriptDirectory
-        from alembic.runtime.migration import MigrationContext
-        from sqlalchemy import text
-
-        engine = get_async_engine()
-        alembic_cfg = AlembicConfig(
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), "alembic.ini")
-        )
-        alembic_cfg.set_main_option("script_location", os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "alembic"
-        ))
-
         async with engine.begin() as conn:
-            # Check if alembic_version table exists
-            result = await conn.execute(text(
-                "SELECT EXISTS (SELECT FROM information_schema.tables "
-                "WHERE table_name = 'alembic_version')"
-            ))
-            alembic_exists = result.scalar()
+            # 1. Create all tables that don't exist yet
+            await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database tables created/verified")
 
-            if not alembic_exists:
-                # First run: create tables from models, then stamp
-                await conn.run_sync(Base.metadata.create_all)
-                logger.info("Database tables created from models")
+            # 2. Apply idempotent column additions for existing tables
+            #    (create_all won't add columns to existing tables)
+            def _add_missing_columns(sync_conn):
+                inspector = sa_inspect(sync_conn)
+                existing_tables = inspector.get_table_names()
 
-                # Stamp with the latest revision
-                script = ScriptDirectory.from_config(alembic_cfg)
-                head_revision = script.get_current_head()
-                if head_revision:
-                    await conn.execute(text(
-                        f"CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) PRIMARY KEY)"
+                # --- agents table: memory_config column ---
+                if "agents" in existing_tables:
+                    agents_columns = [c["name"] for c in inspector.get_columns("agents")]
+                    if "memory_config" not in agents_columns:
+                        sync_conn.execute(text(
+                            "ALTER TABLE agents ADD COLUMN memory_config JSON"
+                        ))
+                        logger.info("Added memory_config column to agents")
+
+                    if "search_engine_id" not in agents_columns:
+                        sync_conn.execute(text(
+                            "ALTER TABLE agents ADD COLUMN search_engine_id VARCHAR(36)"
+                        ))
+                        logger.info("Added search_engine_id column to agents")
+
+                # --- search_engines table (create if missing) ---
+                if "search_engines" not in existing_tables:
+                    sync_conn.execute(text("""
+                        CREATE TABLE search_engines (
+                            id VARCHAR(36) PRIMARY KEY,
+                            user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                            name VARCHAR(255) NOT NULL,
+                            provider VARCHAR(50) NOT NULL,
+                            api_key TEXT,
+                            config JSON,
+                            is_builtin BOOLEAN DEFAULT 0,
+                            created_at DATETIME,
+                            updated_at DATETIME
+                        )
+                    """))
+                    sync_conn.execute(text(
+                        "CREATE INDEX IF NOT EXISTS ix_search_engines_user_id ON search_engines(user_id)"
                     ))
-                    await conn.execute(text(
-                        f"INSERT INTO alembic_version (version_num) VALUES ('{head_revision}')"
-                    ))
-                    logger.info(f"Database stamped at revision: {head_revision}")
-            else:
-                # Run any pending Alembic migrations
-                from alembic import command
-                def run_upgrade(connection, cfg):
-                    command.upgrade(cfg, "head")
-                await conn.run_sync(lambda conn: run_upgrade(conn, alembic_cfg))
-                logger.info("Database migrations applied")
+                    logger.info("Created search_engines table")
+
+            await conn.run_sync(_add_missing_columns)
+            logger.info("Database schema migration complete")
 
     except Exception as e:
-        logger.warning(f"Database migration failed, falling back to create_all: {e}")
-        try:
-            engine = get_async_engine()
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-                logger.info("Database tables created/verified (fallback)")
-        except Exception as e2:
-            logger.error(f"Database initialization failed: {e2}")
-
+        logger.error(f"Database initialization failed: {e}", exc_info=True)
 
 
 
 async def create_admin_user():
     """Create admin user on startup if configured."""
     from sqlalchemy import select
-    from app.db.database import get_async_engine, get_async_session_maker
+    from app.db.database import get_async_session_maker
     from app.db.models import User
-    from app.db.database import Base
     
     # Check if admin env vars are set
     admin_email = os.environ.get("ADMIN_USER", "").strip()
@@ -141,11 +146,6 @@ async def create_admin_user():
         return
     
     try:
-        # Create tables if they don't exist
-        engine = get_async_engine()
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        
         async_session = get_async_session_maker()
         async with async_session() as session:
             # Check if admin already exists
@@ -226,6 +226,7 @@ def create_app() -> FastAPI:
     app.include_router(assistant.router, prefix="/api")
     app.include_router(rate_limit.router, prefix="/api")
     app.include_router(cell_ops.router, prefix="/api")
+    app.include_router(search_engines.router, prefix="/api")
 
     # Serve Vue static files if available (for production)
     # Check multiple locations for frontend build

@@ -50,6 +50,13 @@ class Agent(Base):
     # Memory configuration (optional, Advanced tab)
     memory_config: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
 
+    # Search engine integration (optional, Advanced tab)
+    search_engine_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("search_engines.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     # Template status
     is_template: Mapped[bool] = mapped_column(Boolean, default=False)
     is_builtin: Mapped[bool] = mapped_column(Boolean, default=False)

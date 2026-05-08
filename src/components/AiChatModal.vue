@@ -80,9 +80,12 @@
             style="width: auto;"
             title="Number of dataset rows to include as context"
           ></BFormSelect>
-          <BBadge v-if="selectedAgentId" variant="info" pill class="small">
-            <i class="bi bi-robot me-1"></i>Active
-          </BBadge>
+      <BBadge v-if="selectedAgentId" variant="info" pill class="small">
+        <i class="bi bi-robot me-1"></i>Active
+      </BBadge>
+      <BBadge v-if="selectedAgentHasSearch" variant="success" pill class="small">
+        <i class="bi bi-search me-1"></i>Search
+      </BBadge>
           <div class="ms-auto d-flex align-items-center gap-1">
             <BButton
               size="sm"
@@ -266,6 +269,12 @@ const quickSuggestions = [
 // Computed
 const canSend = computed(() => {
   return inputMessage.value.trim() && selectedAgentId.value && !loading.value
+})
+
+const selectedAgentHasSearch = computed(() => {
+  if (!selectedAgentId.value) return false
+  const agent = props.agentOptions.find(a => a.value === selectedAgentId.value)
+  return agent?.has_search_engine === true
 })
 
 const sortedSessions = computed(() => {

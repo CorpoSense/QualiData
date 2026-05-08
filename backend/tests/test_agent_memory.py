@@ -444,14 +444,22 @@ class TestGetAgentConfigMemoryConfig:
         assert config["memory_config"] is None
 
     @pytest.mark.asyncio
-    async def test_get_agent_config_no_agent_id_returns_none(self):
-        """When no agent_id is provided, _get_agent_config returns None (no config dict)."""
+    async def test_get_agent_config_no_agent_id_returns_defaults(self):
+        """When no agent_id is provided, _get_agent_config returns default config dict."""
         from app.routers.ai_operations import _get_agent_config
 
         mock_session = AsyncMock()
         config = await _get_agent_config(None, "user-1", mock_session)
-        # _get_agent_config returns None when agent_id is None
-        assert config is None
+        # _get_agent_config returns a default dict when agent_id is None
+        assert config is not None
+        assert config["provider"] == "openai"
+        assert config["model"] is None
+        assert config["temperature"] == 0.3
+        assert config["system_prompt"] is None
+        assert config["api_key"] is None
+        assert config["base_url"] is None
+        assert config["memory_config"] is None
+        assert config["search_engine_id"] is None
 
 
 # --- ChatRequest with conversation_id ---

@@ -129,17 +129,20 @@ async def _get_agent_config(agent_id: str | None, user_id: str, session: AsyncSe
             "api_key": api_key,
             "base_url": agent.base_url,
             "memory_config": agent.memory_config,
+            "search_engine_id": agent.search_engine_id,
         }
-        # No agent selected — use defaults
-        return {
-            "provider": "openai",
-            "model": None,
-            "temperature": 0.3,
-            "system_prompt": None,
-            "api_key": None,
-            "base_url": None,
-            "memory_config": None,
-        }
+
+    # No agent selected — use defaults
+    return {
+        "provider": "openai",
+        "model": None,
+        "temperature": 0.3,
+        "system_prompt": None,
+        "api_key": None,
+        "base_url": None,
+        "memory_config": None,
+        "search_engine_id": None,
+    }
 
 
 @router.post("/datasets/{dataset_id}/ai-clean", response_model=AICleaningResponse)

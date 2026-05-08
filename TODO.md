@@ -9,8 +9,8 @@ Track tasks and improvements for the project.
 
 #### AI Agent Capabilities
 - [x] Support different type of memories
-- [ ] Integrations: search engines, sandbox to execute code
-  - [ ] Support multiple Search engines
+- [x] Integrations support
+  - [x] Support multiple Search engines
   - [ ] Support multiple Sandboxes provider to execute code
 - [ ] Support uploading a file in chat.
 

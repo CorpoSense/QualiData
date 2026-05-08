@@ -2,7 +2,7 @@
   <div class="agent-manager">
     <Breadcrumb :items="breadcrumbItems" />
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <h4 class="mb-0">AI Agents</h4>
+      <h4 class="mb-0">Agents</h4>
       <BButton
         variant="primary"
         size="sm"
@@ -38,12 +38,18 @@
       <template #cell(provider_model)="data">
         <b>{{ data.item.provider }}</b>: {{ data.item.model }}
       </template>
-      <template #cell(memory_type)="data">
-        <BBadge v-if="data.item.memory_config" variant="info" pill class="small">
-          {{ memoryTypeLabel(data.item.memory_config?.type) }}
-        </BBadge>
-        <span v-else class="text-muted small">—</span>
-      </template>
+    <template #cell(memory_type)="data">
+      <BBadge v-if="data.item.memory_config" variant="info" pill class="small">
+        {{ memoryTypeLabel(data.item.memory_config?.type) }}
+      </BBadge>
+      <span v-else class="text-muted small">—</span>
+    </template>
+    <template #cell(search_engine)="data">
+      <BBadge v-if="data.item.search_engine_id" variant="success" pill class="small">
+        <i class="bi bi-search me-1"></i>{{ searchEngineName(data.item.search_engine_id) }}
+      </BBadge>
+      <span v-else class="text-muted small">—</span>
+    </template>
       <template #cell(created_at)="data">
         {{ formatShortDate(data.item.created_at) }}
       </template>
@@ -288,23 +294,35 @@
                 max="20"
                 step="1"
               ></BFormInput>
-              <small class="text-muted">Keep only the system message + this many recent messages</small>
-            </BFormGroup>
-          </div>
-        </BTab>
-      </BTabs>
+    <small class="text-muted">Keep only the system message + this many recent messages</small>
+    </BFormGroup>
 
-      <template #footer>
-        <BButton @click="showCreateModal = false">Cancel</BButton>
-        <BButton
-          variant="primary"
-          :disabled="creating || !createFormValid"
-          @click="createAgentFn"
-        >
-          <template #left v-if="creating"><i class="bi bi-arrow-repeat me-1"></i></template>
-          Create
-        </BButton>
-      </template>
+    <hr class="my-3" />
+    <BFormGroup label="Search Engine:" label-for="create-search-engine">
+      <BFormSelect
+        id="create-search-engine"
+        v-model="createSearchEngineId"
+        :options="searchEngineOptions"
+      ></BFormSelect>
+      <small class="text-muted d-block mt-1">
+        Optionally attach a search engine to let the agent search the web for information.
+      </small>
+    </BFormGroup>
+    </div>
+    </BTab>
+    </BTabs>
+
+    <template #footer>
+    <BButton @click="showCreateModal = false">Cancel</BButton>
+    <BButton
+      variant="primary"
+      :disabled="creating || !createFormValid"
+      @click="createAgentFn"
+    >
+      <template #left v-if="creating"><i class="bi bi-arrow-repeat me-1"></i></template>
+      Create
+    </BButton>
+    </template>
     </BModal>
 
     <!-- Edit Agent Modal -->
@@ -491,23 +509,35 @@
                 max="20"
                 step="1"
               ></BFormInput>
-              <small class="text-muted">Keep only the system message + this many recent messages</small>
-            </BFormGroup>
-          </div>
-        </BTab>
-      </BTabs>
+    <small class="text-muted">Keep only the system message + this many recent messages</small>
+    </BFormGroup>
 
-      <template #footer>
-        <BButton @click="showEditModal = false">Cancel</BButton>
-        <BButton
-          variant="primary"
-          :disabled="updating || !editFormValid"
-          @click="updateAgentFn"
-        >
-          <template #left v-if="updating"><i class="bi bi-arrow-repeat me-1"></i></template>
-          Update
-        </BButton>
-      </template>
+    <hr class="my-3" />
+    <BFormGroup label="Search Engine:" label-for="edit-search-engine">
+      <BFormSelect
+        id="edit-search-engine"
+        v-model="editSearchEngineId"
+        :options="searchEngineOptions"
+      ></BFormSelect>
+      <small class="text-muted d-block mt-1">
+        Optionally attach a search engine to let the agent search the web for information.
+      </small>
+    </BFormGroup>
+    </div>
+    </BTab>
+    </BTabs>
+
+    <template #footer>
+    <BButton @click="showEditModal = false">Cancel</BButton>
+    <BButton
+      variant="primary"
+      :disabled="updating || !editFormValid"
+        @click="updateAgentFn"
+    >
+      <template #left v-if="updating"><i class="bi bi-arrow-repeat me-1"></i></template>
+      Update
+    </BButton>
+    </template>
     </BModal>
 
     <!-- Delete Confirmation Modal -->
@@ -626,6 +656,38 @@ const editMemoryParams = ref({
   keep_recent: 4,
 });
 
+// --- Search engine state ---
+const searchEngines = ref([]);
+const createSearchEngineId = ref(null);
+const editSearchEngineId = ref(null);
+
+const searchEngineOptions = computed(() => {
+  const opts = [{ value: null, text: 'None (no web search)' }];
+  for (const se of searchEngines.value) {
+    opts.push({ value: se.id, text: se.name });
+  }
+  return opts;
+});
+
+function searchEngineName(engineId) {
+  const se = searchEngines.value.find(e => e.id === engineId);
+  return se ? se.name : 'Unknown';
+}
+
+const fetchSearchEngines = async () => {
+  try {
+    const res = await fetch(`${API_URL}/search-engines/`, {
+      headers: getAuthHeader(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      searchEngines.value = Array.isArray(data) ? data : [];
+    }
+  } catch {
+    searchEngines.value = [];
+  }
+};
+
 const memoryTypeOptions = [
   { value: 'none', text: 'None (default)' },
   { value: 'sliding_window', text: 'Sliding Window' },
@@ -693,6 +755,7 @@ const agentFields = computed(() => [
     sortable: false,
   },
   { key: 'memory_type', label: 'Memory', sortable: false },
+  { key: 'search_engine', label: 'Search', sortable: false },
   { key: 'description', label: 'Description', sortable: false },
   { key: 'created_at', label: 'Created', sortable: true },
   { key: 'actions', label: 'Actions', sortable: false },
@@ -775,6 +838,7 @@ const createAgentFn = async () => {
     const payload = {
       ...createAgent.value,
       memory_config: buildMemoryConfig(createMemoryType.value, createMemoryParams.value),
+      search_engine_id: createSearchEngineId.value || null,
     };
     const res = await fetch(`${API_URL}/agents/`, {
       method: 'POST',
@@ -804,6 +868,7 @@ const createAgentFn = async () => {
     });
     createMemoryType.value = 'none';
     createMemoryParams.value = { max_messages: 20, trigger_tokens: 4000, keep_messages: 20, keep_recent: 4 };
+    createSearchEngineId.value = null;
     await fetchAgents();
   } catch (e) {
     console.error(e);
@@ -820,6 +885,7 @@ const editAgentFn = (agent) => {
   const { type, params } = parseMemoryConfig(agent.memory_config);
   editMemoryType.value = type;
   editMemoryParams.value = { ...params };
+  editSearchEngineId.value = agent.search_engine_id || null;
   selectedAgentId = agent.id;
   showEditModal.value = true;
   fetchModels(agent.provider);
@@ -831,6 +897,7 @@ const updateAgentFn = async () => {
     const payload = {
       ...editAgent.value,
       memory_config: buildMemoryConfig(editMemoryType.value, editMemoryParams.value),
+      search_engine_id: editSearchEngineId.value || null,
     };
     const res = await fetch(`${API_URL}/agents/${selectedAgentId}`, {
       method: 'PATCH',
@@ -884,6 +951,7 @@ const deleteAgentFn = async () => {
 
 onMounted(() => {
   fetchAgents();
+  fetchSearchEngines();
 });
 
 watch(() => createAgent.value.provider, (p) => { if (p) fetchModels(p, createAgent.value.api_key) })

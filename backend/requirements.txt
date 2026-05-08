@@ -30,6 +30,14 @@ langchain-ollama>=0.3.0
 langchain-groq>=0.3.0
 langchain-deepseek>=0.1.0
 langchain-openrouter>=0.0.2
+langchain-community>=0.3.0
+
+# Search engines
+ddgs==9.14.2
+langchain-exa==1.1.0
+
+# doc support
+pypdf==6.10.2
 
 # Testing
 pytest>=8.3.0

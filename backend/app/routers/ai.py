@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
-from app.db.models import Agent, Dataset, Project, User
+from app.db.models import Agent, Dataset, Project, SearchEngine, User
 from app.models.schemas import (
     AnalyzeDataRequest,
     AnalyzeDataResponse,
@@ -29,6 +29,19 @@ from app.services.ai_provider import AIProvider, get_chat_model, list_providers
 from app.services.cleaner import DataCleaningAssistant
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+
+# Default system prompts
+DEFAULT_SYSTEM_PROMPT = "You are a helpful data cleaning assistant."
+
+SEARCH_AWARE_SYSTEM_PROMPT = """You are a helpful data cleaning assistant with access to web search.
+
+You can search the web to find current information, validate data, look up reference values, or fill in missing data. Use search when:
+- You need to verify or find factual information
+- The user asks about current events or real-time data
+- You need to look up reference data to fill missing values
+- You need to validate or cross-check data against known sources
+
+Always cite your sources when using search results. Be precise and only change what the instruction asks for."""
 
 
 def _get_provider(provider_name: str) -> AIProvider:
@@ -227,6 +240,37 @@ async def generate_code(request: GenerateCodeRequest):
     )
 
 
+async def _resolve_search_engine(
+    engine_id: str, session: AsyncSession
+) -> dict | None:
+    """Load and decrypt a search engine config by ID.
+
+    Returns a dict with 'provider', 'api_key', 'config' keys,
+    or None if the engine is not found.
+    """
+    result = await session.execute(
+        select(SearchEngine).where(SearchEngine.id == engine_id)
+    )
+    engine = result.scalar_one_or_none()
+    if not engine:
+        return None
+
+    api_key = engine.api_key
+    if api_key:
+        try:
+            from app.utils.crypto import decrypt_value
+            from app.config import get_settings
+            api_key = decrypt_value(api_key, get_settings().secret_key)
+        except Exception:
+            pass  # Legacy plain text
+
+    return {
+        "provider": engine.provider,
+        "api_key": api_key,
+        "config": engine.config,
+    }
+
+
 async def _build_dataset_context(
     dataset_id: str,
     user_id: str,
@@ -319,11 +363,12 @@ async def chat(
 
         agent_config = await _get_agent_config(request.agent_id, current_user.id, session)
         memory_config = agent_config.get("memory_config")
+        search_engine_id = agent_config.get("search_engine_id")
 
-        # If agent has memory_config, use LangGraph agent with memory
-        if memory_config:
+        # If agent has memory_config OR search_engine_id, use LangGraph agent
+        if memory_config or search_engine_id:
             return await _chat_with_memory(
-                request, agent_config, dataset_context,
+                request, agent_config, dataset_context, session,
             )
 
         provider = AIProvider(agent_config["provider"])
@@ -338,7 +383,7 @@ async def chat(
             temperature=agent_config.get("temperature", 0.3),
             **llm_kwargs,
         )
-        system_prompt = agent_config.get("system_prompt") or "You are a helpful data cleaning assistant."
+        system_prompt = agent_config.get("system_prompt") or DEFAULT_SYSTEM_PROMPT
 
         # Prepend dataset context to system prompt if available
         if dataset_context:
@@ -418,14 +463,16 @@ async def _chat_with_memory(
     request: ChatRequest,
     agent_config: dict,
     dataset_context: str,
+    session: AsyncSession,
 ) -> ChatResponse:
-    """Chat using a LangGraph agent with memory middleware.
+    """Chat using a LangGraph agent with memory middleware and optional search tools.
 
-    This path is used when the agent has memory_config set. The agent
-    uses InMemorySaver for server-side conversation state, keyed by
+    This path is used when the agent has memory_config or search_engine_id set.
+    The agent uses InMemorySaver for server-side conversation state, keyed by
     conversation_id (or agent_id as fallback).
     """
     from app.services.agent_factory import get_or_create_agent
+    from app.services.search_tools import build_tools_from_search_engine
 
     provider = AIProvider(agent_config["provider"])
     llm_kwargs = {}
@@ -440,7 +487,22 @@ async def _chat_with_memory(
         **llm_kwargs,
     )
 
-    system_prompt = agent_config.get("system_prompt") or "You are a helpful data cleaning assistant."
+    # Resolve search engine if configured
+    search_engine_id = agent_config.get("search_engine_id")
+    tools = []
+    if search_engine_id:
+        search_engine = await _resolve_search_engine(search_engine_id, session)
+        tools = build_tools_from_search_engine(search_engine)
+
+    # Choose system prompt: user-provided > search-aware > default
+    has_search = bool(search_engine_id)
+    if agent_config.get("system_prompt"):
+        system_prompt = agent_config["system_prompt"]
+    elif has_search:
+        system_prompt = SEARCH_AWARE_SYSTEM_PROMPT
+    else:
+        system_prompt = DEFAULT_SYSTEM_PROMPT
+
     if dataset_context:
         system_prompt = f"{dataset_context}\n\n{system_prompt}"
 
@@ -453,6 +515,8 @@ async def _chat_with_memory(
         agent_id=agent_id,
         memory_config=memory_config,
         system_prompt=system_prompt,
+        tools=tools,
+        search_engine_id=search_engine_id,
     )
 
     # Use conversation_id as thread_id for checkpointing, fallback to agent_id

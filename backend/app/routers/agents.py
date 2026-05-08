@@ -57,6 +57,7 @@ class AgentBase(BaseModel):
 class AgentCreate(AgentBase):
     api_key: str | None = None
     base_url: str | None = None
+    search_engine_id: str | None = None
 
 
 class AgentUpdate(BaseModel):
@@ -72,6 +73,7 @@ class AgentUpdate(BaseModel):
     is_builtin: bool | None = None
     api_key: str | None = None
     base_url: str | None = None
+    search_engine_id: str | None = None
 
 
 class AgentResponse(BaseModel):
@@ -90,6 +92,8 @@ class AgentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     has_api_key: bool = False
+    search_engine_id: str | None = None
+    has_search_engine: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -112,6 +116,8 @@ def _agent_to_response(agent: Agent) -> dict:
         "created_at": agent.created_at,
         "updated_at": agent.updated_at,
         "has_api_key": bool(agent.api_key),
+        "search_engine_id": agent.search_engine_id,
+        "has_search_engine": bool(agent.search_engine_id),
     }
 
 
