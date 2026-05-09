@@ -40,12 +40,6 @@
             <BButton size="sm" variant="primary" @click="showAiChat = true">
               <i class="bi bi-chat-dots me-1"></i> AI
             </BButton>
-            <BButton size="sm" variant="warning" outline @click="showClipboardImport = true">
-              <i class="bi bi-clipboard me-1"></i> Paste
-            </BButton>
-            <BButton size="sm" variant="warning" outline @click="copyToClipboard">
-              <i class="bi bi-clipboard-check me-1"></i> Copy
-            </BButton>
           </div>
         </div>
 
@@ -234,37 +228,43 @@
 
     <!-- Selection Bar - click columns in table to select -->
     <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
-      <BBadge :variant="rowSelectMode && selectedRowIndices.length ? 'info' : 'secondary'" pill>{{ (rowSelectMode && selectedRowIndices.length)?selectedRowIndices.length:data.length }} rows</BBadge>
+      <BBadge :variant="rowSelectMode && selectedRowIndices.length ? 'info' : 'secondary'" pill :class="rowSelectMode && selectedRowIndices.length ? 'cursor-pointer':''" v-b-tooltip="'Click to clear rows selection'" @click="selectedRowIndices = []">{{ (rowSelectMode && selectedRowIndices.length)?selectedRowIndices.length:data.length }} rows</BBadge>
       <BBadge variant="secondary" pill>{{ columns.length }} columns</BBadge>
        <BBadge v-b-tooltip="'Click to show all columns'" v-if="hiddenColumns.length > 0" variant="warning" pill class="cursor-pointer" @click="unhideAllColumns">
          <i class="bi bi-eye-slash me-1"></i>{{ hiddenColumns.length }} hidden
        </BBadge>
       <BBadge variant="warning" pill>{{ nullCount }} nulls</BBadge>
       <!-- Selected columns display -->
-      <BBadge v-b-tooltip="'Click to clear selection'" v-if="selectedColumns.length > 0" variant="info" pill class="ms-2 cursor-pointer" @click="selectedColumns = []">
+      <BBadge v-b-tooltip="'Click to clear columns selection'" v-if="selectedColumns.length > 0" variant="info" pill class="cursor-pointer" @click="selectedColumns = []">
           <i class="bi bi-check2-square me-1"></i>
           {{ selectedColumns.length === 1 ? `1 column: ${selectedColumns[0]}` : `${selectedColumns.length} columns selected` }}
       </BBadge>
-      <BButton v-b-tooltip="'Click to select all columns'" size="sm" variant="outline-secondary" @click="selectedColumns = columns.map(c => c.field)">
+      <BButton size="sm" variant="outline-secondary" @click="selectedColumns = columns.map(c => c.field)" v-b-tooltip="'Click to select all columns'">
         <i class="bi bi-check-all"></i> Select All
       </BButton>
-      <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveLeft" @click="reorderColumns('left')" title="Move selected columns one step left">
+      <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveLeft" @click="reorderColumns('left')" v-b-tooltip="'Move selected columns one step left'">
         <i class="bi bi-arrow-left"></i>
       </BButton>
-      <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRight" @click="reorderColumns('right')" title="Move selected columns one step right">
+      <BButton v-if="selectedColumns.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRight" @click="reorderColumns('right')" v-b-tooltip="'Move selected columns one step right'">
         <i class="bi bi-arrow-right"></i>
       </BButton>
-      <BButton size="sm" variant="outline-primary" @click="showColumnReorderModal = true" title="Open column reorder dialog">
+      <BButton size="sm" variant="outline-primary" @click="showColumnReorderModal = true" v-b-tooltip="'Open column reorder dialog'">
         <i class="bi bi-arrow-left-right"></i>
       </BButton>
-      <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowUp" @click="reorderRows('up')" title="Move selected rows one step up">
+      <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowUp" @click="reorderRows('up')" v-b-tooltip="'Move selected rows one step up'">
         <i class="bi bi-arrow-up"></i>
       </BButton>
-      <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowDown" @click="reorderRows('down')" title="Move selected rows one step down">
+      <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-primary" :disabled="!canMoveRowDown" @click="reorderRows('down')" v-b-tooltip="'Move selected rows one step down'">
         <i class="bi bi-arrow-down"></i>
       </BButton>
-      <BButton size="sm" variant="primary" @click="showAddRecords = true">
+      <BButton size="sm" v-b-tooltip="'Add new record(s)'" variant="primary" @click="showAddRecords = true">
         <i class="bi bi-plus-lg me-1"></i>Add
+      </BButton>
+      <BButton size="sm" v-b-tooltip="'Copy to Clipboard'" variant="outline-warning" @click="copyToClipboard">
+        <i class="bi bi-clipboard-check me-1"></i> 
+      </BButton>
+      <BButton size="sm" v-b-tooltip="'Paste from Clipboard'" variant="outline-warning" @click="showClipboardImport = true">
+        <i class="bi bi-clipboard me-1"></i>
       </BButton>
       <BButton v-if="rowSelectMode && selectedRowIndices.length > 0" size="sm" variant="outline-danger" @click="deleteSelectedRows">
         <i class="bi bi-trash me-1"></i>Delete {{ selectedRowIndices.length }}
