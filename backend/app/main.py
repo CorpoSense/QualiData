@@ -55,76 +55,21 @@ async def lifespan(app: FastAPI):
 
 
 async def run_migrations():
-    """Initialize database schema on startup.
+    """Run Alembic migrations on startup.
 
-    Uses SQLAlchemy create_all to create missing tables, then applies
-    idempotent column additions for any new columns added to existing
-    tables. Works with both SQLite and PostgreSQL.
+    Delegates to the shared migration runner in app.db.migrate,
+    which handles async engine creation and URL conversion.
+    Migrations are idempotent — safe to re-run on every startup.
 
-    Alembic is kept for offline/manual migrations only (run `alembic
-    upgrade head` from the CLI when needed).
+    For manual CLI usage: `alembic upgrade head`
+    For new migrations: `alembic revision --autogenerate -m "description"`
     """
-    from sqlalchemy import inspect as sa_inspect, text
-    from app.db.database import get_async_engine
-    from app.db.database import Base
-
-    # Ensure all models are imported so Base.metadata knows about them
-    import app.db.models  # noqa: F401
-
-    engine = get_async_engine()
-
     try:
-        async with engine.begin() as conn:
-            # 1. Create all tables that don't exist yet
-            await conn.run_sync(Base.metadata.create_all)
-            logger.info("Database tables created/verified")
-
-            # 2. Apply idempotent column additions for existing tables
-            #    (create_all won't add columns to existing tables)
-            def _add_missing_columns(sync_conn):
-                inspector = sa_inspect(sync_conn)
-                existing_tables = inspector.get_table_names()
-
-                # --- agents table: memory_config column ---
-                if "agents" in existing_tables:
-                    agents_columns = [c["name"] for c in inspector.get_columns("agents")]
-                    if "memory_config" not in agents_columns:
-                        sync_conn.execute(text(
-                            "ALTER TABLE agents ADD COLUMN memory_config JSON"
-                        ))
-                        logger.info("Added memory_config column to agents")
-
-                    if "search_engine_id" not in agents_columns:
-                        sync_conn.execute(text(
-                            "ALTER TABLE agents ADD COLUMN search_engine_id VARCHAR(36)"
-                        ))
-                        logger.info("Added search_engine_id column to agents")
-
-                # --- search_engines table (create if missing) ---
-                if "search_engines" not in existing_tables:
-                    sync_conn.execute(text("""
-                        CREATE TABLE search_engines (
-                            id VARCHAR(36) PRIMARY KEY,
-                            user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                            name VARCHAR(255) NOT NULL,
-                            provider VARCHAR(50) NOT NULL,
-                            api_key TEXT,
-                            config JSON,
-                            is_builtin BOOLEAN DEFAULT 0,
-                            created_at DATETIME,
-                            updated_at DATETIME
-                        )
-                    """))
-                    sync_conn.execute(text(
-                        "CREATE INDEX IF NOT EXISTS ix_search_engines_user_id ON search_engines(user_id)"
-                    ))
-                    logger.info("Created search_engines table")
-
-            await conn.run_sync(_add_missing_columns)
-            logger.info("Database schema migration complete")
-
+        from app.db.migrate import run_async_migrations
+        await run_async_migrations()
+        logger.info("Database migrations applied")
     except Exception as e:
-        logger.error(f"Database initialization failed: {e}", exc_info=True)
+        logger.error(f"Database migration failed: {e}", exc_info=True)
 
 
 
