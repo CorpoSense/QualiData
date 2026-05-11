@@ -58,6 +58,7 @@ class AgentCreate(AgentBase):
     api_key: str | None = None
     base_url: str | None = None
     search_engine_id: str | None = None
+    doc_kb_config: dict | None = None
 
 
 class AgentUpdate(BaseModel):
@@ -74,6 +75,7 @@ class AgentUpdate(BaseModel):
     api_key: str | None = None
     base_url: str | None = None
     search_engine_id: str | None = None
+    doc_kb_config: dict | None = None
 
 
 class AgentResponse(BaseModel):
@@ -87,6 +89,7 @@ class AgentResponse(BaseModel):
     prompt_template: str | None = None
     temperature: float
     memory_config: dict | None = None
+    doc_kb_config: dict | None = None
     is_template: bool
     is_builtin: bool
     created_at: datetime
@@ -94,11 +97,37 @@ class AgentResponse(BaseModel):
     has_api_key: bool = False
     search_engine_id: str | None = None
     has_search_engine: bool = False
+    has_doc_kb: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
+def _mask_doc_kb_config(config: dict | None) -> dict | None:
+    """Mask embedding_api_key in doc_kb_config for API responses."""
+    if not config:
+        return config
+    masked = {**config}
+    if masked.get("embedding_api_key"):
+        masked["embedding_api_key"] = "••••••••"
+        masked["has_embedding_api_key"] = True
+    else:
+        masked["has_embedding_api_key"] = False
+    return masked
+
+
+def _encrypt_doc_kb_config(config: dict | None, secret_key: str) -> dict | None:
+    """Encrypt embedding_api_key in doc_kb_config before storage."""
+    if not config:
+        return config
+    encrypted = {**config}
+    if encrypted.get("embedding_api_key"):
+        encrypted["embedding_api_key"] = encrypt_value(
+            encrypted["embedding_api_key"], secret_key
+        )
+    return encrypted
+
+
 def _agent_to_response(agent: Agent) -> dict:
-    """Convert Agent model to response dict, masking api_key."""
+    """Convert Agent model to response dict, masking api_key and embedding_api_key."""
     return {
         "id": agent.id,
         "user_id": agent.user_id,
@@ -110,6 +139,7 @@ def _agent_to_response(agent: Agent) -> dict:
         "prompt_template": agent.prompt_template,
         "temperature": agent.temperature,
         "memory_config": agent.memory_config,
+        "doc_kb_config": _mask_doc_kb_config(agent.doc_kb_config),
         "is_template": agent.is_template,
         "is_builtin": agent.is_builtin,
         "base_url": agent.base_url,
@@ -118,6 +148,7 @@ def _agent_to_response(agent: Agent) -> dict:
         "has_api_key": bool(agent.api_key),
         "search_engine_id": agent.search_engine_id,
         "has_search_engine": bool(agent.search_engine_id),
+        "has_doc_kb": bool(agent.doc_kb_config),
     }
 
 
@@ -140,6 +171,10 @@ async def create_agent(
     data = agent_in.model_dump()
     if data.get("api_key"):
         data["api_key"] = encrypt_value(data["api_key"], get_settings().secret_key)
+    if data.get("doc_kb_config"):
+        data["doc_kb_config"] = _encrypt_doc_kb_config(
+            data["doc_kb_config"], get_settings().secret_key
+        )
     agent = Agent(user_id=current_user.id, **data)
     session.add(agent)
     await session.commit()
@@ -174,6 +209,8 @@ async def update_agent(
     for field, value in agent_in.model_dump(exclude_unset=True).items():
         if field == "api_key" and value:
             value = encrypt_value(value, get_settings().secret_key)
+        if field == "doc_kb_config" and value:
+            value = _encrypt_doc_kb_config(value, get_settings().secret_key)
         setattr(agent, field, value)
     agent.updated_at = datetime.utcnow()
     await session.commit()

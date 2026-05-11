@@ -121,6 +121,17 @@ async def _get_agent_config(agent_id: str | None, user_id: str, session: AsyncSe
                 # Key may be stored in plain text (legacy) — use as-is
                 pass
 
+        # Decrypt embedding_api_key in doc_kb_config if present
+        doc_kb_config = agent.doc_kb_config
+        if doc_kb_config and doc_kb_config.get("embedding_api_key"):
+            try:
+                doc_kb_config = {**doc_kb_config}
+                doc_kb_config["embedding_api_key"] = decrypt_value(
+                    doc_kb_config["embedding_api_key"], get_settings().secret_key
+                )
+            except Exception:
+                pass  # Legacy plain text — use as-is
+
         return {
             "provider": agent.provider,
             "model": agent.model,
@@ -130,6 +141,7 @@ async def _get_agent_config(agent_id: str | None, user_id: str, session: AsyncSe
             "base_url": agent.base_url,
             "memory_config": agent.memory_config,
             "search_engine_id": agent.search_engine_id,
+            "doc_kb_config": doc_kb_config,
         }
 
     # No agent selected — use defaults
@@ -142,6 +154,7 @@ async def _get_agent_config(agent_id: str | None, user_id: str, session: AsyncSe
         "base_url": None,
         "memory_config": None,
         "search_engine_id": None,
+        "doc_kb_config": None,
     }
 
 

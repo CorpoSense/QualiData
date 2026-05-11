@@ -70,6 +70,7 @@ class User(Base):
     )
     agents = relationship("Agent", back_populates="user", cascade="all, delete-orphan")
     search_engines = relationship("SearchEngine", back_populates="user", cascade="all, delete-orphan")
+    documents = relationship("Document", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"

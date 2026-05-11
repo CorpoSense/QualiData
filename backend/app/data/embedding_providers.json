@@ -1,0 +1,140 @@
+{
+  "providers": [
+    {
+      "provider": "openai",
+      "label": "OpenAI",
+      "default_model": "text-embedding-3-small",
+      "requires_api_key": true,
+      "supports_base_url": true,
+      "langchain_class": "langchain_openai.OpenAIEmbeddings",
+      "models": [
+        {
+          "id": "text-embedding-3-small",
+          "label": "Text Embedding 3 Small",
+          "dimensions": 1536,
+          "description": "Efficient, good balance of cost and quality"
+        },
+        {
+          "id": "text-embedding-3-large",
+          "label": "Text Embedding 3 Large",
+          "dimensions": 3072,
+          "description": "Highest quality, higher cost"
+        },
+        {
+          "id": "text-embedding-ada-002",
+          "label": "Ada 002",
+          "dimensions": 1536,
+          "description": "Legacy model, widely compatible"
+        }
+      ]
+    },
+    {
+      "provider": "huggingface",
+      "label": "Hugging Face",
+      "default_model": "BAAI/bge-small-en-v1.5",
+      "requires_api_key": true,
+      "supports_base_url": false,
+      "langchain_class": "langchain_huggingface.HuggingFaceEndpointEmbeddings",
+      "models": [
+        {
+          "id": "BAAI/bge-small-en-v1.5",
+          "label": "BGE Small EN v1.5",
+          "dimensions": 384,
+          "description": "Fast, lightweight, good for small datasets"
+        },
+        {
+          "id": "BAAI/bge-large-en-v1.5",
+          "label": "BGE Large EN v1.5",
+          "dimensions": 1024,
+          "description": "Higher quality, slower"
+        },
+        {
+          "id": "intfloat/multilingual-e5-large-instruct",
+          "label": "Multilingual E5 Large",
+          "dimensions": 1024,
+          "description": "Best for non-English documents"
+        }
+      ]
+    },
+    {
+      "provider": "ollama",
+      "label": "Ollama",
+      "default_model": "nomic-embed-text",
+      "requires_api_key": false,
+      "supports_base_url": true,
+      "langchain_class": "langchain_ollama.OllamaEmbeddings",
+      "models": [
+        {
+          "id": "nomic-embed-text",
+          "label": "Nomic Embed Text",
+          "dimensions": 768,
+          "description": "Good quality, runs locally via Ollama"
+        },
+        {
+          "id": "mxbai-embed-large",
+          "label": "Mixedbread Embed Large",
+          "dimensions": 1024,
+          "description": "High quality local embedding"
+        },
+        {
+          "id": "all-minilm",
+          "label": "All-MiniLM",
+          "dimensions": 384,
+          "description": "Lightweight, fast local embedding"
+        }
+      ]
+    },
+    {
+      "provider": "nvidia",
+      "label": "NVIDIA",
+      "default_model": "nvidia/llama-nemotron-embed-vl-1b-v2",
+      "requires_api_key": true,
+      "supports_base_url": true,
+      "langchain_class": "langchain_nvidia_ai_endpoints.NVIDIAEmbeddings",
+      "models": [
+        {
+          "id": "nvidia/llama-nemotron-embed-vl-1b-v2",
+          "label": "Llama Nemotron Embed VL 1B v2",
+          "dimensions": 384,
+          "description": "Efficient NVIDIA embedding model"
+        },
+        {
+          "id": "NV-Embed-QA",
+          "label": "NV-Embed-QA",
+          "dimensions": 1024,
+          "description": "Optimized for question-answering retrieval"
+        }
+      ]
+    },
+    {
+      "provider": "google",
+      "label": "Google",
+      "default_model": "models/embedding-001",
+      "requires_api_key": true,
+      "supports_base_url": false,
+      "langchain_class": "langchain_google_genai.GoogleGenerativeAIEmbeddings",
+      "models": [
+        {
+          "id": "models/embedding-001",
+          "label": "Embedding 001",
+          "dimensions": 768,
+          "description": "Google general-purpose embedding"
+        },
+        {
+          "id": "models/text-embedding-004",
+          "label": "Text Embedding 004",
+          "dimensions": 768,
+          "description": "Latest Google embedding model"
+        }
+      ]
+    }
+  ],
+  "supported_file_types": {
+    "application/pdf": { "extension": ".pdf", "loader": "PyPDFLoader", "label": "PDF" },
+    "text/plain": { "extension": ".txt", "loader": "TextLoader", "label": "Plain Text" },
+    "text/csv": { "extension": ".csv", "loader": "CSVLoader", "label": "CSV" },
+    "text/markdown": { "extension": ".md", "loader": "TextLoader", "label": "Markdown" }
+  },
+  "default_chunk_size": 500,
+  "default_chunk_overlap": 80
+}

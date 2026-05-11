@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_async_session
-from app.db.models import Agent, Dataset, Project, SearchEngine, User
+from app.db.models import Agent, Dataset, Document, Project, SearchEngine, User
 from app.models.schemas import (
     AnalyzeDataRequest,
     AnalyzeDataResponse,
@@ -40,6 +40,23 @@ You can search the web to find current information, validate data, look up refer
 - The user asks about current events or real-time data
 - You need to look up reference data to fill missing values
 - You need to validate or cross-check data against known sources
+
+Always cite your sources when using search results. Be precise and only change what the instruction asks for."""
+
+DOC_AWARE_SYSTEM_PROMPT = """You are a helpful data cleaning assistant with access to an uploaded document.
+
+You can search the uploaded document to find relevant information. Use the document_search tool when:
+- The user asks about the content of the uploaded document
+- You need to reference specific information from the document
+- The user wants to extract, summarize, or analyze document content
+
+Always cite the relevant sections when referencing document content."""
+
+SEARCH_AND_DOC_SYSTEM_PROMPT = """You are a helpful data cleaning assistant with access to web search and an uploaded document.
+
+You can search the web to find current information and search the uploaded document for document-specific content. Use the appropriate tool based on the user's question:
+- Use document_search for questions about the uploaded document's content
+- Use web search for current information, reference data, or external facts
 
 Always cite your sources when using search results. Be precise and only change what the instruction asks for."""
 
@@ -364,9 +381,11 @@ async def chat(
         agent_config = await _get_agent_config(request.agent_id, current_user.id, session)
         memory_config = agent_config.get("memory_config")
         search_engine_id = agent_config.get("search_engine_id")
+        doc_kb_config = agent_config.get("doc_kb_config")
 
-        # If agent has memory_config OR search_engine_id, use LangGraph agent
-        if memory_config or search_engine_id:
+        # If agent has memory_config, search_engine_id, or doc_id with doc_kb_config, use LangGraph agent
+        has_doc = bool(request.doc_id and doc_kb_config)
+        if memory_config or search_engine_id or has_doc:
             return await _chat_with_memory(
                 request, agent_config, dataset_context, session,
             )
@@ -459,19 +478,32 @@ async def chat(
     )
 
 
+async def _resolve_document(
+    doc_id: str, user_id: str, session: AsyncSession
+) -> Document | None:
+    """Load a Document record, verifying ownership and status.
+
+    Returns the Document model instance or None if not found/not ready.
+    """
+    result = await session.execute(
+        select(Document).where(Document.id == doc_id, Document.user_id == user_id)
+    )
+    return result.scalar_one_or_none()
+
+
 async def _chat_with_memory(
     request: ChatRequest,
     agent_config: dict,
     dataset_context: str,
     session: AsyncSession,
 ) -> ChatResponse:
-    """Chat using a LangGraph agent with memory middleware and optional search tools.
+    """Chat using a LangGraph agent with memory middleware, search tools, and/or document retriever.
 
-    This path is used when the agent has memory_config or search_engine_id set.
-    The agent uses InMemorySaver for server-side conversation state, keyed by
-    conversation_id (or agent_id as fallback).
+    This path is used when the agent has memory_config, search_engine_id, or
+    doc_id with doc_kb_config set. The agent uses InMemorySaver for server-side
+    conversation state, keyed by conversation_id (or agent_id as fallback).
     """
-    from app.services.agent_factory import get_or_create_agent
+    from app.services.agent_factory import get_or_create_agent, create_agent_with_memory
     from app.services.search_tools import build_tools_from_search_engine
 
     provider = AIProvider(agent_config["provider"])
@@ -492,12 +524,45 @@ async def _chat_with_memory(
     tools = []
     if search_engine_id:
         search_engine = await _resolve_search_engine(search_engine_id, session)
-        tools = build_tools_from_search_engine(search_engine)
+        tools.extend(build_tools_from_search_engine(search_engine))
 
-    # Choose system prompt: user-provided > search-aware > default
+    # Resolve document retriever if doc_id is provided and agent has doc_kb_config
+    doc_kb_config = agent_config.get("doc_kb_config")
+    has_doc = False
+    if request.doc_id and doc_kb_config:
+        doc = await _resolve_document(request.doc_id, request.agent_id, session)
+        if doc and doc.status == "ready":
+            try:
+                from app.services.document_kb import create_retriever_tool_from_document
+                from app.config import get_settings
+
+                settings = get_settings()
+                storage_dir = settings.doc_storage_path
+                file_path = os.path.join(storage_dir, doc.file_path)
+
+                doc_tool = create_retriever_tool_from_document(
+                    file_path=file_path,
+                    file_type=doc.file_type,
+                    doc_kb_config=doc_kb_config,
+                    fallback_api_key=agent_config.get("api_key"),
+                    collection_name=f"doc_{doc.id}",
+                )
+                tools.append(doc_tool)
+                has_doc = True
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Failed to create document retriever for doc {doc.id}: {e}"
+                )
+
+    # Choose system prompt: user-provided > context-aware > default
     has_search = bool(search_engine_id)
     if agent_config.get("system_prompt"):
         system_prompt = agent_config["system_prompt"]
+    elif has_search and has_doc:
+        system_prompt = SEARCH_AND_DOC_SYSTEM_PROMPT
+    elif has_doc:
+        system_prompt = DOC_AWARE_SYSTEM_PROMPT
     elif has_search:
         system_prompt = SEARCH_AWARE_SYSTEM_PROMPT
     else:
@@ -509,15 +574,23 @@ async def _chat_with_memory(
     agent_id = request.agent_id
     memory_config = agent_config.get("memory_config")
 
-    # Get or create a cached agent instance
-    agent = get_or_create_agent(
-        llm,
-        agent_id=agent_id,
-        memory_config=memory_config,
-        system_prompt=system_prompt,
-        tools=tools,
-        search_engine_id=search_engine_id,
-    )
+    # When doc_id is present, create a fresh agent (not cached) since the
+    # retriever tool is per-document and shouldn't be cached across sessions
+    if has_doc:
+        agent = create_agent_with_memory(
+            llm, memory_config, system_prompt, tools
+        )
+    else:
+        # Get or create a cached agent instance
+        agent = get_or_create_agent(
+            llm,
+            agent_id=agent_id,
+            memory_config=memory_config,
+            system_prompt=system_prompt,
+            tools=tools,
+            search_engine_id=search_engine_id,
+            doc_kb_config=doc_kb_config,
+        )
 
     # Use conversation_id as thread_id for checkpointing, fallback to agent_id
     thread_id = request.conversation_id or agent_id

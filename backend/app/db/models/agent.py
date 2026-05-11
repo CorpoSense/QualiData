@@ -50,6 +50,9 @@ class Agent(Base):
     # Memory configuration (optional, Advanced tab)
     memory_config: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
 
+    # Document Knowledge Base configuration (optional, Advanced tab)
+    doc_kb_config: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=None)
+
     # Search engine integration (optional, Advanced tab)
     search_engine_id: Mapped[str | None] = mapped_column(
         String(36),

@@ -102,6 +102,11 @@ class Settings(BaseSettings):
     lago_api_key: str | None = None
     lago_webhook_secret: str | None = None
 
+    # Document Knowledge Base
+    doc_storage_path: str = "/tmp/masterdatacleaner_docs"
+    doc_max_file_size_mb: int = 50
+    doc_cleanup_ttl_seconds: int = 3600
+
 
 @lru_cache
 def get_settings() -> Settings:

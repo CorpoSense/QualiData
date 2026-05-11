@@ -78,6 +78,7 @@ class ChatRequest(BaseModel):
     dataset_id: str | None = None
     dataset_context_rows: int = 10
     conversation_id: str | None = None
+    doc_id: str | None = None
 
 
 class ChatResponse(BaseModel):

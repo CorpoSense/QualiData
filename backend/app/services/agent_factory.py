@@ -137,11 +137,16 @@ def create_agent_with_memory(
 _agent_cache: dict[str, tuple] = {}  # cache_key -> (agent, config_hash)
 
 
-def _config_hash(memory_config: dict | None, search_engine_id: str | None = None) -> str:
-    """Generate a hash for the memory config and search engine to detect changes."""
+def _config_hash(
+    memory_config: dict | None,
+    search_engine_id: str | None = None,
+    doc_kb_config: dict | None = None,
+) -> str:
+    """Generate a hash for the memory config, search engine, and doc KB to detect changes."""
     combined = {
         "memory": str(sorted(memory_config.items())) if memory_config else "none",
         "search_engine_id": search_engine_id or "none",
+        "doc_kb": str(sorted(doc_kb_config.items())) if doc_kb_config else "none",
     }
     return hashlib.md5(str(sorted(combined.items())).encode()).hexdigest()
 
@@ -153,6 +158,7 @@ def get_or_create_agent(
     system_prompt: str,
     tools: list | None = None,
     search_engine_id: str | None = None,
+    doc_kb_config: dict | None = None,
 ):
     """Get a cached agent or create a new one if config changed.
 
@@ -163,11 +169,12 @@ def get_or_create_agent(
         system_prompt: System prompt for the agent
         tools: Optional list of tools
         search_engine_id: Optional search engine ID for cache invalidation
+        doc_kb_config: Optional document KB config for cache invalidation
 
     Returns:
         A compiled LangGraph agent
     """
-    cfg_hash = _config_hash(memory_config, search_engine_id)
+    cfg_hash = _config_hash(memory_config, search_engine_id, doc_kb_config)
 
     if agent_id in _agent_cache:
         cached_agent, cached_hash = _agent_cache[agent_id]
