@@ -186,59 +186,60 @@
 
         <!-- Input Bar -->
         <div class="chat-input-bar d-flex align-items-end gap-2 px-3 py-2 border-top">
-          <!-- Document upload button (only when agent has Doc KB) -->
-          <div v-if="selectedAgentHasDocKb" class="d-flex flex-column align-items-center gap-1">
-            <BButton
-              size="sm"
-              :variant="attachedDocId ? 'warning' : 'outline-secondary'"
-              @click="triggerFileUpload"
-              :disabled="uploadingDoc"
-              :title="attachedDocId ? `Document: ${attachedDocFilename}` : 'Upload a document for RAG Q&A'"
-            >
-              <i class="bi" :class="uploadingDoc ? 'bi-arrow-repeat spinner' : (attachedDocId ? 'bi-file-earmark-check' : 'bi-paperclip')"></i>
-            </BButton>
-            <input
-              ref="fileInputRef"
-              type="file"
-              accept=".pdf,.txt,.csv,.md"
-              style="display: none;"
-              @change="onFileSelected"
-            />
-          </div>
-          <div class="flex-grow-1">
-            <!-- Attached document indicator -->
-            <div v-if="attachedDocId" class="d-flex align-items-center gap-1 mb-1">
-              <BBadge variant="warning" pill class="small">
-                <i class="bi bi-file-earmark-text me-1"></i>{{ attachedDocFilename }}
-              </BBadge>
-              <button
-                class="btn btn-sm btn-link text-muted p-0"
-                @click="removeDocument"
-                title="Remove document"
-              >
-                <i class="bi bi-x" style="font-size: 0.7rem;"></i>
-              </button>
-            </div>
-            <textarea
-              ref="inputRef"
-              v-model="inputMessage"
-              class="form-control form-control-sm"
-              rows="3"
-              :placeholder="selectedAgentHasDocKb ? 'Ask about your data or uploaded document… (Enter to send, Shift+Enter for newline)' : 'Ask about your data… (Enter to send, Shift+Enter for newline)'"
-              @keydown="onKeyDown"
-              @input="autoResize"
-              style="resize: none; max-height: 120px; overflow-y: auto;"
-            ></textarea>
-          </div>
-          <BButton
-            size="sm"
-            variant="primary"
-            :disabled="!canSend"
-            @click="sendMessage"
-            title="Send message"
-          >
-            <i class="bi bi-send"></i>
-          </BButton>
+        	<div class="flex-grow-1">
+        		<!-- Attached document indicator -->
+        		<div v-if="attachedDocId" class="d-flex align-items-center gap-1 mb-1">
+        			<BBadge variant="warning" pill class="small">
+        				<i class="bi bi-file-earmark-text me-1"></i>{{ attachedDocFilename }}
+        			</BBadge>
+        			<button
+        				class="btn btn-sm btn-link text-muted p-0"
+        				@click="removeDocument"
+        				title="Remove document"
+        			>
+        				<i class="bi bi-x" style="font-size: 0.7rem;"></i>
+        			</button>
+        		</div>
+        		<textarea
+        			ref="inputRef"
+        			v-model="inputMessage"
+        			class="form-control form-control-sm"
+        			rows="3"
+        			:placeholder="selectedAgentHasDocKb ? 'Ask about your data or uploaded document… (Enter to send, Shift+Enter for newline)' : 'Ask about your data… (Enter to send, Shift+Enter for newline)'"
+        			@keydown="onKeyDown"
+        			@input="autoResize"
+        			style="resize: none; max-height: 120px; overflow-y: auto;"
+        		></textarea>
+        	</div>
+        	<div class="d-flex flex-column align-items-center gap-1">
+        		<!-- Document upload button (only when agent has Doc KB) -->
+        		<BButton
+        			v-if="selectedAgentHasDocKb"
+        			size="sm"
+        			:variant="attachedDocId ? 'warning' : 'outline-secondary'"
+        			@click="triggerFileUpload"
+        			:disabled="uploadingDoc"
+        			:title="attachedDocId ? `Document: ${attachedDocFilename}` : 'Upload a document for RAG Q&A'"
+        		>
+        			<i class="bi" :class="uploadingDoc ? 'bi-arrow-repeat spinner' : (attachedDocId ? 'bi-file-earmark-check' : 'bi-paperclip')"></i>
+        		</BButton>
+        		<input
+        			ref="fileInputRef"
+        			type="file"
+        			accept=".pdf,.txt,.csv,.md"
+        			style="display: none;"
+        			@change="onFileSelected"
+        		/>
+        		<BButton
+        			size="sm"
+        			variant="primary"
+        			:disabled="!canSend"
+        			@click="sendMessage"
+        			title="Send message"
+        		>
+        			<i class="bi bi-send"></i>
+        		</BButton>
+        	</div>
         </div>
       </div>
     </div>
