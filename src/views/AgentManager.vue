@@ -50,6 +50,12 @@
       </BBadge>
       <span v-else class="text-muted small">—</span>
     </template>
+    <template #cell(doc_kb)="data">
+      <BBadge v-if="data.item.has_doc_kb" variant="warning" pill class="small">
+        <i class="bi bi-file-earmark-text me-1"></i>Doc KB
+      </BBadge>
+      <span v-else class="text-muted small">—</span>
+    </template>
       <template #cell(created_at)="data">
         {{ formatShortDate(data.item.created_at) }}
       </template>
@@ -308,9 +314,100 @@
         Optionally attach a search engine to let the agent search the web for information.
       </small>
     </BFormGroup>
-    </div>
-    </BTab>
-    </BTabs>
+
+    <hr class="my-3" />
+    <BFormGroup label="Document Knowledge Base:">
+      <BFormSelect
+        v-model="createDocKbEnabled"
+        :options="[
+          { value: false, text: 'Disabled' },
+          { value: true, text: 'Enabled' },
+        ]"
+      ></BFormSelect>
+      <small class="text-muted d-block mt-1">
+        Allow users to upload documents (PDF, TXT, CSV, MD) for RAG-based Q&A in AI Chat.
+      </small>
+    </BFormGroup>
+
+    <template v-if="createDocKbEnabled">
+      <BFormGroup label="Embedding Provider:" label-for="create-emb-provider" class="mt-2">
+        <BFormSelect
+          id="create-emb-provider"
+          v-model="createDocKbConfig.embedding_provider"
+          :options="embeddingProviderOptions"
+        ></BFormSelect>
+      </BFormGroup>
+
+      <BFormGroup label="Embedding Model:" label-for="create-emb-model" class="mt-2">
+        <BFormSelect
+          id="create-emb-model"
+          v-model="createDocKbConfig.embedding_model"
+          :options="createEmbeddingModelOptions"
+        ></BFormSelect>
+        <small v-if="selectedCreateEmbeddingProvider" class="text-muted d-block mt-1">
+          {{ selectedCreateEmbeddingModel?.description || '' }}
+          <span v-if="selectedCreateEmbeddingModel?.dimensions" class="text-info">
+            ({{ selectedCreateEmbeddingModel.dimensions }} dims)
+          </span>
+        </small>
+      </BFormGroup>
+
+      <BFormGroup
+        v-if="selectedCreateEmbeddingProvider?.requires_api_key"
+        label="Embedding API Key:"
+        label-for="create-emb-api-key"
+        class="mt-2"
+      >
+        <BFormInput
+          id="create-emb-api-key"
+          v-model="createDocKbConfig.embedding_api_key"
+          type="password"
+          placeholder="API key for the embedding provider (leave blank to use agent's API key)"
+        ></BFormInput>
+        <small class="text-muted">If blank, the agent's main API key will be used as fallback.</small>
+      </BFormGroup>
+
+      <BFormGroup
+        v-if="selectedCreateEmbeddingProvider?.supports_base_url"
+        label="Embedding Base URL (optional):"
+        label-for="create-emb-base-url"
+        class="mt-2"
+      >
+        <BFormInput
+          id="create-emb-base-url"
+          v-model="createDocKbConfig.embedding_base_url"
+          type="url"
+          placeholder="e.g., http://localhost:11434"
+        ></BFormInput>
+      </BFormGroup>
+
+      <BFormGroup label="Chunk Size:" label-for="create-chunk-size" class="mt-2">
+        <BFormInput
+          id="create-chunk-size"
+          v-model.number="createDocKbConfig.chunk_size"
+          type="number"
+          min="100"
+          max="10000"
+          step="50"
+        ></BFormInput>
+        <small class="text-muted">Number of characters per text chunk (default: 500)</small>
+      </BFormGroup>
+
+      <BFormGroup label="Chunk Overlap:" label-for="create-chunk-overlap" class="mt-2">
+        <BFormInput
+          id="create-chunk-overlap"
+          v-model.number="createDocKbConfig.chunk_overlap"
+          type="number"
+          min="0"
+          max="500"
+          step="10"
+        ></BFormInput>
+        <small class="text-muted">Overlap characters between chunks (default: 80)</small>
+      </BFormGroup>
+    </template>
+  </div>
+</BTab>
+</BTabs>
 
     <template #footer>
     <BButton @click="showCreateModal = false">Cancel</BButton>
@@ -523,9 +620,103 @@
         Optionally attach a search engine to let the agent search the web for information.
       </small>
     </BFormGroup>
-    </div>
-    </BTab>
-    </BTabs>
+
+    <hr class="my-3" />
+    <BFormGroup label="Document Knowledge Base:">
+      <BFormSelect
+        v-model="editDocKbEnabled"
+        :options="[
+          { value: false, text: 'Disabled' },
+          { value: true, text: 'Enabled' },
+        ]"
+      ></BFormSelect>
+      <small class="text-muted d-block mt-1">
+        Allow users to upload documents (PDF, TXT, CSV, MD) for RAG-based Q&A in AI Chat.
+      </small>
+    </BFormGroup>
+
+    <template v-if="editDocKbEnabled">
+      <BFormGroup label="Embedding Provider:" label-for="edit-emb-provider" class="mt-2">
+        <BFormSelect
+          id="edit-emb-provider"
+          v-model="editDocKbConfig.embedding_provider"
+          :options="embeddingProviderOptions"
+        ></BFormSelect>
+      </BFormGroup>
+
+      <BFormGroup label="Embedding Model:" label-for="edit-emb-model" class="mt-2">
+        <BFormSelect
+          id="edit-emb-model"
+          v-model="editDocKbConfig.embedding_model"
+          :options="editEmbeddingModelOptions"
+        ></BFormSelect>
+        <small v-if="selectedEditEmbeddingProvider" class="text-muted d-block mt-1">
+          {{ selectedEditEmbeddingModel?.description || '' }}
+          <span v-if="selectedEditEmbeddingModel?.dimensions" class="text-info">
+            ({{ selectedEditEmbeddingModel.dimensions }} dims)
+          </span>
+        </small>
+      </BFormGroup>
+
+      <BFormGroup
+        v-if="selectedEditEmbeddingProvider?.requires_api_key"
+        label="Embedding API Key:"
+        label-for="edit-emb-api-key"
+        class="mt-2"
+      >
+        <BFormInput
+          id="edit-emb-api-key"
+          v-model="editDocKbConfig.embedding_api_key"
+          type="password"
+          :placeholder="editDocKbConfig.has_embedding_api_key ? '•••••••• (leave blank to keep current)' : 'API key for the embedding provider (leave blank to use agent\'s API key)'"
+        ></BFormInput>
+        <small v-if="editDocKbConfig.has_embedding_api_key && !editDocKbConfig.embedding_api_key" class="text-muted">
+          Embedding API key is set. Enter a new value to replace it.
+        </small>
+        <small v-else class="text-muted">If blank, the agent's main API key will be used as fallback.</small>
+      </BFormGroup>
+
+      <BFormGroup
+        v-if="selectedEditEmbeddingProvider?.supports_base_url"
+        label="Embedding Base URL (optional):"
+        label-for="edit-emb-base-url"
+        class="mt-2"
+      >
+        <BFormInput
+          id="edit-emb-base-url"
+          v-model="editDocKbConfig.embedding_base_url"
+          type="url"
+          placeholder="e.g., http://localhost:11434"
+        ></BFormInput>
+      </BFormGroup>
+
+      <BFormGroup label="Chunk Size:" label-for="edit-chunk-size" class="mt-2">
+        <BFormInput
+          id="edit-chunk-size"
+          v-model.number="editDocKbConfig.chunk_size"
+          type="number"
+          min="100"
+          max="10000"
+          step="50"
+        ></BFormInput>
+        <small class="text-muted">Number of characters per text chunk (default: 500)</small>
+      </BFormGroup>
+
+      <BFormGroup label="Chunk Overlap:" label-for="edit-chunk-overlap" class="mt-2">
+        <BFormInput
+          id="edit-chunk-overlap"
+          v-model.number="editDocKbConfig.chunk_overlap"
+          type="number"
+          min="0"
+          max="500"
+          step="10"
+        ></BFormInput>
+        <small class="text-muted">Overlap characters between chunks (default: 80)</small>
+      </BFormGroup>
+    </template>
+  </div>
+</BTab>
+</BTabs>
 
     <template #footer>
     <BButton @click="showEditModal = false">Cancel</BButton>
@@ -688,6 +879,148 @@ const fetchSearchEngines = async () => {
   }
 };
 
+// --- Document KB state ---
+const embeddingProviders = ref([]);
+const createDocKbEnabled = ref(false);
+const createDocKbConfig = ref({
+  embedding_provider: 'openai',
+  embedding_model: 'text-embedding-3-small',
+  embedding_api_key: '',
+  embedding_base_url: '',
+  chunk_size: 500,
+  chunk_overlap: 80,
+});
+const editDocKbEnabled = ref(false);
+const editDocKbConfig = ref({
+  embedding_provider: 'openai',
+  embedding_model: 'text-embedding-3-small',
+  embedding_api_key: '',
+  embedding_base_url: '',
+  chunk_size: 500,
+  chunk_overlap: 80,
+  has_embedding_api_key: false,
+});
+
+const embeddingProviderOptions = computed(() => {
+  return embeddingProviders.value.map(p => ({
+    value: p.provider,
+    text: p.label,
+  }));
+});
+
+const selectedCreateEmbeddingProvider = computed(() => {
+  return embeddingProviders.value.find(p => p.provider === createDocKbConfig.value.embedding_provider) || null;
+});
+
+const selectedEditEmbeddingProvider = computed(() => {
+  return embeddingProviders.value.find(p => p.provider === editDocKbConfig.value.embedding_provider) || null;
+});
+
+const createEmbeddingModelOptions = computed(() => {
+  const provider = selectedCreateEmbeddingProvider.value;
+  if (!provider) return [];
+  return provider.models.map(m => ({
+    value: m.id,
+    text: m.label,
+  }));
+});
+
+const editEmbeddingModelOptions = computed(() => {
+  const provider = selectedEditEmbeddingProvider.value;
+  if (!provider) return [];
+  return provider.models.map(m => ({
+    value: m.id,
+    text: m.label,
+  }));
+});
+
+const selectedCreateEmbeddingModel = computed(() => {
+  const provider = selectedCreateEmbeddingProvider.value;
+  if (!provider) return null;
+  return provider.models.find(m => m.id === createDocKbConfig.value.embedding_model) || null;
+});
+
+const selectedEditEmbeddingModel = computed(() => {
+  const provider = selectedEditEmbeddingProvider.value;
+  if (!provider) return null;
+  return provider.models.find(m => m.id === editDocKbConfig.value.embedding_model) || null;
+});
+
+const fetchEmbeddingProviders = async () => {
+  try {
+    const res = await fetch(`${API_URL}/documents/providers`, {
+      headers: getAuthHeader(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      embeddingProviders.value = data.providers || [];
+    }
+  } catch {
+    embeddingProviders.value = [];
+  }
+};
+
+function buildDocKbConfig(enabled, config) {
+  if (!enabled) return null;
+  const result = {
+    embedding_provider: config.embedding_provider,
+    embedding_model: config.embedding_model,
+    chunk_size: config.chunk_size || 500,
+    chunk_overlap: config.chunk_overlap || 80,
+  };
+  if (config.embedding_api_key) {
+    result.embedding_api_key = config.embedding_api_key;
+  }
+  if (config.embedding_base_url) {
+    result.embedding_base_url = config.embedding_base_url;
+  }
+  return result;
+}
+
+function parseDocKbConfig(config) {
+  if (!config || typeof config !== 'object') {
+    return {
+      enabled: false,
+      config: {
+        embedding_provider: 'openai',
+        embedding_model: 'text-embedding-3-small',
+        embedding_api_key: '',
+        embedding_base_url: '',
+        chunk_size: 500,
+        chunk_overlap: 80,
+        has_embedding_api_key: false,
+      },
+    };
+  }
+  return {
+    enabled: true,
+    config: {
+      embedding_provider: config.embedding_provider || 'openai',
+      embedding_model: config.embedding_model || 'text-embedding-3-small',
+      embedding_api_key: '',
+      embedding_base_url: config.embedding_base_url || '',
+      chunk_size: config.chunk_size || 500,
+      chunk_overlap: config.chunk_overlap || 80,
+      has_embedding_api_key: !!config.has_embedding_api_key,
+    },
+  };
+}
+
+// Auto-select default model when embedding provider changes
+watch(() => createDocKbConfig.value.embedding_provider, (provider) => {
+  const p = embeddingProviders.value.find(ep => ep.provider === provider);
+  if (p) {
+    createDocKbConfig.value.embedding_model = p.default_model;
+  }
+});
+
+watch(() => editDocKbConfig.value.embedding_provider, (provider) => {
+  const p = embeddingProviders.value.find(ep => ep.provider === provider);
+  if (p) {
+    editDocKbConfig.value.embedding_model = p.default_model;
+  }
+});
+
 const memoryTypeOptions = [
   { value: 'none', text: 'None (default)' },
   { value: 'sliding_window', text: 'Sliding Window' },
@@ -756,6 +1089,7 @@ const agentFields = computed(() => [
   },
   { key: 'memory_type', label: 'Memory', sortable: false },
   { key: 'search_engine', label: 'Search', sortable: false },
+  { key: 'doc_kb', label: 'Doc KB', sortable: false },
   { key: 'description', label: 'Description', sortable: false },
   { key: 'created_at', label: 'Created', sortable: true },
   { key: 'actions', label: 'Actions', sortable: false },
@@ -839,6 +1173,7 @@ const createAgentFn = async () => {
       ...createAgent.value,
       memory_config: buildMemoryConfig(createMemoryType.value, createMemoryParams.value),
       search_engine_id: createSearchEngineId.value || null,
+      doc_kb_config: buildDocKbConfig(createDocKbEnabled.value, createDocKbConfig.value),
     };
     const res = await fetch(`${API_URL}/agents/`, {
       method: 'POST',
@@ -869,6 +1204,15 @@ const createAgentFn = async () => {
     createMemoryType.value = 'none';
     createMemoryParams.value = { max_messages: 20, trigger_tokens: 4000, keep_messages: 20, keep_recent: 4 };
     createSearchEngineId.value = null;
+    createDocKbEnabled.value = false;
+    createDocKbConfig.value = {
+      embedding_provider: 'openai',
+      embedding_model: 'text-embedding-3-small',
+      embedding_api_key: '',
+      embedding_base_url: '',
+      chunk_size: 500,
+      chunk_overlap: 80,
+    };
     await fetchAgents();
   } catch (e) {
     console.error(e);
@@ -886,6 +1230,10 @@ const editAgentFn = (agent) => {
   editMemoryType.value = type;
   editMemoryParams.value = { ...params };
   editSearchEngineId.value = agent.search_engine_id || null;
+  // Parse existing doc KB config
+  const { enabled: docKbEnabled, config: docKbCfg } = parseDocKbConfig(agent.doc_kb_config);
+  editDocKbEnabled.value = docKbEnabled;
+  editDocKbConfig.value = { ...docKbCfg };
   selectedAgentId = agent.id;
   showEditModal.value = true;
   fetchModels(agent.provider);
@@ -898,6 +1246,7 @@ const updateAgentFn = async () => {
       ...editAgent.value,
       memory_config: buildMemoryConfig(editMemoryType.value, editMemoryParams.value),
       search_engine_id: editSearchEngineId.value || null,
+      doc_kb_config: buildDocKbConfig(editDocKbEnabled.value, editDocKbConfig.value),
     };
     const res = await fetch(`${API_URL}/agents/${selectedAgentId}`, {
       method: 'PATCH',
@@ -952,6 +1301,7 @@ const deleteAgentFn = async () => {
 onMounted(() => {
   fetchAgents();
   fetchSearchEngines();
+  fetchEmbeddingProviders();
 });
 
 watch(() => createAgent.value.provider, (p) => { if (p) fetchModels(p, createAgent.value.api_key) })
@@ -975,6 +1325,11 @@ watch(
     createMemoryParams.value.trigger_tokens,
     createMemoryParams.value.keep_messages,
     createMemoryParams.value.keep_recent,
+    createDocKbEnabled.value,
+    createDocKbConfig.value.embedding_provider,
+    createDocKbConfig.value.embedding_model,
+    createDocKbConfig.value.chunk_size,
+    createDocKbConfig.value.chunk_overlap,
   ],
   () => { createFormDirty.value++ }
 )
@@ -995,6 +1350,11 @@ watch(
     editMemoryParams.value.trigger_tokens,
     editMemoryParams.value.keep_messages,
     editMemoryParams.value.keep_recent,
+    editDocKbEnabled.value,
+    editDocKbConfig.value.embedding_provider,
+    editDocKbConfig.value.embedding_model,
+    editDocKbConfig.value.chunk_size,
+    editDocKbConfig.value.chunk_overlap,
   ],
   () => { editFormDirty.value++ }
 )

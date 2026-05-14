@@ -1616,7 +1616,7 @@ const showImportRecipe = ref(false)
 const agents = ref([])
 const agentOptions = computed(() => [
   { value: null, text: 'Select an AI Agent…' },
-  ...agents.value.map(a => ({ value: a.id, text: `${a.name} (${a.provider}/${a.model})`, has_search_engine: !!a.search_engine_id }))
+  ...agents.value.map(a => ({ value: a.id, text: `${a.name} (${a.provider}/${a.model})`, has_search_engine: !!a.search_engine_id, has_doc_kb: !!a.doc_kb_config }))
 ])
 const profileData = ref(null)
 const comparing = ref(false)

@@ -231,8 +231,9 @@ async def health_check():
 - Chat sessions stored in localStorage (`ai-chat-sessions`)
 - Text-to-speech via Web Speech API (toggle button)
 - Markdown rendering for AI responses (code blocks, tables, lists)
-- Backend endpoint: `POST /api/ai/chat` with `conversation_history`, `dataset_id`, `dataset_context_rows`, `conversation_id`
-- Future: function calling for data operations, file upload for context
+- Backend endpoint: `POST /api/ai/chat` with `conversation_history`, `dataset_id`, `dataset_context_rows`, `conversation_id`, `doc_id`
+- Document upload for RAG-based Q&A (when agent has Doc KB enabled)
+- Future: function calling for data operations
 
 **Agent Memory Feature:**
 - Optional memory management for long conversations (Advanced tab in Agent Manager)
@@ -253,30 +254,20 @@ async def health_check():
 - Search-aware system prompt is used when agent has search engine (unless custom system prompt is set)
 - API keys for search engines are encrypted at rest (same pattern as agent API keys)
 
-**Supported Search Providers:**
-| Provider | Requires API Key | Description |
-|----------|-----------------|-------------|
-| DuckDuckGo | No | Free, no API key needed |
-| Serper | Yes | Google search via Serper API |
-| Brave Search | Yes | Privacy-focused search |
-| SerpAPI | Yes | Google search via SerpAPI |
-| Google Custom Search | Yes | Google Programmable Search Engine |
-| Exa | Yes | AI-optimized search |
-| SearXNG | No | Self-hosted metasearch engine |
-| Custom REST API | No | Any REST API endpoint |
+**Integrations — Document Knowledge Base (RAG):**
+- Users can enable Document KB per agent (Advanced tab in Agent Manager)
+- When enabled, users can upload documents (PDF, TXT, CSV, MD) in AI Chat for RAG-based Q&A
+- Documents are loaded → split into chunks → embedded → stored in ChromaDB → retriever tool attached to agent
+- Embedding provider/model is configurable per agent (separate from the LLM provider)
+- `embedding_api_key` is encrypted at rest; falls back to agent's main API key if not set
+- When `doc_id` is present in chat request, a fresh (non-cached) agent is created with the document retriever tool
+- Doc-aware system prompt is used when document is attached (unless custom system prompt is set)
+- Document files are stored locally with TTL-based cleanup; Document records track status/chunks/expiry
 
-**Key Files:**
-- [`backend/app/db/models/search_engine.py`](backend/app/db/models/search_engine.py) - SearchEngine ORM model
-- [`backend/app/routers/search_engines.py`](backend/app/routers/search_engines.py) - Search engine CRUD endpoints
-- [`backend/app/services/search_tools.py`](backend/app/services/search_tools.py) - Search tool factory (LangChain tool wrappers)
-- [`src/views/Integrations.vue`](src/views/Integrations.vue) - Integrations management page
-
-**Default Models:**
-- OpenAI: `gpt-4o-mini`
-- Anthropic: `claude-sonnet-4-20250514`
-- Google: `gemini-2.0-flash`
-- Ollama: `llama3.2`
-- Groq: `llama-3.3-70b-versatile`
+**Environment Variables:**
+- `DOC_STORAGE_PATH` — Directory for uploaded document files (default: `./doc_storage`)
+- `DOC_MAX_FILE_SIZE_MB` — Max upload file size in MB (default: `50`)
+- `DOC_CLEANUP_TTL_SECONDS` — Document file TTL in seconds (default: `86400`)
 
 ---
 
@@ -290,8 +281,9 @@ async def health_check():
 | **Project** | `project.py` | User projects/workspace |
 | **Dataset** | `project.py` | Dataset data and metadata |
 | **OperationHistory** | `project.py` | Undo/redo functionality |
-| **Agent** | `agent.py` | AI agent configurations |
+| **Agent** | `agent.py` | AI agent configurations (includes `doc_kb_config` JSON column) |
 | **SearchEngine** | `search_engine.py` | Search engine integrations (web search for agents) |
+| **Document** | `document.py` | Uploaded documents for RAG (status, chunks, expiry) |
 
 **Migrations:** [`backend/alembic/`](backend/alembic/) - Auto-run on startup via lifespan events
 
@@ -318,6 +310,7 @@ Multiple routers organized by feature in [`backend/app/routers/`](backend/app/ro
 | `operations*` | `/api/operations` | Data operations (core, extra, structural, cell, datetime, missing values, batch, undo/redo, extract-json, extract-pattern, map-values) |
 | `agents` | `/api/agents` | Agent CRUD |
 | `search_engines` | `/api/search-engines` | Search engine CRUD & providers |
+| `documents` | `/api/documents` | Document upload/CRUD, embedding provider catalog |
 | `ai*` | `/api/ai` and `/api/operations` | AI endpoints and operations |
 | `assistant` | `/api/assistant` | Assistant wizard |
 | `profiling` | `/api/profiling` | Column profiling |

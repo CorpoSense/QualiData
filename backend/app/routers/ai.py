@@ -1,6 +1,7 @@
 """AI endpoints for data cleaning assistance."""
 
 import json as json_mod
+import logging
 import os
 import uuid
 
@@ -28,6 +29,8 @@ from app.routers.auth import get_current_active_user
 from app.services.ai_provider import AIProvider, get_chat_model, list_providers
 from app.services.cleaner import DataCleaningAssistant
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 # Default system prompts
@@ -45,17 +48,22 @@ Always cite your sources when using search results. Be precise and only change w
 
 DOC_AWARE_SYSTEM_PROMPT = """You are a helpful data cleaning assistant with access to an uploaded document.
 
-You can search the uploaded document to find relevant information. Use the document_search tool when:
-- The user asks about the content of the uploaded document
-- You need to reference specific information from the document
-- The user wants to extract, summarize, or analyze document content
+IMPORTANT: A document has been uploaded and is available for you to search. You MUST use the `document_search` tool to answer any questions about the document's content. Do NOT say that no document was provided — the document IS attached and searchable via the `document_search` tool.
 
-Always cite the relevant sections when referencing document content."""
+Use the `document_search` tool when:
+- The user asks about the content of the uploaded document
+- The user wants a summary, extraction, or analysis of the document
+- You need to reference specific information from the document
+- The user's question could be answered by information in the document
+
+Always cite the relevant sections when referencing document content. If the search results don't contain the answer, say so based on what the search returned — never claim the document is unavailable."""
 
 SEARCH_AND_DOC_SYSTEM_PROMPT = """You are a helpful data cleaning assistant with access to web search and an uploaded document.
 
-You can search the web to find current information and search the uploaded document for document-specific content. Use the appropriate tool based on the user's question:
-- Use document_search for questions about the uploaded document's content
+IMPORTANT: A document has been uploaded and is available for you to search. You MUST use the `document_search` tool to answer any questions about the document's content. Do NOT say that no document was provided — the document IS attached and searchable via the `document_search` tool.
+
+Use the appropriate tool based on the user's question:
+- Use `document_search` for questions about the uploaded document's content
 - Use web search for current information, reference data, or external facts
 
 Always cite your sources when using search results. Be precise and only change what the instruction asks for."""
@@ -90,8 +98,6 @@ ANTHROPIC_FALLBACK = [
 
 async def _fetch_models_from_api(provider: str, api_key: str | None = None) -> list[str]:
     """Fetch available models from provider's API."""
-    import logging
-    logger = logging.getLogger(__name__)
     provider = provider.lower()
 
     # Resolve API key: param > env var
@@ -279,7 +285,7 @@ async def _resolve_search_engine(
             from app.config import get_settings
             api_key = decrypt_value(api_key, get_settings().secret_key)
         except Exception:
-            pass  # Legacy plain text
+            pass # Legacy plain text
 
     return {
         "provider": engine.provider,
@@ -388,6 +394,7 @@ async def chat(
         if memory_config or search_engine_id or has_doc:
             return await _chat_with_memory(
                 request, agent_config, dataset_context, session,
+                user_id=current_user.id,
             )
 
         provider = AIProvider(agent_config["provider"])
@@ -496,6 +503,8 @@ async def _chat_with_memory(
     agent_config: dict,
     dataset_context: str,
     session: AsyncSession,
+    *,
+    user_id: str,
 ) -> ChatResponse:
     """Chat using a LangGraph agent with memory middleware, search tools, and/or document retriever.
 
@@ -529,8 +538,10 @@ async def _chat_with_memory(
     # Resolve document retriever if doc_id is provided and agent has doc_kb_config
     doc_kb_config = agent_config.get("doc_kb_config")
     has_doc = False
+
     if request.doc_id and doc_kb_config:
-        doc = await _resolve_document(request.doc_id, request.agent_id, session)
+        # FIX: Use user_id (the document owner) instead of agent_id
+        doc = await _resolve_document(request.doc_id, user_id, session)
         if doc and doc.status == "ready":
             try:
                 from app.services.document_kb import create_retriever_tool_from_document
@@ -549,11 +560,25 @@ async def _chat_with_memory(
                 )
                 tools.append(doc_tool)
                 has_doc = True
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning(
-                    f"Failed to create document retriever for doc {doc.id}: {e}"
+                logger.info(
+                    f"Document retriever created for doc {doc.id} "
+                    f"(filename={doc.filename}, chunks≈{doc.chunk_count})"
                 )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to create document retriever for doc {doc.id}: {e}",
+                    exc_info=True,
+                )
+        else:
+            logger.warning(
+                f"Document not found or not ready: doc_id={request.doc_id}, "
+                f"found={doc is not None}, status={doc.status if doc else 'N/A'}"
+            )
+    elif request.doc_id and not doc_kb_config:
+        logger.warning(
+            f"doc_id provided but agent has no doc_kb_config. "
+            f"Agent may not have Doc KB enabled."
+        )
 
     # Choose system prompt: user-provided > context-aware > default
     has_search = bool(search_engine_id)
@@ -568,8 +593,14 @@ async def _chat_with_memory(
     else:
         system_prompt = DEFAULT_SYSTEM_PROMPT
 
+    # FIX: When a document is attached, put the doc-aware prompt FIRST so the LLM
+    # prioritizes the document_search tool, then append dataset context as secondary.
+    # This prevents the dataset context from burying the tool-use instruction.
     if dataset_context:
-        system_prompt = f"{dataset_context}\n\n{system_prompt}"
+        if has_doc:
+            system_prompt = f"{system_prompt}\n\n---\n\n{dataset_context}"
+        else:
+            system_prompt = f"{dataset_context}\n\n{system_prompt}"
 
     agent_id = request.agent_id
     memory_config = agent_config.get("memory_config")

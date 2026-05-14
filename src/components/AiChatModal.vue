@@ -86,6 +86,9 @@
       <BBadge v-if="selectedAgentHasSearch" variant="success" pill class="small">
         <i class="bi bi-search me-1"></i>Search
       </BBadge>
+      <BBadge v-if="selectedAgentHasDocKb" variant="warning" pill class="small">
+        <i class="bi bi-file-earmark-text me-1"></i>Doc KB
+      </BBadge>
           <div class="ms-auto d-flex align-items-center gap-1">
             <BButton
               size="sm"
@@ -183,13 +186,45 @@
 
         <!-- Input Bar -->
         <div class="chat-input-bar d-flex align-items-end gap-2 px-3 py-2 border-top">
+          <!-- Document upload button (only when agent has Doc KB) -->
+          <div v-if="selectedAgentHasDocKb" class="d-flex flex-column align-items-center gap-1">
+            <BButton
+              size="sm"
+              :variant="attachedDocId ? 'warning' : 'outline-secondary'"
+              @click="triggerFileUpload"
+              :disabled="uploadingDoc"
+              :title="attachedDocId ? `Document: ${attachedDocFilename}` : 'Upload a document for RAG Q&A'"
+            >
+              <i class="bi" :class="uploadingDoc ? 'bi-arrow-repeat spinner' : (attachedDocId ? 'bi-file-earmark-check' : 'bi-paperclip')"></i>
+            </BButton>
+            <input
+              ref="fileInputRef"
+              type="file"
+              accept=".pdf,.txt,.csv,.md"
+              style="display: none;"
+              @change="onFileSelected"
+            />
+          </div>
           <div class="flex-grow-1">
+            <!-- Attached document indicator -->
+            <div v-if="attachedDocId" class="d-flex align-items-center gap-1 mb-1">
+              <BBadge variant="warning" pill class="small">
+                <i class="bi bi-file-earmark-text me-1"></i>{{ attachedDocFilename }}
+              </BBadge>
+              <button
+                class="btn btn-sm btn-link text-muted p-0"
+                @click="removeDocument"
+                title="Remove document"
+              >
+                <i class="bi bi-x" style="font-size: 0.7rem;"></i>
+              </button>
+            </div>
             <textarea
               ref="inputRef"
               v-model="inputMessage"
               class="form-control form-control-sm"
               rows="3"
-              placeholder="Ask about your data… (Enter to send, Shift+Enter for newline)"
+              :placeholder="selectedAgentHasDocKb ? 'Ask about your data or uploaded document… (Enter to send, Shift+Enter for newline)' : 'Ask about your data… (Enter to send, Shift+Enter for newline)'"
               @keydown="onKeyDown"
               @input="autoResize"
               style="resize: none; max-height: 120px; overflow-y: auto;"
@@ -245,9 +280,15 @@ const loading = ref(false)
 const error = ref('')
 const messagesContainer = ref(null)
 const inputRef = ref(null)
+const fileInputRef = ref(null)
 const activeSessionId = ref(null)
 const chatSessions = ref([])
 const sidebarOpen = ref(true)
+
+// Document state
+const attachedDocId = ref(null)
+const attachedDocFilename = ref('')
+const uploadingDoc = ref(false)
 
 // Context row options
 const contextRowOptions = [
@@ -275,6 +316,12 @@ const selectedAgentHasSearch = computed(() => {
   if (!selectedAgentId.value) return false
   const agent = props.agentOptions.find(a => a.value === selectedAgentId.value)
   return agent?.has_search_engine === true
+})
+
+const selectedAgentHasDocKb = computed(() => {
+  if (!selectedAgentId.value) return false
+  const agent = props.agentOptions.find(a => a.value === selectedAgentId.value)
+  return agent?.has_doc_kb === true
 })
 
 const sortedSessions = computed(() => {
@@ -315,6 +362,8 @@ function newChat() {
     title: 'New Chat',
     agentId: selectedAgentId.value,
     datasetId: props.datasetId,
+    docId: null,
+    docFilename: '',
     messages: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -323,6 +372,8 @@ function newChat() {
   activeSessionId.value = session.id
   messages.value = []
   error.value = ''
+  attachedDocId.value = null
+  attachedDocFilename.value = ''
   trimSessions()
   saveSessions()
   nextTick(() => focusInput())
@@ -334,6 +385,8 @@ function loadChat(sessionId) {
   activeSessionId.value = sessionId
   messages.value = [...session.messages]
   selectedAgentId.value = session.agentId
+  attachedDocId.value = session.docId || null
+  attachedDocFilename.value = session.docFilename || ''
   error.value = ''
   nextTick(() => scrollToBottom())
 }
@@ -364,6 +417,8 @@ function updateActiveSession() {
   if (!session) return
   session.messages = messages.value.slice(-MAX_MESSAGES)
   session.agentId = selectedAgentId.value
+  session.docId = attachedDocId.value
+  session.docFilename = attachedDocFilename.value
   session.updatedAt = new Date().toISOString()
   // Auto-title from first user message
   if (session.title === 'New Chat' && messages.value.length > 0) {
@@ -429,6 +484,7 @@ async function sendMessage() {
       dataset_id: props.datasetId || undefined,
       dataset_context_rows: contextRows.value,
       conversation_id: activeSessionId.value || undefined,
+      doc_id: attachedDocId.value || undefined,
     }
 
     const res = await fetch(`${apiUrl}/api/ai/chat`, {
@@ -462,6 +518,64 @@ async function sendMessage() {
     updateActiveSession()
     nextTick(() => scrollToBottom())
   }
+}
+
+// --- Document Upload ---
+
+function triggerFileUpload() {
+  fileInputRef.value?.click()
+}
+
+async function onFileSelected(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  if (!selectedAgentId.value) {
+    toast.error('Select an agent first')
+    return
+  }
+
+  uploadingDoc.value = true
+  error.value = ''
+
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('agent_id', selectedAgentId.value)
+
+    const res = await fetch(`${apiUrl}/api/documents/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: formData,
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      attachedDocId.value = data.id
+      attachedDocFilename.value = data.filename
+      updateActiveSession()
+      toast.success(`Document "${data.filename}" uploaded (${data.chunk_count} chunks)`)
+    } else {
+      const err = await res.json().catch(() => ({}))
+      error.value = err.detail || `Upload failed (${res.status})`
+      toast.error(err.detail || 'Document upload failed')
+    }
+  } catch (e) {
+    error.value = e.message || 'Upload error'
+    toast.error('Document upload failed')
+  } finally {
+    uploadingDoc.value = false
+    // Reset file input so the same file can be re-selected
+    if (fileInputRef.value) fileInputRef.value.value = ''
+  }
+}
+
+function removeDocument() {
+  attachedDocId.value = null
+  attachedDocFilename.value = ''
+  updateActiveSession()
 }
 
 // --- Keyboard Handling ---
@@ -929,6 +1043,16 @@ watch(() => props.datasetId, () => {
 
 .chat-input-bar textarea {
   border-radius: 8px;
+}
+
+/* Upload spinner */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* Responsive */

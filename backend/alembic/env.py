@@ -1,9 +1,12 @@
 """Alembic environment configuration.
 
 This file is the entry point for the Alembic CLI (e.g., `alembic upgrade head`).
-It delegates URL configuration and metadata to app.db.migrate, but keeps
-its own _do_run_migrations() since the alembic context proxy is only
-available during CLI execution.
+It uses the standard async Alembic pattern (async engine + run_sync) to run
+migrations within the existing EnvironmentContext, avoiding re-entrant
+command.upgrade() calls that would conflict with the CLI's own context.
+
+For app startup migrations, see app.db.migrate.run_async_migrations() which
+uses command.upgrade() directly (safe because there's no pre-existing context).
 """
 
 import asyncio
@@ -21,9 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db.database import Base
 from app.db.migrate import (
-    _build_alembic_config,
     _configure_alembic_url,
-    run_async_migrations,
     target_metadata,
 )
 
@@ -77,10 +78,24 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode.
 
-    Uses the shared run_async_migrations() from app.db.migrate,
-    which calls alembic.command.upgrade() internally.
+    Uses the standard async Alembic pattern: create an async engine from
+    the config, connect, and run migrations via run_sync. This avoids
+    calling command.upgrade() which would create a re-entrant
+    EnvironmentContext that conflicts with the CLI's own context.
     """
-    asyncio.run(run_async_migrations(config))
+    section = config.get_section(config.config_ini_section, {})
+    connectable = async_engine_from_config(
+        section,
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+
+    async def _run_async():
+        async with connectable.connect() as conn:
+            await conn.run_sync(_do_run_migrations)
+        await connectable.dispose()
+
+    asyncio.run(_run_async())
 
 
 if context.is_offline_mode():
