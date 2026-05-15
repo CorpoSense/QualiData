@@ -291,6 +291,7 @@ API protection and fair usage:
 | Anthropic | 60 | 40,000 |
 | Google | 300 | 60,000 |
 | Groq | 30 | 18,000 |
+| NVIDIA | 30 | 18,000 |
 | DeepSeek | 60 | 30,000 |
 | OpenRouter | Varies | Varies |
 

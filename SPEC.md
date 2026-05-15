@@ -104,7 +104,7 @@ Upload → Memory (pandas) → Transform → Preview → Commit → Database (pe
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | name | string | required | Agent identifier |
-| provider | enum | openai | AI provider (openai, anthropic, google, ollama, groq, deepseek, openrouter) |
+| provider | enum | openai | AI provider (openai, anthropic, google, ollama, groq, nvidia, deepseek, openrouter) |
 | model | string | provider default | Specific model name |
 | system_prompt | string | built-in | Agent personality/instructions |
 | prompt_template | string | optional | Template for user prompts |
@@ -224,6 +224,7 @@ pad(length, char)          # Pad with character
 | Anthropic | 60 | 40,000 | - |
 | Google | 300 | 60,000 | - |
 | Groq | 30 | 18,000 | - |
+| NVIDIA | 30 | 18,000 | - |
 | DeepSeek | 60 | 30,000 | - |
 | OpenRouter | Varies | Varies | Depends on underlying provider |
 

@@ -11,6 +11,7 @@ MasterDataCleaner supports multiple AI providers through LangChain, giving you f
 | **Google** | gemini-2.0-flash | `GOOGLE_API_KEY` | No |
 | **Ollama** | llama3.2 | (none - local) | Yes |
 | **Groq** | llama-3.3-70b-versatile | `GROQ_API_KEY` | Yes |
+| **NVIDIA** | nvidia/nemotron-3-super-120b-a12b | `NVIDIA_API_KEY` | Yes |
 | **DeepSeek** | deepseek-chat | `DEEPSEEK_API_KEY` | Yes |
 | **OpenRouter** | openai/gpt-4o-mini | `OPENROUTER_API_KEY` | No |
 | **Hugging Face** | meta-llama/Llama-3.1-8B-Instruct | `HUGGINGFACE_API_KEY` | Yes |
@@ -27,6 +28,7 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 GOOGLE_API_KEY=...
 GROQ_API_KEY=...
+NVIDIA_API_KEY=...
 DEEPSEEK_API_KEY=...
 OPENROUTER_API_KEY=...
 HUGGINGFACE_API_KEY=...
@@ -143,6 +145,23 @@ ollama serve
 - Large model inference
 - Cost-effective processing
 
+### NVIDIA
+
+**Best for:** Large choice of open source models
+
+| Feature | Details |
+|---------|---------|
+| **Models** | nvidia/nemotron-3-super-120b-a12b, z-ai/glm-5.1 |
+| **Speed** | Varies by model |
+| **Quality** | High |
+| **Cost** | $ |
+| **Rate Limit** | 30 req/min, 18K tokens/min |
+
+**Use cases:**
+- Cost-effective processing
+- Large choice of models
+- Drop-in replacement API
+
 ### DeepSeek
 
 **Best for:** Cost-effective, good quality
@@ -215,6 +234,7 @@ MasterDataCleaner automatically handles rate limits:
 **For Development:**
 - **Ollama** - Free, unlimited local testing
 - **OpenAI** - Reliable, well-documented
+- **NVIDIA** - Flexbile, well-documented
 
 **For Production:**
 - **OpenAI** - Best overall reliability
@@ -224,6 +244,7 @@ MasterDataCleaner automatically handles rate limits:
 **For Budget:**
 - **DeepSeek** - Good quality at low cost
 - **Groq** - Fast and affordable
+- **NVIDIA** - Affordable and wide range of choice
 - **Ollama** - Free (self-hosted)
 
 **For Privacy:**

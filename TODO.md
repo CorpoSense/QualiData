@@ -7,6 +7,8 @@ Track tasks and improvements for the project.
 
 ## Pending Tasks
 
+- [ ] Clean up deduplication docs
+
 #### AI Agent Capabilities
 - [x] Support different type of memories
 - [x] Integrations support
@@ -23,6 +25,7 @@ Track tasks and improvements for the project.
   - [ ] Google: `gemini-flash-latest`
   - [ ] Ollama: `qwen3.5`
   - [ ] Groq: `openai/gpt-oss-120b`
+  - [ ] NVIDIA: `nvidia/nemotron-3-super-120b-a12b`
 
 **Files to update:**
 - `backend/app/services/ai_provider.py` - `DEFAULT_MODELS` constant

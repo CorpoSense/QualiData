@@ -114,6 +114,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     google_api_key: str | None = None
     groq_api_key: str | None = None
+    nvidia_api_key: str | None = None
     deepseek_api_key: str | None = None
     openrouter_api_key: str | None = None
     
@@ -353,6 +354,7 @@ class AIProvider(str, Enum):
     GOOGLE = "google"
     OLLAMA = "ollama"
     GROQ = "groq"
+    NVIDIA = "nvidia"
     DEEPSEEK = "deepseek"
 
 def get_chat_model(

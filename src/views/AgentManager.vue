@@ -178,7 +178,7 @@
               ></BFormInput>
             </BFormGroup>
 
-            <BFormGroup v-if="providersWithBaseUrl.includes(createAgent.provider)" label="Custom Base URL (optional):" label-for="create-base-url">
+            <BFormGroup v-if="providerSupportsBaseUrl(createAgent.provider)" label="Custom Base URL (optional):" label-for="create-base-url">
               <BFormInput
                 id="create-base-url"
                 v-model="createAgent.base_url"
@@ -486,7 +486,7 @@
               </small>
             </BFormGroup>
 
-            <BFormGroup v-if="providersWithBaseUrl.includes(editAgent.provider)" label="Custom Base URL (optional):" label-for="edit-base-url">
+            <BFormGroup v-if="providerSupportsBaseUrl(editAgent.provider)" label="Custom Base URL (optional):" label-for="edit-base-url">
               <BFormInput
                 id="edit-base-url"
                 v-model="editAgent.base_url"
@@ -1096,17 +1096,19 @@ const agentFields = computed(() => [
 ]);
 
 const providerOptions = [
-  { value: 'openai', text: 'OpenAI' },
-  { value: 'anthropic', text: 'Anthropic' },
-  { value: 'google', text: 'Google' },
-  { value: 'ollama', text: 'Ollama' },
-  { value: 'groq', text: 'Groq' },
-  { value: 'deepseek', text: 'DeepSeek' },
-  { value: 'openrouter', text: 'OpenRouter' },
-  { value: 'huggingface', text: 'Huggingface' },
+  { value: 'openai', text: 'OpenAI', supportsBaseUrl: true },
+  { value: 'anthropic', text: 'Anthropic', supportsBaseUrl: false },
+  { value: 'google', text: 'Google', supportsBaseUrl: false },
+  { value: 'ollama', text: 'Ollama', supportsBaseUrl: true },
+  { value: 'groq', text: 'Groq', supportsBaseUrl: true },
+  { value: 'nvidia', text: 'NVIDIA', supportsBaseUrl: true },
+  { value: 'deepseek', text: 'DeepSeek', supportsBaseUrl: true },
+  { value: 'openrouter', text: 'OpenRouter', supportsBaseUrl: false },
+  { value: 'huggingface', text: 'Huggingface', supportsBaseUrl: true },
 ];
 
-const providersWithBaseUrl = ['openai', 'huggingface', 'ollama', 'groq', 'deepseek'];
+const providerSupportsBaseUrl = (provider) =>
+  providerOptions.find(p => p.value === provider)?.supportsBaseUrl ?? false;
 
 const createFormValid = computed(() => {
   // Depend on dirty counter to force re-evaluation

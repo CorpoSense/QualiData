@@ -41,6 +41,7 @@ const providers = ref([
   { name: 'Anthropic', limit: 50, remaining: 50, resetsAt: null },
   { name: 'Google', limit: 60, remaining: 60, resetsAt: null },
   { name: 'Groq', limit: 30, remaining: 30, resetsAt: null },
+  { name: 'NVIDIA', limit: 30, remaining: 30, resetsAt: null },
   { name: 'DeepSeek', limit: 60, remaining: 60, resetsAt: null },
 ])
 

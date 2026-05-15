@@ -212,7 +212,7 @@ async def health_check():
 
 ## AI Integration
 
-**Supported Providers:** OpenAI, Anthropic, Google, Ollama, Groq, DeepSeek, OpenRouter, Hugging Face (via LangChain)
+**Supported Providers:** OpenAI, Anthropic, Google, Ollama, Groq, NVIDIA, DeepSeek, OpenRouter, Hugging Face (via LangChain)
 
 **Key Files:**
 - [`backend/app/services/ai_provider.py`](backend/app/services/ai_provider.py) - Provider factory

@@ -106,6 +106,7 @@ async def _fetch_models_from_api(provider: str, api_key: str | None = None) -> l
         "anthropic": "ANTHROPIC_API_KEY",
         "google": "GOOGLE_API_KEY",
         "groq": "GROQ_API_KEY",
+        "nvidia": "NVIDIA_API_KEY",
         "deepseek": "DEEPSEEK_API_KEY",
         "openrouter": "OPENROUTER_API_KEY",
     }
@@ -141,10 +142,11 @@ async def _fetch_models_from_api(provider: str, api_key: str | None = None) -> l
                     f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
                 )
             else:
-                # OpenAI-compatible: OpenAI, Groq, DeepSeek, OpenRouter, Huggingface
+                # OpenAI-compatible: OpenAI, Groq, NVIDIA, DeepSeek, OpenRouter, Huggingface
                 base_urls = {
                     "openai": "https://api.openai.com/v1",
                     "groq": "https://api.groq.com/openai/v1",
+                    "nvidia": "https://integrate.api.nvidia.com/v1",
                     "deepseek": "https://api.deepseek.com",
                     "openrouter": "https://openrouter.ai/api/v1",
                     "huggingface": "https://router.huggingface.co/v1",
@@ -197,6 +199,7 @@ async def analyze_data(request: AnalyzeDataRequest):
     - anthropic: ANTHROPIC_API_KEY
     - google: GOOGLE_API_KEY
     - groq: GROQ_API_KEY
+    - nvidia: NVIDIA_API_KEY
     - deepseek: DEEPSEEK_API_KEY
     - ollama: No key needed (runs locally)
     """

@@ -49,7 +49,7 @@ For AI agents and contributors, see **[AGENTS.md](AGENTS.md)** for project guide
 - **AI Analysis:** Automatically detect data quality issues
 - **AI Cleaning:** Transform data using natural language prompts
 - **Batch Processing:** Process data in configurable batches with progress tracking
-- **Multi-Provider Support:** OpenAI, Anthropic, Google, Ollama, Groq, DeepSeek, OpenRouter, HuggingFace
+- **Multi-Provider Support:** OpenAI, Anthropic, Google, Ollama, Groq, NVIDIA, DeepSeek, OpenRouter, HuggingFace
 - **Custom Agents:** Create and configure reusable AI agents
 - **Assistant Wizard:** Step-by-step guided cleaning workflow
 
@@ -104,6 +104,7 @@ MasterDataCleaner supports multiple AI providers through LangChain:
 | Google | gemini-2.0-flash | `GOOGLE_API_KEY` |
 | Ollama | llama3.2 | (local, no key needed) |
 | Groq | llama-3.3-70b-versatile | `GROQ_API_KEY` |
+| NVIDIA | nvidia/nemotron-3-super-120b-a12b | `NVIDIA_API_KEY` |
 | DeepSeek | deepseek-chat | `DEEPSEEK_API_KEY` |
 | OpenRouter | openai/gpt-4o-mini | `OPENROUTER_API_KEY` |
 | HuggingFace | meta-llama/Llama-3.1-8B-Instruct | `HUGGINGFACE_API_KEY` |

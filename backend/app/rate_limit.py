@@ -15,6 +15,7 @@ class RateLimiter:
             "anthropic": {"requests_per_minute": 50, "tokens_per_minute": 100000},
             "google": {"requests_per_minute": 60, "tokens_per_minute": 50000},
             "groq": {"requests_per_minute": 30, "tokens_per_minute": 6000},
+            "nvidia": {"requests_per_minute": 30, "tokens_per_minute": 6000},
             "deepseek": {"requests_per_minute": 60, "tokens_per_minute": 120000},
         }
 

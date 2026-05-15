@@ -89,6 +89,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     google_api_key: str | None = None
     groq_api_key: str | None = None
+    nvidia_api_key: str | None = None
     deepseek_api_key: str | None = None
     openrouter_api_key: str | None = None
 

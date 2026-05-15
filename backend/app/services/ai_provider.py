@@ -7,6 +7,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_deepseek import ChatDeepSeek
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langchain_openrouter import ChatOpenRouter
@@ -20,13 +21,14 @@ class AIProvider(str, Enum):
     GOOGLE = "google"
     OLLAMA = "ollama"
     GROQ = "groq"
+    NVIDIA = "nvidia"
     DEEPSEEK = "deepseek"
     OPENROUTER = "openrouter"
     HUGGINGFACE = "huggingface"
 
 
 # Providers that support custom base URLs
-CUSTOM_BASE_URL_PROVIDERS = {"openai", "huggingface", "ollama", "groq", "deepseek"}
+CUSTOM_BASE_URL_PROVIDERS = {"openai", "huggingface", "ollama", "groq", "nvidia", "deepseek"}
 
 # Default models per provider
 DEFAULT_MODELS = {
@@ -35,6 +37,7 @@ DEFAULT_MODELS = {
     AIProvider.GOOGLE: "gemini-2.0-flash",
     AIProvider.OLLAMA: "llama3.2",
     AIProvider.GROQ: "llama-3.3-70b-versatile",
+    AIProvider.NVIDIA: "nvidia/nemotron-3-super-120b-a12b",
     AIProvider.DEEPSEEK: "deepseek-chat",
     AIProvider.OPENROUTER: "openai/gpt-4o-mini",
     AIProvider.HUGGINGFACE: "meta-llama/Llama-3.1-8B-Instruct",
@@ -98,6 +101,13 @@ def get_chat_model(
 
         case AIProvider.GROQ:
             return ChatGroq(
+                model=model_name,
+                temperature=temperature,
+                **kwargs,
+            )
+
+        case AIProvider.NVIDIA:
+            return ChatNVIDIA(
                 model=model_name,
                 temperature=temperature,
                 **kwargs,

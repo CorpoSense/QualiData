@@ -14,7 +14,7 @@ async def get_rate_limit_status(current_user: User = Depends(get_current_active_
     """Get rate limit status for all providers."""
     providers = {}
 
-    for provider in ["openai", "anthropic", "google", "groq", "deepseek"]:
+    for provider in ["openai", "anthropic", "google", "groq", "nvidia", "deepseek"]:
         providers[provider] = {
             "name": provider.capitalize(),
             "remaining": rate_limiter.get_remaining(current_user.id, provider),

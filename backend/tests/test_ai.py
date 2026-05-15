@@ -33,6 +33,7 @@ async def test_list_providers(client):
     assert "google" in provider_names
     assert "ollama" in provider_names
     assert "groq" in provider_names
+    assert "nvidia" in provider_names
     assert "deepseek" in provider_names
     assert "openrouter" in provider_names  # New!
 
