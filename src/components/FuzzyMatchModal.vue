@@ -47,13 +47,40 @@
 
       <!-- Algorithm -->
       <BFormGroup label="Algorithm" label-for="simple-algorithm" class="mt-2">
-        <BFormSelect
-          id="simple-algorithm"
-          v-model="simpleMatchingType"
-          :options="algorithmOptions"
-        ></BFormSelect>
+      <BFormSelect
+      id="simple-algorithm"
+      v-model="simpleMatchingType"
+      :options="algorithmOptions"
+      ></BFormSelect>
       </BFormGroup>
-
+      
+      <!-- Algorithm Info Panel (Simple) -->
+      <Transition name="algo-fade" mode="out-in">
+      <div :key="simpleMatchingType" class="algo-info-card" :class="`border-${simpleAlgorithmInfo.color}`">
+        <div class="algo-info-header">
+          <span class="algo-info-icon" :class="`text-${simpleAlgorithmInfo.color}`">
+            <i :class="`bi ${simpleAlgorithmInfo.icon}`"></i>
+          </span>
+          <strong :class="`text-${simpleAlgorithmInfo.color}`">{{ simpleAlgorithmInfo.title }}</strong>
+        </div>
+        <p class="algo-info-desc">{{ simpleAlgorithmInfo.description }}</p>
+        <div class="algo-info-best">
+          <i class="bi bi-bullseye me-1"></i>
+          <strong>Best for:</strong> {{ simpleAlgorithmInfo.bestFor }}
+        </div>
+        <div class="algo-info-examples">
+          <div class="algo-example-row">
+            <code>{{ simpleAlgorithmInfo.example.input }}</code>
+            <span class="algo-example-badge bg-success-subtle text-success">{{ simpleAlgorithmInfo.example.result }}</span>
+          </div>
+          <div class="algo-example-row">
+            <code>{{ simpleAlgorithmInfo.example.input2 }}</code>
+            <span class="algo-example-badge bg-success-subtle text-success">{{ simpleAlgorithmInfo.example.result2 }}</span>
+          </div>
+        </div>
+      </div>
+      </Transition>
+      
       <!-- Mode -->
       <BFormGroup label="Action" label-for="simple-mode" class="mt-2">
         <BFormSelect
@@ -170,13 +197,40 @@
         </div>
 
         <BFormGroup label="Algorithm *" label-for="adv-algorithm">
-          <BFormSelect
-            id="adv-algorithm"
-            v-model="advMatchingType"
-            :options="algorithmOptions"
-          ></BFormSelect>
+        <BFormSelect
+        id="adv-algorithm"
+        v-model="advMatchingType"
+        :options="algorithmOptions"
+        ></BFormSelect>
         </BFormGroup>
-
+        
+        <!-- Algorithm Info Panel (Advanced) -->
+        <Transition name="algo-fade" mode="out-in">
+        <div :key="advMatchingType" class="algo-info-card" :class="`border-${advAlgorithmInfo.color}`">
+          <div class="algo-info-header">
+            <span class="algo-info-icon" :class="`text-${advAlgorithmInfo.color}`">
+              <i :class="`bi ${advAlgorithmInfo.icon}`"></i>
+            </span>
+            <strong :class="`text-${advAlgorithmInfo.color}`">{{ advAlgorithmInfo.title }}</strong>
+          </div>
+          <p class="algo-info-desc">{{ advAlgorithmInfo.description }}</p>
+          <div class="algo-info-best">
+            <i class="bi bi-bullseye me-1"></i>
+            <strong>Best for:</strong> {{ advAlgorithmInfo.bestFor }}
+          </div>
+          <div class="algo-info-examples">
+            <div class="algo-example-row">
+              <code>{{ advAlgorithmInfo.example.input }}</code>
+              <span class="algo-example-badge bg-success-subtle text-success">{{ advAlgorithmInfo.example.result }}</span>
+            </div>
+            <div class="algo-example-row">
+              <code>{{ advAlgorithmInfo.example.input2 }}</code>
+              <span class="algo-example-badge bg-success-subtle text-success">{{ advAlgorithmInfo.example.result2 }}</span>
+            </div>
+          </div>
+        </div>
+        </Transition>
+        
         <BFormGroup label="Threshold" label-for="adv-threshold" class="mt-2">
           <BFormInput
             id="adv-threshold"
@@ -409,6 +463,51 @@ const algorithmOptions = [
   { value: 'levenshtein', text: 'Levenshtein (edit distance)' }
 ]
 
+const algorithmDescriptions = {
+  standard: {
+    title: 'Standard — SequenceMatcher',
+    icon: 'bi-barcode',
+    color: 'primary',
+    description: 'Compares the longest matching subsequences between two strings. It finds common character sequences regardless of position, making it great for catching typos and slight misspellings.',
+    bestFor: 'Typos, misspellings, and slight variations in text',
+    example: {
+      input: '"New York" vs "New Yrk"',
+      result: '92% match ✓',
+      input2: '"California" vs "Calfornia"',
+      result2: '86% match ✓'
+    }
+  },
+  permutation: {
+    title: 'Permutation — Word Order Insensitive',
+    icon: 'bi-shuffle',
+    color: 'success',
+    description: 'Splits text into words and compares all possible word orderings. The match score is the best score across any word permutation, so reordering words has no effect on similarity.',
+    bestFor: 'Values where word order varies but words are the same',
+    example: {
+      input: '"John Smith" vs "Smith John"',
+      result: '100% match ✓',
+      input2: '"New York City" vs "City New York"',
+      result2: '100% match ✓'
+    }
+  },
+  levenshtein: {
+    title: 'Levenshtein — Edit Distance',
+    icon: 'bi-pencil-square',
+    color: 'warning',
+    description: 'Counts the minimum number of single-character edits (insertions, deletions, substitutions) needed to transform one string into another. Fewer edits = higher similarity.',
+    bestFor: 'Short strings, codes, and exact character-level differences',
+    example: {
+      input: '"Kitten" → "Sitten" (1 substitution)',
+      result: '83% match ✓',
+      input2: '"ABC123" vs "ABC124"',
+      result2: '83% match ✓'
+    }
+  }
+}
+
+const simpleAlgorithmInfo = computed(() => algorithmDescriptions[simpleMatchingType.value])
+const advAlgorithmInfo = computed(() => algorithmDescriptions[advMatchingType.value])
+
 const modeOptions = [
   { value: 'delete', text: 'Remove duplicates' },
   { value: 'merge_first', text: 'Merge to first occurrence' },
@@ -591,3 +690,85 @@ watch(simpleColumn, (val) => {
   }
 })
 </script>
+
+<style scoped>
+.algo-info-card {
+  margin-top: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.5rem;
+  border-left: 4px solid;
+  background: var(--bs-gray-100);
+  transition: all 0.2s ease;
+}
+
+.algo-info-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.algo-info-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.algo-info-desc {
+  font-size: 0.82rem;
+  margin-bottom: 0.45rem;
+  color: var(--bs-secondary-color);
+  line-height: 1.45;
+}
+
+.algo-info-best {
+  font-size: 0.78rem;
+  margin-bottom: 0.55rem;
+  color: var(--bs-secondary-color);
+}
+
+.algo-info-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.algo-example-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+}
+
+.algo-example-row code {
+  background: var(--bs-gray-200);
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.25rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.algo-example-badge {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Transition for switching algorithms */
+.algo-fade-enter-active,
+.algo-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.algo-fade-enter-from {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.algo-fade-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+</style>

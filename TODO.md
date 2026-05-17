@@ -10,11 +10,18 @@ Track tasks and improvements for the project.
 - [ ] Clean up deduplication docs
 
 #### AI Agent Capabilities
+- [-] AI Chat with Context
 - [x] Support different type of memories
 - [x] Integrations support
   - [x] Support multiple Search engines
   - [ ] Support multiple Sandboxes provider to execute code
-- [ ] Support uploading a file in chat.
+  - [x] Full chat interface with conversation history
+  - [x] Context: N rows/columns as input
+  - [x] Sidebar with chat history
+  - [x] Text-to-speech (optional)
+  - [ ] Advanced Features:
+    - [x] File upload support
+    - [ ] Function calling to execute data operations
 
 ### AI Provider Updates
 
@@ -31,18 +38,6 @@ Track tasks and improvements for the project.
 - `backend/app/services/ai_provider.py` - `DEFAULT_MODELS` constant
 - `docs/features/ai-providers.md` - Provider comparison table
 - `AGENTS.md` - Default models reference
-
-### AI Chat Feature (Future)
-
-- [-] AI Chat with Context
-  - [x] Full chat interface with conversation history
-  - [x] Context: N rows/columns as input
-  - [x] Basic Features:
-    - Sidebar with chat history
-    - Text-to-speech (optional)
-  - [ ] Advanced Features:
-    - File upload support
-    - Function calling to execute data operations
 
 #### Video
 - [ ] Create a video presenation and place it in the home page
@@ -93,18 +88,12 @@ Track tasks and improvements for the project.
   - Options: delete, filter, or sample outliers
   - Show impact preview before applying
 
-- [ ] **Feature Engineering Operations**
-  - One-Hot Encoding for categorical variables
-  - Label Encoding
-  - Value mapping
-  - Binning/Discretization
-  - Scaling numerical values (min/max, standard)
-  - Follow existing operation UI pattern:
-    - Modal with operation description
-    - Step-by-step wizard with preview
-    - Apply to all or subset
-    - Log to operation history (undo/redo support)
-    - AI Assistant integration
+- [x] **Feature Engineering Operations**
+  - [x] One-Hot Encoding for categorical variables
+  - [x] Label Encoding
+  - [x] Value mapping
+  - [x] Binning/Discretization
+  - [x] Scaling numerical values (min/max, standard)
 
 - [ ] **Workflow Integration**
   - Add navigation between Analysis and DataViewer
