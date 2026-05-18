@@ -28,6 +28,29 @@
             <BButton size="sm" variant="info" @click="showProfile = true">
               <i class="bi bi-bar-chart me-1"></i> Profile
             </BButton>
+            <BDropdown size="sm" variant="warning" text="Charts">
+              <template #button-content>
+                <i class="bi bi-bar-chart-line me-1"></i> Charts
+              </template>
+              <BDropdownItem @click="openChartModal('bar')">
+                <i class="bi bi-bar-chart me-2"></i>Bar Chart
+              </BDropdownItem>
+              <BDropdownItem @click="openChartModal('line')">
+                <i class="bi bi-graph-up me-2"></i>Line Chart
+              </BDropdownItem>
+              <BDropdownItem @click="openChartModal('pie')">
+                <i class="bi bi-pie-chart me-2"></i>Pie Chart
+              </BDropdownItem>
+              <BDropdownItem @click="openChartModal('scatter')">
+                <i class="bi bi-diagram-3 me-2"></i>Scatter Plot
+              </BDropdownItem>
+              <BDropdownItem @click="openChartModal('histogram')">
+                <i class="bi bi-bar-chart-steps me-2"></i>Histogram
+              </BDropdownItem>
+              <BDropdownItem @click="openChartModal('area')">
+                <i class="bi bi-graph-up-arrow me-2"></i>Area Chart
+              </BDropdownItem>
+            </BDropdown>
             <BButton size="sm" variant="primary" @click="showPivotModal = true" :disabled="!selectedColumns.length">
               <i class="bi bi-table me-1"></i> Pivot
             </BButton>
@@ -316,6 +339,13 @@
       </div>
     </div>
 
+    <!-- Chart Panel (applied charts) -->
+    <ChartPanel
+      :charts="appliedCharts"
+      @remove="removeAppliedChart"
+      @clear="appliedCharts = []"
+    />
+  
     <!-- Loading -->
     <div v-if="loading" class="text-center py-5">
       <div class="spinner-border text-primary" role="status">
@@ -447,6 +477,20 @@
     <ProfileModal
       v-model="showProfile"
       :profile-data="profileData"
+    />
+  
+    <!-- Chart Builder Modal -->
+    <ChartModal
+      v-model="showChartModal"
+      :dataset-id="datasetId"
+      :dataset-name="dataset?.name"
+      :columns="columns"
+      :data="data"
+      :selected-columns="selectedColumns"
+      :profile-data="profileData"
+      :initial-chart-type="initialChartType"
+      @apply="onChartApply"
+      @close="showChartModal = false"
     />
 
 
@@ -1327,7 +1371,10 @@ import ChangeTypeModal from '@/components/ChangeTypeModal.vue'
 import ExtractPatternModal from '@/components/ExtractPatternModal.vue'
 import ValueMappingModal from '@/components/ValueMappingModal.vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
+import ChartModal from '@/components/ChartModal.vue'
+import ChartPanel from '@/components/ChartPanel.vue'
 import { useToast } from '@/composables/useToast'
+import { CHART_TYPE_OPTIONS } from '@/composables/useChartConfig'
 
 const route = useRoute()
 const datasetId = computed(() => route.params.datasetId)
@@ -1611,6 +1658,24 @@ const showStructuralAiModal = ref(false)
 const showFuzzyMatchModal = ref(false)
 const showDataAiModal = ref(false)
 const showAiChat = ref(false)
+const showChartModal = ref(false)
+const initialChartType = ref('bar')
+const appliedCharts = ref([])
+
+// Chart visualization functions
+function openChartModal(chartType) {
+  initialChartType.value = chartType
+  showChartModal.value = true
+}
+
+function onChartApply(config, chartData, chartOptions) {
+  appliedCharts.value.push({ config, chartData, chartOptions, isFullscreen: false })
+  toast.success('Chart added')
+}
+
+function removeAppliedChart(index) {
+  appliedCharts.value.splice(index, 1)
+}
 const showExportRecipe = ref(false)
 const showImportRecipe = ref(false)
 const agents = ref([])
