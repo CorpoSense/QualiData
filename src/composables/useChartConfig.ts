@@ -2,11 +2,13 @@
  * Chart config state management composable.
  * Manages chart type, axis mappings, aggregation, and options.
  * Computes chartData and chartOptions for Chart.js from raw data.
+ * Also provides fetchChartData() for server-side aggregation on full dataset.
  */
 
 import { ref } from 'vue'
 import type { ChartData, ChartOptions } from 'chart.js'
 import type { ColumnMeta } from './useColumnTypes'
+import { getApiUrl } from '@/utils/api'
 
 export type ChartType = 'bar' | 'line' | 'pie' | 'scatter' | 'histogram' | 'area'
 export type AggregationMethod = 'sum' | 'avg' | 'count' | 'min' | 'max'
@@ -364,5 +366,97 @@ export function useChartConfig() {
     resetConfig,
     setPreset,
     filterNulls,
+  }
+}
+
+/**
+ * Transform server chart-data response into Chart.js compatible format.
+ * Server returns: { labels, datasets: [{ label, data }] }
+ * Chart.js needs: { labels, datasets: [{ label, data, backgroundColor, borderColor, ... }] }
+ */
+export function transformServerChartData(
+  serverData: {
+    chart_type: string
+    labels: string[]
+    datasets: Array<{ label: string; data: number[] | Array<{ x: number; y: number }> }>
+    warning?: string
+  },
+  colorPalette: string = 'default',
+): ChartData {
+  const colors = COLOR_PALETTES[colorPalette] || COLOR_PALETTES.default
+  const isPie = serverData.chart_type === 'pie'
+  const isArea = serverData.chart_type === 'area'
+
+  const datasets = serverData.datasets.map((ds, i) => ({
+    ...ds,
+    backgroundColor: isPie
+      ? serverData.labels.map((_, j) => colors[j % colors.length] + '80')
+      : serverData.datasets.length > 1
+        ? colors[i % colors.length] + '80'
+        : colors[0] + '80',
+    borderColor: isPie
+      ? serverData.labels.map((_, j) => colors[j % colors.length])
+      : serverData.datasets.length > 1
+        ? colors[i % colors.length]
+        : colors[0],
+    borderWidth: isPie ? 1 : 2,
+    fill: isArea ? 'origin' : false,
+    tension: (serverData.chart_type === 'line' || isArea) ? 0.3 : 0,
+  }))
+
+  return {
+    labels: serverData.labels,
+    datasets,
+  }
+}
+
+/**
+ * Fetch chart data from the backend chart-data endpoint.
+ * Operates on the full dataset (not just the preview page).
+ */
+export async function fetchChartData(
+  datasetId: string,
+  config: ChartConfig,
+  filters?: Record<string, any>,
+): Promise<{ chartData: ChartData; warning?: string; rowCount: number; filteredCount: number }> {
+  const apiUrl = getApiUrl()
+  const token = localStorage.getItem('token')
+
+  const body: Record<string, any> = {
+    chart_type: config.chartType,
+    x_column: config.xAxis,
+    y_column: config.yAxis || '',
+    aggregation: config.aggregation,
+    group_by: config.groupBy || '',
+    null_handling: config.nullHandling,
+    histogram_bins: 10,
+  }
+
+  if (filters && Object.keys(filters).length > 0) {
+    body.filters = filters
+  }
+
+  const res = await fetch(`${apiUrl}/api/datasets/${datasetId}/chart-data`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Failed to fetch chart data' }))
+    throw new Error(err.detail || 'Failed to fetch chart data')
+  }
+
+  const serverData = await res.json()
+  const chartData = transformServerChartData(serverData, config.colorPalette)
+
+  return {
+    chartData,
+    warning: serverData.warning,
+    rowCount: serverData.row_count || 0,
+    filteredCount: serverData.filtered_count || 0,
   }
 }

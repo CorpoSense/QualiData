@@ -57,6 +57,17 @@
 
         <!-- Right: Live Preview -->
         <div class="chart-preview-section">
+          <div v-if="chartLoading" class="chart-loading-overlay">
+            <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            <span class="ms-2 small text-muted">Loading chart data...</span>
+          </div>
+          <div v-if="chartWarning" class="chart-warning-banner">
+            <i class="bi bi-exclamation-triangle me-1"></i>{{ chartWarning }}
+          </div>
+          <div v-if="chartError" class="chart-error-banner">
+            <i class="bi bi-x-circle me-1"></i>{{ chartError }}
+            <small class="d-block text-muted">Using preview data as fallback</small>
+          </div>
           <ChartPreview
             :chart-type="chartConfig.config.value.chartType"
             :chart-data="chartData"
@@ -90,7 +101,7 @@ import { BButton } from 'bootstrap-vue-next'
 import ChartConfigPanel from './ChartConfigPanel.vue'
 import ChartPreview from './ChartPreview.vue'
 import { useColumnTypes } from '@/composables/useColumnTypes'
-import { useChartConfig } from '@/composables/useChartConfig'
+import { useChartConfig, fetchChartData } from '@/composables/useChartConfig'
 import { useChartHeuristic } from '@/composables/useChartHeuristic'
 
 const props = defineProps({
@@ -102,6 +113,7 @@ const props = defineProps({
   selectedColumns: { type: Array, default: () => [] },
   profileData: { type: Object, default: null },
   initialChartType: { type: String, default: '' },
+  filters: { type: Object, default: () => ({}) },
 })
 
 const emit = defineEmits(['update:modelValue', 'apply', 'close'])
@@ -123,14 +135,25 @@ const dragOffset = ref({ x: 0, y: 0 })
 const resizeStart = ref({ x: 0, y: 0, width: 0, height: 0 })
 const suggestionWarning = ref('')
 
+// Server-side chart data state
+const serverChartData = ref(null)
+const chartLoading = ref(false)
+const chartError = ref('')
+const chartWarning = ref('')
+const chartRowCount = ref(0)
+const chartFilteredCount = ref(0)
+let fetchDebounceTimer = null
+
 // Column metadata from profiling data
 const columnMeta = computed(() => {
   if (!props.profileData?.columns) return []
   return classifyColumns(props.profileData.columns)
 })
 
-// Computed chart data and options
+// Computed chart data: prefer server data, fallback to client-side
 const chartData = computed(() => {
+  if (serverChartData.value) return serverChartData.value
+  // Fallback: client-side computation from preview data
   if (!props.data?.length || !chartConfig.config.value.xAxis) return null
   return chartConfig.computeChartData(props.data, columnMeta.value)
 })
@@ -232,8 +255,46 @@ function closeModal() {
 
 function applyChart() {
   if (!canApply.value) return
-  emit('apply', chartConfig.config.value, chartData.value, chartOptions.value)
+  emit('apply', chartConfig.config.value, chartData.value, chartOptions.value, {
+    rowCount: chartRowCount.value,
+    filteredCount: chartFilteredCount.value,
+    warning: chartWarning.value,
+  })
   emit('update:modelValue', false)
+}
+
+// Server-side chart data fetching
+async function loadChartDataFromServer() {
+  const cfg = chartConfig.config.value
+  if (!cfg.xAxis) {
+    serverChartData.value = null
+    return
+  }
+
+  chartLoading.value = true
+  chartError.value = ''
+  chartWarning.value = ''
+
+  try {
+    const result = await fetchChartData(props.datasetId, cfg, props.filters)
+    serverChartData.value = result.chartData
+    chartWarning.value = result.warning || ''
+    chartRowCount.value = result.rowCount
+    chartFilteredCount.value = result.filteredCount
+  } catch (e) {
+    chartError.value = e.message || 'Failed to load chart data'
+    // Fallback to client-side computation
+    serverChartData.value = null
+  } finally {
+    chartLoading.value = false
+  }
+}
+
+function debouncedLoadChartData() {
+  if (fetchDebounceTimer) clearTimeout(fetchDebounceTimer)
+  fetchDebounceTimer = setTimeout(() => {
+    loadChartDataFromServer()
+  }, 300)
 }
 
 // Persistence
@@ -264,7 +325,7 @@ function handleKeydown(event) {
   if (event.key === 'Escape' && props.modelValue) closeModal()
 }
 
-// Watch for modal open — apply heuristic suggestion
+// Watch for modal open — apply heuristic suggestion and fetch data
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
     isMinimized.value = false
@@ -291,8 +352,40 @@ watch(() => props.modelValue, (isOpen) => {
       chartConfig.config.value.aggregation = suggestion.aggregation
       suggestionWarning.value = suggestion.warning || ''
     }
+
+    // Fetch chart data from server
+    loadChartDataFromServer()
+  } else {
+    // Reset server data when modal closes
+    serverChartData.value = null
+    chartError.value = ''
+    chartWarning.value = ''
   }
 })
+
+// Watch config changes — debounced re-fetch from server
+watch(
+  () => [
+    chartConfig.config.value.chartType,
+    chartConfig.config.value.xAxis,
+    chartConfig.config.value.yAxis,
+    chartConfig.config.value.aggregation,
+    chartConfig.config.value.groupBy,
+    chartConfig.config.value.nullHandling,
+  ],
+  () => {
+    if (props.modelValue) {
+      debouncedLoadChartData()
+    }
+  },
+)
+
+// Watch filters changes — re-fetch
+watch(() => props.filters, () => {
+  if (props.modelValue) {
+    debouncedLoadChartData()
+  }
+}, { deep: true })
 
 onMounted(() => {
   loadPosition()
@@ -306,6 +399,7 @@ onUnmounted(() => {
   document.removeEventListener('mouseup', stopDrag)
   document.removeEventListener('mousemove', onResize)
   document.removeEventListener('mouseup', stopResize)
+  if (fetchDebounceTimer) clearTimeout(fetchDebounceTimer)
 })
 </script>
 
@@ -372,6 +466,47 @@ onUnmounted(() => {
   padding: 8px 14px;
   border-top: 1px solid #e2e8f0;
   background: #f8fafc;
+}
+
+.chart-loading-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.chart-warning-banner {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 10;
+  padding: 4px 10px;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #856404;
+}
+
+.chart-error-banner {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 10;
+  padding: 4px 10px;
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: #721c24;
 }
 
 .resize-handle {

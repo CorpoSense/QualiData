@@ -14,7 +14,11 @@
     <div class="chart-panel-body">
       <div v-for="(chart, index) in charts" :key="index" class="chart-panel-item">
         <div class="chart-panel-item-header">
-          <span class="small fw-bold">{{ chart.config.title || chartLabel(chart.config) }}</span>
+          <div>
+            <span class="small fw-bold">{{ chart.config.title || chartLabel(chart.config) }}</span>
+            <span v-if="chart.meta?.rowCount" class="badge bg-light text-dark ms-2" style="font-size: 0.65rem;">{{ chart.meta.rowCount }} rows</span>
+            <span v-if="chart.meta?.filteredCount && chart.meta.filteredCount !== chart.meta.rowCount" class="badge bg-info ms-2" style="font-size: 0.65rem;">{{ chart.meta.filteredCount }} filtered</span>
+          </div>
           <div class="d-flex gap-1">
             <BButton size="sm" variant="link" class="p-0" @click="toggleFullscreen(index)" :title="chart.isFullscreen ? 'Exit fullscreen' : 'Fullscreen'">
               <i :class="chart.isFullscreen ? 'bi bi-fullscreen-exit' : 'bi bi-fullscreen'"></i>
@@ -26,6 +30,9 @@
               <i class="bi bi-x-lg"></i>
             </BButton>
           </div>
+        </div>
+        <div v-if="chart.meta?.warning" class="chart-panel-warning">
+          <i class="bi bi-exclamation-triangle me-1"></i>{{ chart.meta.warning }}
         </div>
         <div class="chart-panel-item-canvas" :class="{ 'chart-fullscreen': chart.isFullscreen }" :ref="el => setChartRef(el, index)">
           <ChartPreview
@@ -153,5 +160,13 @@ function exportPng(index) {
   background: white;
   padding: 20px;
   min-height: unset;
+}
+
+.chart-panel-warning {
+  padding: 4px 10px;
+  background: #fff3cd;
+  border-bottom: 1px solid #ffc107;
+  font-size: 0.7rem;
+  color: #856404;
 }
 </style>

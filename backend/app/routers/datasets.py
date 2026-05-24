@@ -885,6 +885,388 @@ async def filtered_dataset_post(
     }
 
 
+class ChartDataRequest(BaseModel):
+    """Request body for chart-data endpoint."""
+    chart_type: str  # bar, line, pie, scatter, histogram, area
+    x_column: str
+    y_column: str = ""
+    aggregation: str = "sum"  # sum, avg, count, min, max
+    group_by: str = ""
+    null_handling: str = "exclude"  # exclude, category, zero
+    histogram_bins: int = 10
+    filters: dict | None = None  # Same format as filtered_dataset_post
+    scatter_max_points: int = 5000  # Max points for scatter plot (downsampling)
+
+
+def _apply_chart_filters(preview_list: list[dict], filters: dict | None) -> list[dict]:
+    """Apply filters to data rows (same logic as filtered_dataset_post)."""
+    if not filters:
+        return preview_list
+
+    substring_filters = {}
+    selected_values_filters = {}
+
+    for col, val in filters.items():
+        if isinstance(val, dict) and "selected_values" in val:
+            selected_vals = val["selected_values"]
+            if isinstance(selected_vals, list) and len(selected_vals) > 0:
+                normalized = set()
+                for v in selected_vals:
+                    if v is None:
+                        normalized.add(None)
+                    else:
+                        normalized.add(str(v).strip())
+                selected_values_filters[col] = normalized
+        elif val is not None and str(val).strip():
+            substring_filters[col] = str(val).strip().lower()
+
+    filtered = []
+    for row in preview_list:
+        match = True
+
+        for col, filter_val in substring_filters.items():
+            cell_val = str(row.get(col, "")).lower()
+            if filter_val not in cell_val:
+                match = False
+                break
+
+        if not match:
+            continue
+
+        for col, allowed_values in selected_values_filters.items():
+            cell_raw = row.get(col)
+            if cell_raw is None:
+                if None not in allowed_values:
+                    match = False
+                    break
+            else:
+                cell_str = str(cell_raw)
+                if cell_str not in allowed_values:
+                    match = False
+                    break
+
+        if match:
+            filtered.append(row)
+
+    return filtered
+
+
+def _compute_chart_aggregation(
+    data: list[dict],
+    x_column: str,
+    y_column: str,
+    aggregation: str,
+    group_by: str | None = None,
+    null_handling: str = "exclude",
+) -> dict:
+    """Compute aggregated chart data from full dataset.
+
+    Returns {"labels": [...], "datasets": [{"label": ..., "data": [...]}]}
+    """
+    if not data or not x_column:
+        return {"labels": [], "datasets": [{"label": y_column or "Count", "data": []}]}
+
+    # Filter nulls
+    relevant_cols = [c for c in [x_column, y_column, group_by] if c]
+    if null_handling == "exclude":
+        data = [row for row in data if all(row.get(c) is not None and row.get(c) != "" for c in relevant_cols)]
+
+    # Count without yColumn
+    if aggregation == "count" and not y_column:
+        counts: dict[str, int] = {}
+        for row in data:
+            key = str(row.get(x_column, "(null)"))
+            counts[key] = counts.get(key, 0) + 1
+        labels = sorted(counts.keys())
+        return {"labels": labels, "datasets": [{"label": f"Count of {x_column}", "data": [counts[l] for l in labels]}]}
+
+    def _get_y_value(row: dict, y_col: str, null_mode: str) -> float | None:
+        """Extract y value from row, handling nulls based on null_mode."""
+        if not y_col:
+            return 1  # count mode with y_column
+        raw = row.get(y_col)
+        if raw is None or raw == "":
+            if null_mode == "zero":
+                return 0.0
+            elif null_mode == "category":
+                return None  # will be skipped
+            else:  # exclude — should already be filtered, but safety fallback
+                return None
+        try:
+            v = float(raw)
+            if v != v:  # NaN check
+                return None
+            return v
+        except (TypeError, ValueError):
+            return None
+
+    # Grouped aggregation
+    if group_by:
+        groups: dict[str, dict[str, list[float]]] = {}
+        x_values: set[str] = set()
+
+        for row in data:
+            x = str(row.get(x_column, "(null)"))
+            g = str(row.get(group_by, "(null)"))
+            y = _get_y_value(row, y_column, null_handling)
+            if y is None:
+                continue
+            x_values.add(x)
+            if g not in groups:
+                groups[g] = {}
+            if x not in groups[g]:
+                groups[g][x] = []
+            groups[g][x].append(y)
+
+        labels = sorted(x_values)
+        datasets = []
+        for group_name, x_data in groups.items():
+            datasets.append({
+                "label": group_name,
+                "data": [_apply_agg(x_data.get(l, []), aggregation) for l in labels],
+            })
+        return {"labels": labels, "datasets": datasets}
+
+    # Simple aggregation
+    simple_groups: dict[str, list[float]] = {}
+    for row in data:
+        x = str(row.get(x_column, "(null)"))
+        y = _get_y_value(row, y_column, null_handling)
+        if y is None:
+            continue
+        if x not in simple_groups:
+            simple_groups[x] = []
+        simple_groups[x].append(y)
+
+    labels = sorted(simple_groups.keys())
+    return {
+        "labels": labels,
+        "datasets": [{"label": y_column or "Count", "data": [_apply_agg(simple_groups[l], aggregation) for l in labels]}],
+    }
+
+
+def _apply_agg(values: list[float], method: str) -> float:
+    """Apply aggregation method to a list of numbers."""
+    if not values:
+        return 0
+    if method == "sum":
+        return sum(values)
+    elif method == "avg":
+        return sum(values) / len(values)
+    elif method == "count":
+        return len(values)
+    elif method == "min":
+        return min(values)
+    elif method == "max":
+        return max(values)
+    return sum(values)
+
+
+def _compute_chart_histogram(
+    data: list[dict],
+    column: str,
+    num_bins: int = 10,
+    null_handling: str = "exclude",
+) -> dict:
+    """Compute histogram bins from full dataset.
+
+    Returns {"labels": [...], "data": [...]}
+    """
+    if not data or not column:
+        return {"labels": [], "data": []}
+
+    # Filter nulls
+    if null_handling == "exclude":
+        data = [row for row in data if row.get(column) is not None and row.get(column) != ""]
+
+    values = []
+    for row in data:
+        try:
+            v = float(row.get(column))
+            if v == v:  # Not NaN
+                values.append(v)
+        except (TypeError, ValueError):
+            continue
+
+    if not values:
+        return {"labels": [], "data": []}
+
+    min_val = min(values)
+    max_val = max(values)
+    value_range = max_val - min_val or 1
+    bin_width = value_range / num_bins
+
+    bins = [0] * num_bins
+    labels = []
+    for i in range(num_bins):
+        lo = min_val + i * bin_width
+        hi = lo + bin_width
+        labels.append(f"{lo:.1f}–{hi:.1f}")
+
+    for v in values:
+        idx = int((v - min_val) / bin_width)
+        if idx >= num_bins:
+            idx = num_bins - 1
+        if idx < 0:
+            idx = 0
+        bins[idx] += 1
+
+    return {"labels": labels, "data": bins}
+
+
+def _compute_chart_scatter(
+    data: list[dict],
+    x_column: str,
+    y_column: str,
+    max_points: int = 5000,
+    null_handling: str = "exclude",
+) -> dict:
+    """Compute scatter plot data from full dataset with optional downsampling.
+
+    Returns {"datasets": [{"label": ..., "data": [{"x": ..., "y": ...}]}], "total_points": ..., "displayed_points": ...}
+    """
+    if not data or not x_column or not y_column:
+        return {"datasets": [{"label": f"{x_column} vs {y_column}", "data": []}], "total_points": 0, "displayed_points": 0}
+
+    # Filter nulls
+    if null_handling == "exclude":
+        data = [row for row in data if row.get(x_column) is not None and row.get(y_column) is not None and row.get(x_column) != "" and row.get(y_column) != ""]
+
+    points = []
+    for row in data:
+        try:
+            x = float(row.get(x_column))
+            y = float(row.get(y_column))
+            if x == x and y == y:  # Not NaN
+                points.append({"x": x, "y": y})
+        except (TypeError, ValueError):
+            continue
+
+    total_points = len(points)
+    warning = None
+
+    if total_points > max_points:
+        # Downsample: take evenly spaced points
+        step = total_points / max_points
+        downsampled = [points[int(i * step)] for i in range(max_points)]
+        points = downsampled
+        warning = f"Showing {max_points} of {total_points} data points (downsampled)"
+
+    return {
+        "datasets": [{"label": f"{x_column} vs {y_column}", "data": points}],
+        "total_points": total_points,
+        "displayed_points": len(points),
+        "warning": warning,
+    }
+
+
+@router.post("/{dataset_id}/chart-data")
+async def get_chart_data(
+    dataset_id: str,
+    request: ChartDataRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Compute chart data from the full dataset.
+
+    Supports aggregation (bar, line, pie, area), histogram, and scatter plots.
+    Applies optional filters before computation.
+    Returns chart-ready data (labels, datasets) for Chart.js.
+    """
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    project_result = await session.execute(
+        select(Project).where(
+            Project.id == dataset.project_id, Project.user_id == current_user.id
+        )
+    )
+    if not project_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get full data
+    if not dataset.data_json or "data" not in dataset.data_json:
+        return {
+            "chart_type": request.chart_type,
+            "labels": [],
+            "datasets": [],
+            "row_count": 0,
+            "filtered_count": 0,
+        }
+
+    all_data = dataset.data_json["data"]
+    row_count = len(all_data)
+
+    # Apply filters if provided
+    if request.filters:
+        filtered_data = _apply_chart_filters(all_data, request.filters)
+    else:
+        filtered_data = all_data
+
+    filtered_count = len(filtered_data)
+
+    # Compute chart data based on type
+    chart_type = request.chart_type
+    warning = None
+
+    if chart_type == "histogram":
+        hist_result = _compute_chart_histogram(
+            filtered_data,
+            request.x_column,
+            request.histogram_bins,
+            request.null_handling,
+        )
+        return {
+            "chart_type": chart_type,
+            "labels": hist_result["labels"],
+            "datasets": [{"label": f"Histogram of {request.x_column}", "data": hist_result["data"]}],
+            "row_count": row_count,
+            "filtered_count": filtered_count,
+        }
+
+    elif chart_type == "scatter":
+        scatter_result = _compute_chart_scatter(
+            filtered_data,
+            request.x_column,
+            request.y_column,
+            request.scatter_max_points,
+            request.null_handling,
+        )
+        response = {
+            "chart_type": chart_type,
+            "labels": [],
+            "datasets": scatter_result["datasets"],
+            "row_count": row_count,
+            "filtered_count": filtered_count,
+            "total_points": scatter_result.get("total_points", 0),
+            "displayed_points": scatter_result.get("displayed_points", 0),
+        }
+        if scatter_result.get("warning"):
+            response["warning"] = scatter_result["warning"]
+        return response
+
+    else:
+        # Aggregated charts: bar, line, pie, area
+        agg_result = _compute_chart_aggregation(
+            filtered_data,
+            request.x_column,
+            request.y_column,
+            request.aggregation,
+            request.group_by or None,
+            request.null_handling,
+        )
+        return {
+            "chart_type": chart_type,
+            "labels": agg_result["labels"],
+            "datasets": agg_result["datasets"],
+            "row_count": row_count,
+            "filtered_count": filtered_count,
+        }
+
+
 @router.get("/{dataset_id}/unique-values")
 async def get_unique_values(
     dataset_id: str,

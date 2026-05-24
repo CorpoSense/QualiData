@@ -33,6 +33,12 @@ vi.mock('bootstrap-vue-next', () => ({
 
 import ChartModal from './ChartModal.vue'
 
+// Mock fetch for chart-data endpoint
+global.fetch = vi.fn().mockResolvedValue({
+  ok: false,
+  json: () => Promise.resolve({ detail: 'Not found' }),
+})
+
 describe('ChartModal', () => {
   const defaultProps = {
     modelValue: true,
@@ -54,6 +60,7 @@ describe('ChartModal', () => {
       ],
     },
     initialChartType: 'bar',
+    filters: {},
   }
 
   it('renders when modelValue is true', () => {

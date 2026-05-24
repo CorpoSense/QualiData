@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { aggregateData, applyAgg, computeHistogramBins, useChartConfig, COLOR_PALETTES, CHART_TYPE_OPTIONS, AGGREGATION_OPTIONS } from './useChartConfig'
+import { aggregateData, applyAgg, computeHistogramBins, useChartConfig, COLOR_PALETTES, CHART_TYPE_OPTIONS, AGGREGATION_OPTIONS, transformServerChartData } from './useChartConfig'
 
 describe('applyAgg', () => {
   it('sums values', () => {
@@ -269,5 +269,77 @@ describe('Constants', () => {
       expect(colors.length).toBeGreaterThanOrEqual(5)
       expect(name).not.toBeNull();
     }
+  })
+})
+
+describe('transformServerChartData', () => {
+  it('transforms bar chart server data', () => {
+    const serverData = {
+      chart_type: 'bar',
+      labels: ['NYC', 'LA', 'Chicago'],
+      datasets: [{ label: 'Sum of revenue', data: [300, 200, 300] }],
+    }
+    const result = transformServerChartData(serverData)
+    expect(result.labels).toEqual(['NYC', 'LA', 'Chicago'])
+    expect(result.datasets).toHaveLength(1)
+    expect(result.datasets[0].data).toEqual([300, 200, 300])
+    expect(result.datasets[0].backgroundColor).toBeDefined()
+    expect(result.datasets[0].borderColor).toBeDefined()
+  })
+
+  it('transforms pie chart server data with per-label colors', () => {
+    const serverData = {
+      chart_type: 'pie',
+      labels: ['A', 'B', 'C'],
+      datasets: [{ label: 'Values', data: [10, 20, 30] }],
+    }
+    const result = transformServerChartData(serverData)
+    expect(result.datasets[0].backgroundColor).toHaveLength(3)
+    expect(result.datasets[0].borderColor).toHaveLength(3)
+  })
+
+  it('transforms scatter chart server data', () => {
+    const serverData = {
+      chart_type: 'scatter',
+      labels: [],
+      datasets: [{ label: 'x vs y', data: [{ x: 1, y: 10 }, { x: 2, y: 20 }] }],
+    }
+    const result = transformServerChartData(serverData)
+    expect(result.datasets[0].data).toHaveLength(2)
+  })
+
+  it('transforms area chart with fill origin', () => {
+    const serverData = {
+      chart_type: 'area',
+      labels: ['Jan', 'Feb', 'Mar'],
+      datasets: [{ label: 'Sales', data: [100, 200, 150] }],
+    }
+    const result = transformServerChartData(serverData)
+    expect((result.datasets[0] as any).fill).toBe('origin')
+    expect((result.datasets[0] as any).tension).toBe(0.3)
+  })
+
+  it('transforms grouped datasets with different colors', () => {
+    const serverData = {
+      chart_type: 'bar',
+      labels: ['NYC', 'LA'],
+      datasets: [
+        { label: 'A', data: [100, 200] },
+        { label: 'B', data: [50, 75] },
+      ],
+    }
+    const result = transformServerChartData(serverData)
+    expect(result.datasets).toHaveLength(2)
+    expect(result.datasets[0].backgroundColor).not.toBe(result.datasets[1].backgroundColor)
+  })
+
+  it('uses default palette when invalid palette specified', () => {
+    const serverData = {
+      chart_type: 'bar',
+      labels: ['A'],
+      datasets: [{ label: 'Test', data: [1] }],
+    }
+    const result = transformServerChartData(serverData, 'nonexistent')
+    expect(result.datasets[0].backgroundColor).toBeDefined()
   })
 })

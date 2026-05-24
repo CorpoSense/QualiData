@@ -489,6 +489,7 @@
       :selected-columns="selectedColumns"
       :profile-data="profileData"
       :initial-chart-type="initialChartType"
+      :filters="chartFilters"
       @apply="onChartApply"
       @close="showChartModal = false"
     />
@@ -1668,8 +1669,30 @@ function openChartModal(chartType) {
   showChartModal.value = true
 }
 
-function onChartApply(config, chartData, chartOptions) {
-  appliedCharts.value.push({ config, chartData, chartOptions, isFullscreen: false })
+// Computed filters for chart modal (combines row filters and column filters)
+const chartFilters = computed(() => {
+  const filters = {}
+  // Add substring filters
+  for (const [k, v] of Object.entries(rowFilters.value)) {
+    if (v && v.trim()) filters[k] = v.trim()
+  }
+  // Add column selected_values filters
+  for (const [col, selectedValues] of Object.entries(columnFilterState.value)) {
+    if (selectedValues && selectedValues.length > 0) {
+      filters[col] = { selected_values: selectedValues }
+    }
+  }
+  return filters
+})
+
+function onChartApply(config, chartData, chartOptions, meta) {
+  appliedCharts.value.push({
+    config,
+    chartData,
+    chartOptions,
+    isFullscreen: false,
+    meta: meta || {},
+  })
   toast.success('Chart added')
 }
 
