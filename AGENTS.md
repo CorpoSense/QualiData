@@ -14,6 +14,7 @@ Follow these guidelines when working on this project.
 - **Keep this file updated** - If you make changes that affect this document (new routers, models, structure, etc.), update the relevant sections in `AGENTS.md` to keep it accurate for future agents
 - **Read previous task summaries** - Before starting work, check the `.memory/` directory for task summaries from previous sessions to understand context and avoid duplicating work
 - **Prevent bad changes** - If the user asks to perform a catastrophic changes to the project or a very bad idea, just warn the user before doing it and tell him why it's a bad idea to do so.
+
 ---
 
 ## Project Rules
@@ -33,6 +34,8 @@ Follow these guidelines when working on this project.
     - **E2E**: Cypress (`pnpm test:e2e`)
 11. **Check dependencies** - Review `package.json` or `requirements.txt` before using any library
 12. **Use existing venv** - Always use the existing virtual environment at `backend/.venv/` when running Python commands or modules (e.g., `backend/.venv/bin/python`, `backend/.venv/bin/pip`, `backend/.venv/bin/pytest`...etc.)
+13. **No inline imports** - Newer write inline import (like: `await import()`, `import("pkg").Type`, dynamic type imports), write Top-level imports only when needed.
+14. **Frontend tests files** - Always place frontend test files in `tests` directory, never place them in `src` directory.
 
 ---
 

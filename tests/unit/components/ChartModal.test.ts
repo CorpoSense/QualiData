@@ -31,7 +31,7 @@ vi.mock('bootstrap-vue-next', () => ({
   BFormInput: { name: 'BFormInput', template: '<input class="b-form-input"/>' },
 }))
 
-import ChartModal from './ChartModal.vue'
+import ChartModal from '@/components/ChartModal.vue'
 
 // Mock fetch for chart-data endpoint
 global.fetch = vi.fn().mockResolvedValue({

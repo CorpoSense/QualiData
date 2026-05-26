@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { aggregateData, applyAgg, computeHistogramBins, useChartConfig, COLOR_PALETTES, CHART_TYPE_OPTIONS, AGGREGATION_OPTIONS, transformServerChartData } from './useChartConfig'
+import { aggregateData, applyAgg, computeHistogramBins, useChartConfig, COLOR_PALETTES, CHART_TYPE_OPTIONS, AGGREGATION_OPTIONS, transformServerChartData } from '@/composables/useChartConfig'
 
 describe('applyAgg', () => {
   it('sums values', () => {
@@ -61,7 +61,7 @@ describe('aggregateData', () => {
     const laIdx = result.labels.indexOf('LA')
     const chiIdx = result.labels.indexOf('Chicago')
     expect(result.datasets[0].data[nycIdx]).toBe(300) // 100 + 200
-    expect(result.datasets[0].data[laIdx]).toBe(200)  // 150 + 50
+    expect(result.datasets[0].data[laIdx]).toBe(200) // 150 + 50
     expect(result.datasets[0].data[chiIdx]).toBe(300)
   })
 

@@ -8,7 +8,7 @@ vi.mock('bootstrap-vue-next', () => ({
   BFormInput: { name: 'BFormInput', template: '<input class="b-form-input"/>' },
 }))
 
-import ChartConfigPanel from './ChartConfigPanel.vue'
+import ChartConfigPanel from '@/components/ChartConfigPanel.vue'
 
 describe('ChartConfigPanel', () => {
   const defaultConfig = {

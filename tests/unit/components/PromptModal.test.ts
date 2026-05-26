@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import PromptModal from './PromptModal.vue'
+import PromptModal from '@/components/PromptModal.vue'
 
 function createWrapper(props: Record<string, any> = {}) {
   return mount(PromptModal, {

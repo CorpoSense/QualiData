@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { classifyColumn, useColumnTypes } from './useColumnTypes'
+import { classifyColumn, useColumnTypes } from '@/composables/useColumnTypes'
 
 describe('classifyColumn', () => {
   it('classifies int64 as numeric', () => {
@@ -99,12 +99,12 @@ describe('useColumnTypes', () => {
 
     it('correctly classifies each column type', () => {
       const result = classifyColumns(profileColumns)
-      expect(result[0].columnType).toBe('numeric')   // age
-      expect(result[1].columnType).toBe('numeric')   // salary
+      expect(result[0].columnType).toBe('numeric') // age
+      expect(result[1].columnType).toBe('numeric') // salary
       expect(result[2].columnType).toBe('categorical') // city
-      expect(result[3].columnType).toBe('text')       // description
-      expect(result[4].columnType).toBe('datetime')   // created_at
-      expect(result[5].columnType).toBe('boolean')    // is_active
+      expect(result[3].columnType).toBe('text') // description
+      expect(result[4].columnType).toBe('datetime') // created_at
+      expect(result[5].columnType).toBe('boolean') // is_active
     })
   })
 

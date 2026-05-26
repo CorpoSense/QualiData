@@ -22,7 +22,7 @@ vi.mock('@/utils/api', () => ({
   getApiUrl: () => 'http://localhost:8000'
 }))
 
-import { useProjectsNav } from './useProjectsNav'
+import { useProjectsNav } from '@/composables/useProjectsNav'
 
 describe('useProjectsNav', () => {
   beforeEach(() => {

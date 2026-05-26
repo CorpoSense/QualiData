@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { suggestChart, getRecommendedChartTypes, useChartHeuristic } from './useChartHeuristic'
-import type { ColumnMeta } from './useColumnTypes'
+import { suggestChart, getRecommendedChartTypes, useChartHeuristic } from '@/composables/useChartHeuristic'
+import type { ColumnMeta } from '@/composables/useColumnTypes'
 
 // Helper to create ColumnMeta objects
 function makeCol(name: string, columnType: ColumnMeta['columnType'], uniqueCount = 10, nullCount = 0): ColumnMeta {

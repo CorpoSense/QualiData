@@ -28,7 +28,7 @@ vi.mock('chart.js', () => ({
   Filler: {},
 }))
 
-import ChartPreview from './ChartPreview.vue'
+import ChartPreview from '@/components/ChartPreview.vue'
 
 describe('ChartPreview', () => {
   it('shows placeholder when no chartData', () => {
