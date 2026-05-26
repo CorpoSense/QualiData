@@ -46,13 +46,25 @@
     <!-- Content -->
     <div v-show="!isMinimized" class="chart-modal-content">
       <div class="chart-modal-body">
-        <!-- Left: Config Panel -->
-        <div class="chart-config-section">
-          <ChartConfigPanel
-            :config="chartConfig.config.value"
-            :column-meta="columnMeta"
-            :warning="suggestionWarning"
-          />
+        <!-- Left: Config Panel (Collapsible) -->
+        <div class="chart-config-section" :class="{ collapsed: !showConfigPanel }">
+          <div class="config-panel-header">
+            <h6 class="mb-0">
+              <BButton size="sm" variant="link" @click="showConfigPanel = !showConfigPanel" class="px-0">
+                <i :class="showConfigPanel ? 'bi bi-chevron-left' : 'bi bi-chevron-right'"></i>
+              </BButton>
+              <span v-show="showConfigPanel" class="p-2">
+                Configuration
+              </span>
+            </h6>
+          </div>
+          <div v-if="showConfigPanel">
+            <ChartConfigPanel
+              :config="chartConfig.config.value"
+              :column-meta="columnMeta"
+              :warning="suggestionWarning"
+            />
+          </div>
         </div>
 
         <!-- Right: Live Preview -->
@@ -134,6 +146,7 @@ const zIndex = ref(10000)
 const dragOffset = ref({ x: 0, y: 0 })
 const resizeStart = ref({ x: 0, y: 0, width: 0, height: 0 })
 const suggestionWarning = ref('')
+const showConfigPanel = ref(true)
 
 // Server-side chart data state
 const serverChartData = ref(null)
@@ -445,9 +458,25 @@ onUnmounted(() => {
 
 .chart-config-section {
   width: 280px;
-  min-width: 250px;
+  min-width: 280px;
   border-right: 1px solid #e2e8f0;
-  overflow-y: auto;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s, min-width 0.2s;
+}
+
+.chart-config-section.collapsed {
+  width: 40px;
+  min-width: 40px;
+}
+
+.config-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .chart-preview-section {

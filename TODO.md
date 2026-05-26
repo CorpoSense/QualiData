@@ -64,7 +64,7 @@ Track tasks and improvements for the project.
 
 ### Data Analysis Page (New Feature)
 
-- [ ] **Data Visualization & Analysis**
+- [x] **Data Visualization & Analysis**
   - Create new "Analysis" page/route similar to DataViewer
   - Integrate `vue-chartjs` for graphs
   - Implement smart chart type detection based on data types:
