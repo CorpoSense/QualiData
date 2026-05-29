@@ -8,8 +8,8 @@
     <!-- Header (Drag Handle) -->
     <div class="chart-modal-header" @mousedown="startDrag">
       <div class="d-flex align-items-center gap-2">
-        <i class="bi bi-bar-chart-line"></i>
-        <h6 class="mb-0">Chart Builder</h6>
+        <i :class="isWizardMode ? 'bi bi-magic' : 'bi bi-bar-chart-line'"></i>
+        <h6 class="mb-0">{{ isWizardMode ? 'Chart Wizard' : 'Chart Builder' }}</h6>
         <span v-if="datasetName" class="text-muted small">— {{ datasetName }}</span>
       </div>
       <div class="d-flex gap-1">
@@ -58,11 +58,19 @@
               </span>
             </h6>
           </div>
-          <div v-if="showConfigPanel">
+          <div v-if="showConfigPanel" class="config-panel-content">
             <ChartConfigPanel
+              v-if="!isWizardMode"
               :config="chartConfig.config.value"
               :column-meta="columnMeta"
               :warning="suggestionWarning"
+            />
+            <ChartWizard
+              v-else
+              :column-meta="columnMeta"
+              :preview-data="props.data.slice(0, 5)"
+              :initial-selected-columns="props.selectedColumns"
+              @update:chartConfig="onWizardConfigUpdate"
             />
           </div>
         </div>
@@ -111,6 +119,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { BButton } from 'bootstrap-vue-next'
 import ChartConfigPanel from './ChartConfigPanel.vue'
+import ChartWizard from './ChartWizard.vue'
 import ChartPreview from './ChartPreview.vue'
 import { useColumnTypes } from '@/composables/useColumnTypes'
 import { useChartConfig, fetchChartData } from '@/composables/useChartConfig'
@@ -126,6 +135,7 @@ const props = defineProps({
   profileData: { type: Object, default: null },
   initialChartType: { type: String, default: '' },
   filters: { type: Object, default: () => ({}) },
+  mode: { type: String, default: 'preset' },
 })
 
 const emit = defineEmits(['update:modelValue', 'apply', 'close'])
@@ -147,6 +157,9 @@ const dragOffset = ref({ x: 0, y: 0 })
 const resizeStart = ref({ x: 0, y: 0, width: 0, height: 0 })
 const suggestionWarning = ref('')
 const showConfigPanel = ref(true)
+const wizardChartConfig = ref(null)
+
+const isWizardMode = computed(() => props.mode === 'wizard')
 
 // Server-side chart data state
 const serverChartData = ref(null)
@@ -393,6 +406,13 @@ watch(
   },
 )
 
+// Wizard mode: receive config updates from ChartWizard
+function onWizardConfigUpdate(config) {
+  wizardChartConfig.value = config
+  // Sync wizard config into chartConfig so preview + server fetch work
+  Object.assign(chartConfig.config.value, config)
+}
+
 // Watch filters changes — re-fetch
 watch(() => props.filters, () => {
   if (props.modelValue) {
@@ -463,6 +483,7 @@ onUnmounted(() => {
   background: #f8fafc;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   transition: width 0.2s, min-width 0.2s;
 }
 
@@ -477,6 +498,14 @@ onUnmounted(() => {
   align-items: center;
   padding: 10px 12px;
   border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.config-panel-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .chart-preview-section {

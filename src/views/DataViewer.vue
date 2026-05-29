@@ -32,6 +32,10 @@
               <template #button-content>
                 <i class="bi bi-bar-chart-line me-1"></i> Charts
               </template>
+              <BDropdownItem @click="openCustomWizard">
+                <i class="bi bi-magic me-2"></i>Custom Wizard…
+              </BDropdownItem>
+              <BDropdownDivider />
               <BDropdownItem @click="openChartModal('bar')">
                 <i class="bi bi-bar-chart me-2"></i>Bar Chart
               </BDropdownItem>
@@ -489,6 +493,7 @@
       :selected-columns="selectedColumns"
       :profile-data="profileData"
       :initial-chart-type="initialChartType"
+      :mode="chartModalMode"
       :filters="chartFilters"
       @apply="onChartApply"
       @close="showChartModal = false"
@@ -1661,11 +1666,19 @@ const showDataAiModal = ref(false)
 const showAiChat = ref(false)
 const showChartModal = ref(false)
 const initialChartType = ref('bar')
+const chartModalMode = ref('preset')
 const appliedCharts = ref([])
 
 // Chart visualization functions
 function openChartModal(chartType) {
+  chartModalMode.value = 'preset'
   initialChartType.value = chartType
+  showChartModal.value = true
+}
+
+function openCustomWizard() {
+  chartModalMode.value = 'wizard'
+  initialChartType.value = ''
   showChartModal.value = true
 }
 

@@ -26,9 +26,11 @@ vi.mock('chart.js', () => ({
 // Mock bootstrap-vue-next - inline factory
 vi.mock('bootstrap-vue-next', () => ({
   BButton: { name: 'BButton', template: '<button class="b-btn"><slot/></button>' },
+  BBadge: { name: 'BBadge', template: '<span class="b-badge"><slot/></span>' },
   BFormGroup: { name: 'BFormGroup', template: '<div class="b-form-group"><slot/></div>' },
   BFormSelect: { name: 'BFormSelect', template: '<select class="b-form-select"><slot/></select>' },
   BFormInput: { name: 'BFormInput', template: '<input class="b-form-input"/>' },
+  BFormCheckbox: { name: 'BFormCheckbox', template: '<label class="b-form-check"><slot/></label>' },
 }))
 
 import ChartModal from '@/components/ChartModal.vue'
@@ -132,5 +134,66 @@ describe('ChartModal', () => {
       props: defaultProps,
     })
     expect(wrapper.find('.resize-handle').exists()).toBe(true)
+  })
+
+  // --- Wizard mode tests ---
+
+  it('renders in wizard mode when mode="wizard"', () => {
+    const wrapper = mount(ChartModal, {
+      props: { ...defaultProps, mode: 'wizard' },
+    })
+    expect(wrapper.find('.chart-modal').exists()).toBe(true)
+    expect(wrapper.find('.chart-wizard').exists()).toBe(true)
+  })
+
+  it('shows step indicator in wizard mode', () => {
+    const wrapper = mount(ChartModal, {
+      props: { ...defaultProps, mode: 'wizard' },
+    })
+    const stepItems = wrapper.findAll('.wizard-step-item')
+    expect(stepItems).toHaveLength(5)
+  })
+
+  it('shows Back and Next buttons in wizard mode', () => {
+    const wrapper = mount(ChartModal, {
+      props: { ...defaultProps, mode: 'wizard' },
+    })
+    expect(wrapper.text()).toContain('Back')
+    expect(wrapper.text()).toContain('Next')
+  })
+
+  it('shows Cancel and Add Chart buttons in preset mode', () => {
+    const wrapper = mount(ChartModal, {
+      props: { ...defaultProps, mode: 'preset' },
+    })
+    expect(wrapper.text()).toContain('Cancel')
+    expect(wrapper.text()).toContain('Add Chart')
+  })
+
+  it('renders ChartConfigPanel in preset mode', () => {
+    const wrapper = mount(ChartModal, {
+      props: { ...defaultProps, mode: 'preset' },
+    })
+    expect(wrapper.find('.chart-config-section').exists()).toBe(true)
+    expect(wrapper.find('.chart-wizard').exists()).toBe(false)
+  })
+
+  it('does not render ChartWizard in preset mode', () => {
+    const wrapper = mount(ChartModal, {
+      props: { ...defaultProps, mode: 'preset' },
+    })
+    expect(wrapper.find('.chart-wizard').exists()).toBe(false)
+  })
+
+  it('renders preview section in both modes', () => {
+    const presetWrapper = mount(ChartModal, {
+      props: { ...defaultProps, mode: 'preset' },
+    })
+    expect(presetWrapper.find('.chart-preview-section').exists()).toBe(true)
+
+    const wizardWrapper = mount(ChartModal, {
+      props: { ...defaultProps, mode: 'wizard' },
+    })
+    expect(wizardWrapper.find('.chart-preview-section').exists()).toBe(true)
   })
 })
