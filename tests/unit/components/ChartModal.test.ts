@@ -31,6 +31,7 @@ vi.mock('bootstrap-vue-next', () => ({
   BFormSelect: { name: 'BFormSelect', template: '<select class="b-form-select"><slot/></select>' },
   BFormInput: { name: 'BFormInput', template: '<input class="b-form-input"/>' },
   BFormCheckbox: { name: 'BFormCheckbox', template: '<label class="b-form-check"><slot/></label>' },
+  BFormTextarea: { name: 'BFormTextarea', template: '<textarea class="b-form-textarea"><slot/></textarea>' },
 }))
 
 import ChartModal from '@/components/ChartModal.vue'
@@ -195,5 +196,55 @@ describe('ChartModal', () => {
       props: { ...defaultProps, mode: 'wizard' },
     })
     expect(wizardWrapper.find('.chart-preview-section').exists()).toBe(true)
+  })
+
+  // --- AI mode tests ---
+
+  it('renders in AI mode when mode="ai"', () => {
+    const wrapper = mount(ChartModal, {
+      props: {
+        ...defaultProps,
+        mode: 'ai',
+        agentOptions: [
+          { value: null, text: 'Select an AI Agent…' },
+          { value: 'agent-1', text: 'Data Assistant' },
+        ],
+      },
+    })
+    expect(wrapper.find('.chart-modal').exists()).toBe(true)
+    expect(wrapper.find('.chart-ai-suggest').exists()).toBe(true)
+  })
+
+  it('shows AI Chart Assistant header in AI mode', () => {
+    const wrapper = mount(ChartModal, {
+      props: {
+        ...defaultProps,
+        mode: 'ai',
+        agentOptions: [{ value: null, text: 'Select an AI Agent…' }],
+      },
+    })
+    expect(wrapper.text()).toContain('AI Chart Assistant')
+  })
+
+  it('does not render ChartConfigPanel in AI mode', () => {
+    const wrapper = mount(ChartModal, {
+      props: {
+        ...defaultProps,
+        mode: 'ai',
+        agentOptions: [{ value: null, text: 'Select an AI Agent…' }],
+      },
+    })
+    expect(wrapper.find('.chart-wizard').exists()).toBe(false)
+  })
+
+  it('renders preview section in AI mode', () => {
+    const wrapper = mount(ChartModal, {
+      props: {
+        ...defaultProps,
+        mode: 'ai',
+        agentOptions: [{ value: null, text: 'Select an AI Agent…' }],
+      },
+    })
+    expect(wrapper.find('.chart-preview-section').exists()).toBe(true)
   })
 })

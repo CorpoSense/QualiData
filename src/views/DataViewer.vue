@@ -54,6 +54,10 @@
               <BDropdownItem @click="openChartModal('area')">
                 <i class="bi bi-graph-up-arrow me-2"></i>Area Chart
               </BDropdownItem>
+              <BDropdownDivider />
+              <BDropdownItem @click="openAiAssisted">
+                <i class="bi bi-robot me-2"></i>AI Assisted…
+              </BDropdownItem>
             </BDropdown>
             <BButton size="sm" variant="primary" @click="showPivotModal = true" :disabled="!selectedColumns.length">
               <i class="bi bi-table me-1"></i> Pivot
@@ -495,6 +499,8 @@
       :initial-chart-type="initialChartType"
       :mode="chartModalMode"
       :filters="chartFilters"
+      :agent-options="agentOptions"
+ :total-rows="totalRows"
       @apply="onChartApply"
       @close="showChartModal = false"
     />
@@ -576,6 +582,7 @@
     :dataset-id="datasetId"
     :loading="operating"
     :agent-options="agentOptions"
+    :total-rows="totalRows"
     @apply="applyExtractPattern"
   />
 
@@ -636,6 +643,7 @@
       :columns="columns"
       :dataset-id="datasetId"
       :agent-options="agentOptions"
+ :total-rows="totalRows"
       :selected-columns="selectedColumns"
       @apply="onFuzzyMatchApply"
       @aiHelp="onFuzzyAiHelp"
@@ -1678,6 +1686,12 @@ function openChartModal(chartType) {
 
 function openCustomWizard() {
   chartModalMode.value = 'wizard'
+  initialChartType.value = ''
+  showChartModal.value = true
+}
+
+function openAiAssisted() {
+  chartModalMode.value = 'ai'
   initialChartType.value = ''
   showChartModal.value = true
 }

@@ -20,6 +20,7 @@
     "clean:all": "rm -rf ./dist && rm -rf ./node_modules && rm -rf ./backend/.venv"
   },
   "dependencies": {
+    "@sgratzl/chartjs-chart-boxplot": "^4.4.5",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "bootstrap-vue-next": "^0.43.8",

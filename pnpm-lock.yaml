@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@sgratzl/chartjs-chart-boxplot':
+    specifier: ^4.4.5
+    version: 4.4.5(chart.js@4.5.1)
   bootstrap:
     specifier: ^5.3.8
     version: 5.3.8(@popperjs/core@2.11.8)
@@ -619,6 +622,19 @@ packages:
     requiresBuild: true
     dev: true
     optional: true
+
+  /@sgratzl/boxplots@2.0.0:
+    resolution: {integrity: sha512-XHQTNTk0OtDEZyT7v+BKNKt4OEXYhn4GtfI+iQ1eFiFsx8Aq/csz+mOJYbfpkiP8Popd/8Nky8vLh1zzkYn0gw==}
+    dev: false
+
+  /@sgratzl/chartjs-chart-boxplot@4.4.5(chart.js@4.5.1):
+    resolution: {integrity: sha512-hvHcUIPIyzNPRmvPNIbA/R68zZKv7XHUcNrYJZTB8QsVE0KKuuGuEK98yCeCy32vZXQBl/PrHGOYMXeuqZrU0w==}
+    peerDependencies:
+      chart.js: ^4.1.1
+    dependencies:
+      '@sgratzl/boxplots': 2.0.0
+      chart.js: 4.5.1
+    dev: false
 
   /@sinclair/typebox@0.27.10:
     resolution: {integrity: sha512-MTBk/3jGLNB2tVxv6uLlFh1iu64iYOQ2PbdOSK3NW8JZsmlaOh2q6sdtKowBhfw8QFLmYNzTW4/oK4uATIi6ZA==}

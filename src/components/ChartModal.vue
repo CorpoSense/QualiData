@@ -8,8 +8,8 @@
     <!-- Header (Drag Handle) -->
     <div class="chart-modal-header" @mousedown="startDrag">
       <div class="d-flex align-items-center gap-2">
-        <i :class="isWizardMode ? 'bi bi-magic' : 'bi bi-bar-chart-line'"></i>
-        <h6 class="mb-0">{{ isWizardMode ? 'Chart Wizard' : 'Chart Builder' }}</h6>
+        <i :class="isAiMode ? 'bi bi-robot' : isWizardMode ? 'bi bi-magic' : 'bi bi-bar-chart-line'"></i>
+        <h6 class="mb-0">{{ isAiMode ? 'AI Chart Assistant' : isWizardMode ? 'Chart Wizard' : 'Chart Builder' }}</h6>
         <span v-if="datasetName" class="text-muted small">— {{ datasetName }}</span>
       </div>
       <div class="d-flex gap-1">
@@ -59,8 +59,17 @@
             </h6>
           </div>
           <div v-if="showConfigPanel" class="config-panel-content">
+            <ChartAiSuggest
+              v-if="isAiMode"
+              :agent-options="agentOptions"
+              :column-meta="columnMeta"
+              :selected-columns="selectedColumns"
+              :dataset-id="datasetId"
+ :total-rows="totalRows"
+              @apply="onAiSuggestionApply"
+            />
             <ChartConfigPanel
-              v-if="!isWizardMode"
+              v-else-if="!isWizardMode"
               :config="chartConfig.config.value"
               :column-meta="columnMeta"
               :warning="suggestionWarning"
@@ -121,6 +130,7 @@ import { BButton } from 'bootstrap-vue-next'
 import ChartConfigPanel from './ChartConfigPanel.vue'
 import ChartWizard from './ChartWizard.vue'
 import ChartPreview from './ChartPreview.vue'
+import ChartAiSuggest from './ChartAiSuggest.vue'
 import { useColumnTypes } from '@/composables/useColumnTypes'
 import { useChartConfig, fetchChartData } from '@/composables/useChartConfig'
 import { useChartHeuristic } from '@/composables/useChartHeuristic'
@@ -136,6 +146,8 @@ const props = defineProps({
   initialChartType: { type: String, default: '' },
   filters: { type: Object, default: () => ({}) },
   mode: { type: String, default: 'preset' },
+  agentOptions: { type: Array, default: () => [] },
+  totalRows: { type: Number, default: 0 },
 })
 
 const emit = defineEmits(['update:modelValue', 'apply', 'close'])
@@ -150,8 +162,11 @@ const isMinimized = ref(false)
 const isPinned = ref(false)
 const isDragging = ref(false)
 const isResizing = ref(false)
-const position = ref({ x: 80, y: 80 })
-const size = ref({ width: 850, height: 550 })
+const position = ref({ x: 0, y: 0 })
+const size = ref({
+  width: Math.min(850, typeof window !== 'undefined' ? window.innerWidth - 40 : 850),
+  height: Math.min(550, typeof window !== 'undefined' ? window.innerHeight - 40 : 550),
+})
 const zIndex = ref(10000)
 const dragOffset = ref({ x: 0, y: 0 })
 const resizeStart = ref({ x: 0, y: 0, width: 0, height: 0 })
@@ -160,6 +175,7 @@ const showConfigPanel = ref(true)
 const wizardChartConfig = ref(null)
 
 const isWizardMode = computed(() => props.mode === 'wizard')
+const isAiMode = computed(() => props.mode === 'ai')
 
 // Server-side chart data state
 const serverChartData = ref(null)
@@ -282,7 +298,7 @@ function closeModal() {
 function applyChart() {
   if (!canApply.value) return
   emit('apply', chartConfig.config.value, chartData.value, chartOptions.value, {
-    rowCount: chartRowCount.value,
+    rowCount: chartRowCount.value || props.totalRows,
     filteredCount: chartFilteredCount.value,
     warning: chartWarning.value,
   })
@@ -335,14 +351,28 @@ function saveSize() {
 function loadPosition() {
   try {
     const saved = localStorage.getItem('chart-modal-position')
-    if (saved) position.value = JSON.parse(saved)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      // Ensure modal is visible within viewport
+      if (parsed.x >= 0 && parsed.y >= 0 &&
+          parsed.x < window.innerWidth - 100 && parsed.y < window.innerHeight - 100) {
+        position.value = parsed
+      }
+    }
   } catch { /* ignore */ }
 }
 
 function loadSize() {
   try {
     const saved = localStorage.getItem('chart-modal-size')
-    if (saved) size.value = JSON.parse(saved)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      // Clamp to viewport dimensions
+      size.value = {
+        width: Math.min(parsed.width || 850, window.innerWidth - 20),
+        height: Math.min(parsed.height || 550, window.innerHeight - 20),
+      }
+    }
   } catch { /* ignore */ }
 }
 
@@ -411,6 +441,22 @@ function onWizardConfigUpdate(config) {
   wizardChartConfig.value = config
   // Sync wizard config into chartConfig so preview + server fetch work
   Object.assign(chartConfig.config.value, config)
+}
+
+// AI mode: receive suggestion config from ChartAiSuggest
+function onAiSuggestionApply(config) {
+  // Sync AI config into chartConfig so preview + server fetch work
+  chartConfig.config.value.chartType = config.chartType
+  chartConfig.config.value.xAxis = config.xAxis
+  chartConfig.config.value.yAxis = config.yAxis || ''
+  chartConfig.config.value.groupBy = config.groupBy || ''
+  chartConfig.config.value.aggregation = config.aggregation || 'sum'
+  chartConfig.config.value.title = config.title || ''
+  chartConfig.config.value.showLegend = config.showLegend !== false
+  chartConfig.config.value.showGrid = config.showGrid !== false
+  chartConfig.config.value.colorPalette = config.colorPalette || 'default'
+  suggestionWarning.value = config.explanation || ''
+  showConfigPanel.value = true
 }
 
 // Watch filters changes — re-fetch
@@ -502,6 +548,7 @@ onUnmounted(() => {
 }
 
 .config-panel-content {
+ overflow-y: auto;
   flex: 1;
   min-height: 0;
   display: flex;
