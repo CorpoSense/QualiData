@@ -887,7 +887,7 @@ async def filtered_dataset_post(
 
 class ChartDataRequest(BaseModel):
     """Request body for chart-data endpoint."""
-    chart_type: str  # bar, line, pie, scatter, histogram, area
+    chart_type: str  # bar, line, pie, scatter, histogram, area, boxplot, violin
     x_column: str
     y_column: str = ""
     aggregation: str = "sum"  # sum, avg, count, min, max
@@ -1160,6 +1160,44 @@ def _compute_chart_scatter(
     }
 
 
+def _compute_chart_boxplot(
+    data: list[dict],
+    x_column: str,
+    y_column: str,
+    null_handling: str = "exclude",
+) -> dict:
+    """Compute boxplot/violin data: groups rows by x_column, collects raw numeric arrays per group.
+
+    Returns {"labels": [...], "datasets": [{"label": ..., "data": [number[], ...]}]}
+    The chartjs-chart-boxplot library computes stats (median, q1, q3, whiskers, outliers) from raw values.
+    """
+    if not data or not x_column or not y_column:
+        return {"labels": [], "datasets": [{"label": y_column or "Value", "data": []}]}
+
+    # Filter nulls
+    if null_handling == "exclude":
+        data = [row for row in data if row.get(x_column) is not None and row.get(y_column) is not None and row.get(x_column) != "" and row.get(y_column) != ""]
+
+    groups: dict[str, list[float]] = {}
+    for row in data:
+        x = str(row.get(x_column, "(null)"))
+        try:
+            y = float(row.get(y_column))
+            if y != y:  # NaN check
+                continue
+        except (TypeError, ValueError):
+            continue
+        if x not in groups:
+            groups[x] = []
+        groups[x].append(y)
+
+    labels = sorted(groups.keys())
+    return {
+        "labels": labels,
+        "datasets": [{"label": y_column, "data": [groups[l] for l in labels]}],
+    }
+
+
 @router.post("/{dataset_id}/chart-data")
 async def get_chart_data(
     dataset_id: str,
@@ -1247,6 +1285,21 @@ async def get_chart_data(
         if scatter_result.get("warning"):
             response["warning"] = scatter_result["warning"]
         return response
+
+    elif chart_type in ("boxplot", "violin"):
+        bp_result = _compute_chart_boxplot(
+            filtered_data,
+            request.x_column,
+            request.y_column,
+            request.null_handling,
+        )
+        return {
+            "chart_type": chart_type,
+            "labels": bp_result["labels"],
+            "datasets": bp_result["datasets"],
+            "row_count": row_count,
+            "filtered_count": filtered_count,
+        }
 
     else:
         # Aggregated charts: bar, line, pie, area

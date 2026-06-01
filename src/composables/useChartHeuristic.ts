@@ -178,6 +178,16 @@ export function getRecommendedChartTypes(
       recommended: hasDatetime && hasNumeric,
       reason: hasDatetime && hasNumeric ? 'Time series with area' : 'Needs datetime + numeric',
     },
+    {
+      type: 'boxplot',
+      recommended: hasCategorical && hasNumeric,
+      reason: hasCategorical && hasNumeric ? 'Distribution & outlier detection' : 'Needs categorical + numeric',
+    },
+    {
+      type: 'violin',
+      recommended: hasCategorical && hasNumeric,
+      reason: hasCategorical && hasNumeric ? 'Density distribution & outlier detection' : 'Needs categorical + numeric',
+    },
   ]
 }
 

@@ -54,6 +54,12 @@
               <BDropdownItem @click="openChartModal('area')">
                 <i class="bi bi-graph-up-arrow me-2"></i>Area Chart
               </BDropdownItem>
+              <BDropdownItem @click="openChartModal('boxplot')">
+                <i class="bi bi-box-seam me-2"></i>Box Plot
+              </BDropdownItem>
+              <BDropdownItem @click="openChartModal('violin')">
+                <i class="bi bi-music-note-beamed me-2"></i>Violin Plot
+              </BDropdownItem>
               <BDropdownDivider />
               <BDropdownItem @click="openAiAssisted">
                 <i class="bi bi-robot me-2"></i>AI Assisted…

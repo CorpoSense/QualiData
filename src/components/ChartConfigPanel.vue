@@ -130,6 +130,7 @@ const xAxisOptions = computed(() => {
   if (props.config.chartType === 'scatter' || props.config.chartType === 'histogram') {
     return numericColumns.value
   }
+  // Boxplot/violin: categorical on X-axis (groups), numeric on Y-axis
   return categoricalColumns.value.length > 0 ? categoricalColumns.value : allColumns.value
 })
 
@@ -140,8 +141,8 @@ const groupByOptions = computed(() => groupableColumns.value)
 // Visibility of config sections
 const showXAxis = computed(() => true)
 const showYAxis = computed(() => props.config.chartType !== 'histogram')
-const showGroupBy = computed(() => !['pie', 'scatter', 'histogram'].includes(props.config.chartType))
-const showAggregation = computed(() => !['scatter'].includes(props.config.chartType))
+const showGroupBy = computed(() => !['pie', 'scatter', 'histogram', 'boxplot', 'violin'].includes(props.config.chartType))
+const showAggregation = computed(() => !['scatter', 'boxplot', 'violin'].includes(props.config.chartType))
 </script>
 
 <style scoped>

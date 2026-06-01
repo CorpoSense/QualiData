@@ -13,12 +13,19 @@
     <Pie v-if="chartType === 'pie' && !isEmpty" :data="chartData" :options="chartOptions" />
     <Scatter v-if="chartType === 'scatter' && !isEmpty" :data="chartData" :options="chartOptions" />
     <Bar v-if="chartType === 'histogram' && !isEmpty" :data="chartData" :options="chartOptions" />
+    <BoxPlotChart
+      v-if="(chartType === 'boxplot' || chartType === 'violin') && !isEmpty"
+      :chart-type="chartType"
+      :chart-data="chartData"
+      :chart-options="chartOptions"
+    />
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import { Bar, Line, Pie, Scatter } from 'vue-chartjs'
+import BoxPlotChart from './BoxPlotChart.vue'
 import {
   Chart as ChartJS,
   CategoryScale,

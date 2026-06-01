@@ -206,6 +206,10 @@ const chartOptions = computed(() => chartConfig.computeChartOptions())
 const canApply = computed(() => {
   const cfg = chartConfig.config.value
   if (!cfg.xAxis) return false
+  // Boxplot/violin need both axes (categorical X + numeric Y), no aggregation needed
+  if (cfg.chartType === 'boxplot' || cfg.chartType === 'violin') {
+    return !!cfg.yAxis
+  }
   if (cfg.chartType !== 'histogram' && !cfg.yAxis && cfg.aggregation !== 'count') return false
   return true
 })

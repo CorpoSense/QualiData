@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { aggregateData, applyAgg, computeHistogramBins, useChartConfig, COLOR_PALETTES, CHART_TYPE_OPTIONS, AGGREGATION_OPTIONS, transformServerChartData } from '@/composables/useChartConfig'
+import { aggregateData, applyAgg, computeHistogramBins, computeBoxPlotData, computeViolinData, useChartConfig, COLOR_PALETTES, CHART_TYPE_OPTIONS, AGGREGATION_OPTIONS, transformServerChartData } from '@/composables/useChartConfig'
 
 describe('applyAgg', () => {
   it('sums values', () => {
@@ -252,8 +252,20 @@ describe('useChartConfig', () => {
 })
 
 describe('Constants', () => {
-  it('CHART_TYPE_OPTIONS has 6 types', () => {
-    expect(CHART_TYPE_OPTIONS).toHaveLength(6)
+  it('CHART_TYPE_OPTIONS has 8 types', () => {
+    expect(CHART_TYPE_OPTIONS).toHaveLength(8)
+  })
+
+  it('CHART_TYPE_OPTIONS includes boxplot', () => {
+    const boxplot = CHART_TYPE_OPTIONS.find(o => o.value === 'boxplot')
+    expect(boxplot).toBeDefined()
+    expect(boxplot!.label).toBe('Box Plot')
+  })
+
+  it('CHART_TYPE_OPTIONS includes violin', () => {
+    const violin = CHART_TYPE_OPTIONS.find(o => o.value === 'violin')
+    expect(violin).toBeDefined()
+    expect(violin!.label).toBe('Violin Plot')
   })
 
   it('AGGREGATION_OPTIONS has 5 methods', () => {
@@ -269,6 +281,178 @@ describe('Constants', () => {
       expect(colors.length).toBeGreaterThanOrEqual(5)
       expect(name).not.toBeNull();
     }
+  })
+})
+
+describe('computeBoxPlotData', () => {
+  const sampleData = [
+    { category: 'A', value: 10 },
+    { category: 'A', value: 20 },
+    { category: 'A', value: 30 },
+    { category: 'A', value: 40 },
+    { category: 'A', value: 50 },
+    { category: 'B', value: 15 },
+    { category: 'B', value: 25 },
+    { category: 'B', value: 35 },
+    { category: 'B', value: 45 },
+    { category: 'B', value: 55 },
+  ]
+
+  it('returns empty for empty data', () => {
+    const result = computeBoxPlotData([], 'category', 'value')
+    expect(result.labels).toEqual([])
+    expect(result.datasets).toHaveLength(1)
+    expect(result.datasets[0].data).toEqual([])
+  })
+
+  it('returns empty when xColumn is empty', () => {
+    const result = computeBoxPlotData(sampleData, '', 'value')
+    expect(result.labels).toEqual([])
+  })
+
+  it('groups numeric values by category', () => {
+    const result = computeBoxPlotData(sampleData, 'category', 'value')
+    expect(result.labels).toContain('A')
+    expect(result.labels).toContain('B')
+    expect(result.datasets).toHaveLength(1)
+    expect(result.datasets[0].label).toBe('value')
+
+    const aIdx = result.labels.indexOf('A')
+    const bIdx = result.labels.indexOf('B')
+    // Each group should be an array of numbers
+    expect(Array.isArray(result.datasets[0].data[aIdx])).toBe(true)
+    expect(Array.isArray(result.datasets[0].data[bIdx])).toBe(true)
+    expect(result.datasets[0].data[aIdx]).toHaveLength(5)
+    expect(result.datasets[0].data[bIdx]).toHaveLength(5)
+  })
+
+  it('correctly groups values', () => {
+    const result = computeBoxPlotData(sampleData, 'category', 'value')
+    const aIdx = result.labels.indexOf('A')
+    expect(result.datasets[0].data[aIdx]).toEqual([10, 20, 30, 40, 50])
+  })
+
+  it('filters out null/NaN values', () => {
+    const dataWithNulls = [
+      { category: 'A', value: 10 },
+      { category: 'A', value: null },
+      { category: 'A', value: NaN },
+      { category: 'A', value: 30 },
+    ]
+    const result = computeBoxPlotData(dataWithNulls, 'category', 'value')
+    const aIdx = result.labels.indexOf('A')
+    expect(result.datasets[0].data[aIdx]).toEqual([10, 30])
+  })
+
+  it('handles single value per group', () => {
+    const data = [{ category: 'X', value: 42 }]
+    const result = computeBoxPlotData(data, 'category', 'value')
+    expect(result.labels).toEqual(['X'])
+    expect(result.datasets[0].data[0]).toEqual([42])
+  })
+})
+
+describe('computeViolinData', () => {
+  const sampleData = [
+    { category: 'A', value: 10 },
+    { category: 'A', value: 20 },
+    { category: 'A', value: 30 },
+    { category: 'B', value: 15 },
+    { category: 'B', value: 25 },
+  ]
+
+  it('returns empty for empty data', () => {
+    const result = computeViolinData([], 'category', 'value')
+    expect(result.labels).toEqual([])
+    expect(result.datasets).toHaveLength(1)
+    expect(result.datasets[0].data).toEqual([])
+  })
+
+  it('groups numeric values by category (same format as boxplot)', () => {
+    const result = computeViolinData(sampleData, 'category', 'value')
+    expect(result.labels).toContain('A')
+    expect(result.labels).toContain('B')
+    expect(result.datasets).toHaveLength(1)
+    expect(result.datasets[0].label).toBe('value')
+
+    const aIdx = result.labels.indexOf('A')
+    expect(Array.isArray(result.datasets[0].data[aIdx])).toBe(true)
+    expect(result.datasets[0].data[aIdx]).toEqual([10, 20, 30])
+  })
+
+  it('filters out null/NaN values', () => {
+    const data = [
+      { category: 'X', value: 5 },
+      { category: 'X', value: null },
+      { category: 'X', value: 15 },
+    ]
+    const result = computeViolinData(data, 'category', 'value')
+    const xIdx = result.labels.indexOf('X')
+    expect(result.datasets[0].data[xIdx]).toEqual([5, 15])
+  })
+})
+
+describe('useChartConfig - boxplot/violin', () => {
+  it('setPreset for boxplot sets correct defaults', () => {
+    const { config, setPreset } = useChartConfig()
+    setPreset('boxplot', 'category', 'value')
+    expect(config.value.chartType).toBe('boxplot')
+    expect(config.value.xAxis).toBe('category')
+    expect(config.value.yAxis).toBe('value')
+    expect(config.value.groupBy).toBe('')
+  })
+
+  it('setPreset for violin sets correct defaults', () => {
+    const { config, setPreset } = useChartConfig()
+    setPreset('violin', 'category', 'value')
+    expect(config.value.chartType).toBe('violin')
+    expect(config.value.xAxis).toBe('category')
+    expect(config.value.yAxis).toBe('value')
+    expect(config.value.groupBy).toBe('')
+  })
+
+  it('computeChartData returns boxplot data format', () => {
+    const { config, computeChartData } = useChartConfig()
+    config.value.chartType = 'boxplot'
+    config.value.xAxis = 'category'
+    config.value.yAxis = 'value'
+
+    const data = [
+      { category: 'A', value: 10 },
+      { category: 'A', value: 20 },
+      { category: 'B', value: 15 },
+    ]
+    const result = computeChartData(data, [])
+    expect(result.labels).toContain('A')
+    expect(result.labels).toContain('B')
+    expect(result.datasets).toHaveLength(1)
+    // Each data point should be an array of raw numbers
+    const aIdx = result.labels.indexOf('A')
+    expect(Array.isArray(result.datasets[0].data[aIdx])).toBe(true)
+  })
+
+  it('computeChartData returns violin data format', () => {
+    const { config, computeChartData } = useChartConfig()
+    config.value.chartType = 'violin'
+    config.value.xAxis = 'category'
+    config.value.yAxis = 'value'
+
+    const data = [
+      { category: 'A', value: 10 },
+      { category: 'B', value: 15 },
+    ]
+    const result = computeChartData(data, [])
+    expect(result.labels).toContain('A')
+    const aIdx = result.labels.indexOf('A')
+    expect(Array.isArray(result.datasets[0].data[aIdx])).toBe(true)
+  })
+
+  it('computeChartOptions returns responsive options for boxplot', () => {
+    const { config, computeChartOptions } = useChartConfig()
+    config.value.chartType = 'boxplot'
+    const options = computeChartOptions()
+    expect(options.responsive).toBe(true)
+    expect(options.maintainAspectRatio).toBe(false)
   })
 })
 

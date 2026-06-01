@@ -10,7 +10,7 @@ import type { ChartData, ChartOptions } from 'chart.js'
 import type { ColumnMeta } from './useColumnTypes'
 import { getApiUrl } from '@/utils/api'
 
-export type ChartType = 'bar' | 'line' | 'pie' | 'scatter' | 'histogram' | 'area'
+export type ChartType = 'bar' | 'line' | 'pie' | 'scatter' | 'histogram' | 'area' | 'boxplot' | 'violin'
 export type AggregationMethod = 'sum' | 'avg' | 'count' | 'min' | 'max'
 
 export interface ChartConfig {
@@ -33,6 +33,8 @@ export const CHART_TYPE_OPTIONS: Array<{ value: ChartType; label: string; icon: 
   { value: 'scatter', label: 'Scatter Plot', icon: 'bi-diagram-3' },
   { value: 'histogram', label: 'Histogram', icon: 'bi-bar-chart-steps' },
   { value: 'area', label: 'Area Chart', icon: 'bi-graph-up-arrow' },
+  { value: 'boxplot', label: 'Box Plot', icon: 'bi-box-seam' },
+  { value: 'violin', label: 'Violin Plot', icon: 'bi-music-note-beamed' },
 ]
 
 export const AGGREGATION_OPTIONS: Array<{ value: AggregationMethod; label: string }> = [
@@ -153,6 +155,49 @@ export function applyAgg(values: number[], method: AggregationMethod): number {
 }
 
 /**
+ * Compute boxplot data: groups rows by xColumn, collects raw numeric arrays per group.
+ * The chartjs-chart-boxplot library computes stats (median, q1, q3, whiskers, outliers) from raw values.
+ */
+export function computeBoxPlotData(
+  data: Record<string, any>[],
+  xColumn: string,
+  yColumn: string,
+): { labels: string[]; datasets: Array<{ label: string; data: number[][] }> } {
+  if (!data.length || !xColumn || !yColumn) {
+    return { labels: [], datasets: [{ label: yColumn || 'Value', data: [] }] }
+  }
+
+  const groups: Record<string, number[]> = {}
+  for (const row of data) {
+    const x = String(row[xColumn] ?? '(null)')
+    const raw = row[yColumn]
+    if (raw === null || raw === '' || raw === undefined) continue
+    const y = Number(raw)
+    if (isNaN(y)) continue
+    if (!groups[x]) groups[x] = []
+    groups[x].push(y)
+  }
+
+  const labels = Object.keys(groups).sort()
+  return {
+    labels,
+    datasets: [{ label: yColumn, data: labels.map(l => groups[l]) }],
+  }
+}
+
+/**
+ * Compute violin data: same format as boxplot (raw numeric arrays per group).
+ * The chartjs-chart-boxplot library computes KDE (kernel density estimation) from raw values.
+ */
+export function computeViolinData(
+  data: Record<string, any>[],
+  xColumn: string,
+  yColumn: string,
+): { labels: string[]; datasets: Array<{ label: string; data: number[][] }> } {
+  return computeBoxPlotData(data, xColumn, yColumn)
+}
+
+/**
  * Compute histogram bins from numeric data.
  */
 export function computeHistogramBins(
@@ -233,6 +278,32 @@ export function useChartConfig() {
       }
     }
 
+    if (cfg.chartType === 'boxplot') {
+      const boxResult = computeBoxPlotData(filteredData, cfg.xAxis, cfg.yAxis)
+      return {
+        labels: boxResult.labels,
+        datasets: boxResult.datasets.map((ds, i) => ({
+          ...ds,
+          backgroundColor: colors[i % colors.length] + '80',
+          borderColor: colors[i % colors.length],
+          borderWidth: 2,
+        })),
+      } as ChartData
+    }
+
+    if (cfg.chartType === 'violin') {
+      const violinResult = computeViolinData(filteredData, cfg.xAxis, cfg.yAxis)
+      return {
+        labels: violinResult.labels,
+        datasets: violinResult.datasets.map((ds, i) => ({
+          ...ds,
+          backgroundColor: colors[i % colors.length] + '80',
+          borderColor: colors[i % colors.length],
+          borderWidth: 2,
+        })),
+      } as ChartData
+    }
+
     if (cfg.chartType === 'scatter') {
       // Scatter: raw x,y pairs
       const points = filteredData
@@ -294,7 +365,7 @@ export function useChartConfig() {
   function computeChartOptions(): ChartOptions {
     const cfg = config.value
     const isPie = cfg.chartType === 'pie'
-    // const isScatter = cfg.chartType === 'scatter'
+    const isBoxPlot = cfg.chartType === 'boxplot' || cfg.chartType === 'violin'
     const isHistogram = cfg.chartType === 'histogram'
 
     return {
@@ -322,10 +393,11 @@ export function useChartConfig() {
         y: {
           display: true,
           title: {
-            display: !isHistogram,
-            text: isHistogram ? 'Frequency' : cfg.yAxis,
+            display: !(isHistogram || isBoxPlot),
+            text: isHistogram ? 'Frequency' : isBoxPlot ? 'Values' : cfg.yAxis,
           },
           grid: { display: cfg.showGrid },
+          beginAtZero: false,
         },
       },
     } as ChartOptions
@@ -355,6 +427,9 @@ export function useChartConfig() {
     }
     if (chartType === 'scatter') {
       config.value.aggregation = 'sum'
+      config.value.groupBy = ''
+    }
+    if (chartType === 'boxplot' || chartType === 'violin') {
       config.value.groupBy = ''
     }
   }
