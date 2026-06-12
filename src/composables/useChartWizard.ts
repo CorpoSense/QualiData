@@ -33,6 +33,7 @@ export interface WizardStyleConfig {
   showGrid: boolean
   colorPalette: string
   title: string
+  nullHandling: 'exclude' | 'category' | 'zero'
 }
 
 const WIZARD_STEPS: WizardStep[] = [
@@ -67,6 +68,7 @@ export function useChartWizard(
     showGrid: true,
     colorPalette: 'default',
     title: '',
+    nullHandling: 'exclude',
   })
 
   const steps = computed(() => WIZARD_STEPS)
@@ -163,13 +165,14 @@ export function useChartWizard(
       chartType: chartType.value,
       xAxis: axisConfig.value.xAxis,
       yAxis: axisConfig.value.yAxis,
+      sizeColumn: '',
       groupBy: axisConfig.value.groupBy,
       aggregation: axisConfig.value.aggregation,
       showLegend: styleConfig.value.showLegend,
       showGrid: styleConfig.value.showGrid,
       colorPalette: styleConfig.value.colorPalette,
       title: styleConfig.value.title,
-      nullHandling: 'exclude',
+      nullHandling: styleConfig.value.nullHandling,
     }
   }
 

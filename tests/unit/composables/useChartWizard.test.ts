@@ -153,9 +153,9 @@ describe('useChartWizard', () => {
   })
 
   describe('recommendedTypes', () => {
-    it('returns 8 chart type recommendations', () => {
+    it('returns 12 chart type recommendations', () => {
       const { recommendedTypes } = useChartWizard(sampleColumns, ['city', 'revenue'])
-      expect(recommendedTypes.value).toHaveLength(8)
+      expect(recommendedTypes.value).toHaveLength(12)
     })
 
     it('recommends bar for categorical + numeric selection', () => {

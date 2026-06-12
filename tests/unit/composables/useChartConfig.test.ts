@@ -252,8 +252,8 @@ describe('useChartConfig', () => {
 })
 
 describe('Constants', () => {
-  it('CHART_TYPE_OPTIONS has 8 types', () => {
-    expect(CHART_TYPE_OPTIONS).toHaveLength(8)
+  it('CHART_TYPE_OPTIONS has 12 types', () => {
+    expect(CHART_TYPE_OPTIONS).toHaveLength(12)
   })
 
   it('CHART_TYPE_OPTIONS includes boxplot', () => {

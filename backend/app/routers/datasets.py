@@ -887,7 +887,7 @@ async def filtered_dataset_post(
 
 class ChartDataRequest(BaseModel):
     """Request body for chart-data endpoint."""
-    chart_type: str  # bar, line, pie, scatter, histogram, area, boxplot, violin
+    chart_type: str  # bar, line, pie, doughnut, scatter, bubble, radar, polarArea, histogram, area, boxplot, violin
     x_column: str
     y_column: str = ""
     aggregation: str = "sum"  # sum, avg, count, min, max
@@ -896,6 +896,7 @@ class ChartDataRequest(BaseModel):
     histogram_bins: int = 10
     filters: dict | None = None  # Same format as filtered_dataset_post
     scatter_max_points: int = 5000  # Max points for scatter plot (downsampling)
+    size_column: str = ""  # For bubble chart: column used for bubble size
 
 
 def _apply_chart_filters(preview_list: list[dict], filters: dict | None) -> list[dict]:
@@ -1198,6 +1199,75 @@ def _compute_chart_boxplot(
     }
 
 
+def _compute_chart_bubble(
+    data: list[dict],
+    x_column: str,
+    y_column: str,
+    size_column: str = "",
+    null_handling: str = "exclude",
+) -> dict:
+    """Compute bubble chart data: x, y positions with radius from size_column.
+
+    Returns {"datasets": [{"label": ..., "data": [{"x": ..., "y": ..., "r": ...}]}]}
+    Radius values are normalized to 5-30 range.
+    """
+    if not data or not x_column or not y_column:
+        return {"datasets": [{"label": f"{x_column} vs {y_column}", "data": []}]}
+
+    # Filter nulls
+    relevant_cols = [x_column, y_column]
+    if size_column:
+        relevant_cols.append(size_column)
+    if null_handling == "exclude":
+        data = [row for row in data if all(
+            row.get(c) is not None and row.get(c) != "" for c in relevant_cols
+        )]
+
+    points = []
+    raw_sizes = []
+    for row in data:
+        try:
+            x = float(row.get(x_column))
+            y = float(row.get(y_column))
+            if x != x or y != y:  # NaN check
+                continue
+        except (TypeError, ValueError):
+            continue
+
+        r = 8.0
+        if size_column:
+            try:
+                s = float(row.get(size_column))
+                if s == s:  # Not NaN
+                    raw_sizes.append(s)
+                    r = s
+            except (TypeError, ValueError):
+                pass
+        points.append({"x": x, "y": y, "r": r})
+
+    total_points = len(points)
+    warning = None
+
+    # Normalize radius to 5-30 range
+    if size_column and raw_sizes:
+        min_r = min(raw_sizes)
+        max_r = max(raw_sizes)
+        r_range = max_r - min_r or 1
+        for pt in points:
+            pt["r"] = 5 + ((pt["r"] - min_r) / r_range) * 25
+
+    label = f"{x_column} vs {y_column}"
+    if size_column:
+        label += f" (size: {size_column})"
+
+    return {
+        "datasets": [{"label": label, "data": points}],
+        "total_points": total_points,
+        "displayed_points": len(points),
+        "warning": warning,
+    }
+
+
 @router.post("/{dataset_id}/chart-data")
 async def get_chart_data(
     dataset_id: str,
@@ -1286,6 +1356,22 @@ async def get_chart_data(
             response["warning"] = scatter_result["warning"]
         return response
 
+    elif chart_type == "bubble":
+        bubble_result = _compute_chart_bubble(
+            filtered_data,
+            request.x_column,
+            request.y_column,
+            request.size_column,
+            request.null_handling,
+        )
+        return {
+            "chart_type": chart_type,
+            "labels": [],
+            "datasets": bubble_result["datasets"],
+            "row_count": row_count,
+            "filtered_count": filtered_count,
+        }
+
     elif chart_type in ("boxplot", "violin"):
         bp_result = _compute_chart_boxplot(
             filtered_data,
@@ -1302,7 +1388,7 @@ async def get_chart_data(
         }
 
     else:
-        # Aggregated charts: bar, line, pie, area
+        # Aggregated charts: bar, line, pie, doughnut, radar, polarArea, area
         agg_result = _compute_chart_aggregation(
             filtered_data,
             request.x_column,

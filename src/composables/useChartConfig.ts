@@ -10,7 +10,7 @@ import type { ChartData, ChartOptions } from 'chart.js'
 import type { ColumnMeta } from './useColumnTypes'
 import { getApiUrl } from '@/utils/api'
 
-export type ChartType = 'bar' | 'line' | 'pie' | 'scatter' | 'histogram' | 'area' | 'boxplot' | 'violin'
+export type ChartType = 'bar' | 'line' | 'pie' | 'scatter' | 'histogram' | 'area' | 'boxplot' | 'violin' | 'doughnut' | 'bubble' | 'radar' | 'polarArea'
 export type AggregationMethod = 'sum' | 'avg' | 'count' | 'min' | 'max'
 
 export interface ChartConfig {
@@ -24,13 +24,18 @@ export interface ChartConfig {
   colorPalette: string
   title: string
   nullHandling: 'exclude' | 'category' | 'zero'
+  sizeColumn: string
 }
 
 export const CHART_TYPE_OPTIONS: Array<{ value: ChartType; label: string; icon: string }> = [
   { value: 'bar', label: 'Bar Chart', icon: 'bi-bar-chart' },
   { value: 'line', label: 'Line Chart', icon: 'bi-graph-up' },
   { value: 'pie', label: 'Pie Chart', icon: 'bi-pie-chart' },
+  { value: 'doughnut', label: 'Doughnut Chart', icon: 'bi-circle' },
   { value: 'scatter', label: 'Scatter Plot', icon: 'bi-diagram-3' },
+  { value: 'bubble', label: 'Bubble Chart', icon: 'bi-bullseye' },
+  { value: 'radar', label: 'Radar Chart', icon: 'bi-broadcast' },
+  { value: 'polarArea', label: 'Polar Area', icon: 'bi-record-circle' },
   { value: 'histogram', label: 'Histogram', icon: 'bi-bar-chart-steps' },
   { value: 'area', label: 'Area Chart', icon: 'bi-graph-up-arrow' },
   { value: 'boxplot', label: 'Box Plot', icon: 'bi-box-seam' },
@@ -64,6 +69,7 @@ const DEFAULT_CONFIG: ChartConfig = {
   colorPalette: 'default',
   title: '',
   nullHandling: 'exclude',
+  sizeColumn: '',
 }
 
 /**
@@ -198,6 +204,52 @@ export function computeViolinData(
 }
 
 /**
+ * Compute bubble chart data: x, y, and radius from size column.
+ * Normalizes radius values to a reasonable range (5–30).
+ */
+export function computeBubbleData(
+  data: Record<string, any>[],
+  xColumn: string,
+  yColumn: string,
+  sizeColumn?: string,
+): { datasets: Array<{ label: string; data: Array<{ x: number; y: number; r: number }> }> } {
+  if (!data.length || !xColumn || !yColumn) {
+    return { datasets: [{ label: `${xColumn || 'X'} vs ${yColumn || 'Y'}`, data: [] }] }
+  }
+
+  const points: Array<{ x: number; y: number; r: number }> = []
+  const rawSizes: number[] = []
+
+  for (const row of data) {
+    const x = Number(row[xColumn])
+    const y = Number(row[yColumn])
+    if (isNaN(x) || isNaN(y)) continue
+
+    let r = 8
+    if (sizeColumn && row[sizeColumn] != null) {
+      const s = Number(row[sizeColumn])
+      if (!isNaN(s)) {
+        rawSizes.push(s)
+        r = s
+      }
+    }
+    points.push({ x, y, r })
+  }
+
+  // Normalize radius to 5–30 range
+  if (sizeColumn && rawSizes.length > 0) {
+    const minR = Math.min(...rawSizes)
+    const maxR = Math.max(...rawSizes)
+    const range = maxR - minR || 1
+    for (const pt of points) {
+      pt.r = 5 + ((pt.r - minR) / range) * 25
+    }
+  }
+
+  return { datasets: [{ label: sizeColumn ? `${xColumn} vs ${yColumn} (size: ${sizeColumn})` : `${xColumn} vs ${yColumn}`, data: points }] }
+}
+
+/**
  * Compute histogram bins from numeric data.
  */
 export function computeHistogramBins(
@@ -261,7 +313,7 @@ export function useChartConfig() {
     const colors = COLOR_PALETTES[cfg.colorPalette] || COLOR_PALETTES.default
 
     // Filter nulls
-    const relevantCols = [cfg.xAxis, cfg.yAxis, cfg.groupBy].filter(Boolean)
+    const relevantCols = [cfg.xAxis, cfg.yAxis, cfg.groupBy, cfg.sizeColumn].filter(Boolean)
     const filteredData = filterNulls(data, relevantCols)
 
     if (cfg.chartType === 'histogram') {
@@ -324,7 +376,19 @@ export function useChartConfig() {
       }
     }
 
-    // Aggregated charts (bar, line, pie, area)
+    if (cfg.chartType === 'bubble') {
+      const bubbleResult = computeBubbleData(filteredData, cfg.xAxis, cfg.yAxis, cfg.sizeColumn || undefined)
+      return {
+        datasets: bubbleResult.datasets.map((ds, i) => ({
+          ...ds,
+          backgroundColor: colors[i % colors.length] + '60',
+          borderColor: colors[i % colors.length],
+          borderWidth: 1,
+        })),
+      } as ChartData
+    }
+
+    // Aggregated charts (bar, line, pie, area, doughnut, radar, polarArea)
     const aggResult = aggregateData(
       filteredData,
       cfg.xAxis,
@@ -333,22 +397,22 @@ export function useChartConfig() {
       cfg.groupBy || undefined,
     )
 
-    const isPie = cfg.chartType === 'pie'
+    const isPieLike = cfg.chartType === 'pie' || cfg.chartType === 'doughnut' || cfg.chartType === 'polarArea'
     const isArea = cfg.chartType === 'area'
 
     const datasets = aggResult.datasets.map((ds, i) => ({
       ...ds,
-      backgroundColor: isPie
+      backgroundColor: isPieLike
         ? aggResult.labels.map((_, j) => colors[j % colors.length] + '80')
         : cfg.groupBy
           ? colors[i % colors.length] + '80'
           : colors[0] + '80',
-      borderColor: isPie
+      borderColor: isPieLike
         ? aggResult.labels.map((_, j) => colors[j % colors.length])
         : cfg.groupBy
           ? colors[i % colors.length]
           : colors[0],
-      borderWidth: isPie ? 1 : 2,
+      borderWidth: isPieLike ? 1 : 2,
       fill: isArea ? 'origin' : false,
       tension: (cfg.chartType === 'line' || isArea) ? 0.3 : 0,
     }))
@@ -364,9 +428,35 @@ export function useChartConfig() {
    */
   function computeChartOptions(): ChartOptions {
     const cfg = config.value
-    const isPie = cfg.chartType === 'pie'
+    const isPieLike = cfg.chartType === 'pie' || cfg.chartType === 'doughnut'
     const isBoxPlot = cfg.chartType === 'boxplot' || cfg.chartType === 'violin'
     const isHistogram = cfg.chartType === 'histogram'
+    const isRadar = cfg.chartType === 'radar'
+    const isPolarArea = cfg.chartType === 'polarArea'
+    const noCartesianScales = isPieLike || isPolarArea
+
+    if (isRadar) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: cfg.showLegend,
+            position: 'top',
+          },
+          title: {
+            display: !!cfg.title,
+            text: cfg.title,
+          },
+        },
+        scales: {
+          r: {
+            grid: { display: cfg.showGrid },
+            pointLabels: { display: true },
+          },
+        },
+      } as ChartOptions
+    }
 
     return {
       responsive: true,
@@ -374,14 +464,15 @@ export function useChartConfig() {
       plugins: {
         legend: {
           display: cfg.showLegend,
-          position: isPie ? 'right' : 'top',
+          position: noCartesianScales ? 'right' : 'top',
         },
         title: {
           display: !!cfg.title,
           text: cfg.title,
         },
       },
-      scales: isPie ? {} : {
+      ...(cfg.chartType === 'doughnut' ? { cutout: '50%' } : {}),
+      scales: noCartesianScales ? {} : {
         x: {
           display: true,
           title: {
@@ -422,12 +513,15 @@ export function useChartConfig() {
       config.value.yAxis = ''
       config.value.groupBy = ''
     }
-    if (chartType === 'pie') {
+    if (chartType === 'pie' || chartType === 'doughnut' || chartType === 'polarArea') {
       config.value.groupBy = ''
     }
-    if (chartType === 'scatter') {
+    if (chartType === 'scatter' || chartType === 'bubble') {
       config.value.aggregation = 'sum'
       config.value.groupBy = ''
+    }
+    if (chartType === 'bubble') {
+      config.value.sizeColumn = ''
     }
     if (chartType === 'boxplot' || chartType === 'violin') {
       config.value.groupBy = ''
@@ -459,22 +553,27 @@ export function transformServerChartData(
   colorPalette: string = 'default',
 ): ChartData {
   const colors = COLOR_PALETTES[colorPalette] || COLOR_PALETTES.default
-  const isPie = serverData.chart_type === 'pie'
+  const isPieLike = serverData.chart_type === 'pie' || serverData.chart_type === 'doughnut' || serverData.chart_type === 'polarArea'
   const isArea = serverData.chart_type === 'area'
+  const isBubble = serverData.chart_type === 'bubble'
 
   const datasets = serverData.datasets.map((ds, i) => ({
     ...ds,
-    backgroundColor: isPie
-      ? serverData.labels.map((_, j) => colors[j % colors.length] + '80')
-      : serverData.datasets.length > 1
-        ? colors[i % colors.length] + '80'
-        : colors[0] + '80',
-    borderColor: isPie
-      ? serverData.labels.map((_, j) => colors[j % colors.length])
-      : serverData.datasets.length > 1
-        ? colors[i % colors.length]
-        : colors[0],
-    borderWidth: isPie ? 1 : 2,
+    backgroundColor: isBubble
+      ? (colors[i % colors.length] || colors[0]) + '60'
+      : isPieLike
+        ? serverData.labels.map((_, j) => colors[j % colors.length] + '80')
+        : serverData.datasets.length > 1
+          ? colors[i % colors.length] + '80'
+          : colors[0] + '80',
+    borderColor: isBubble
+      ? colors[i % colors.length] || colors[0]
+      : isPieLike
+        ? serverData.labels.map((_, j) => colors[j % colors.length])
+        : serverData.datasets.length > 1
+          ? colors[i % colors.length]
+          : colors[0],
+    borderWidth: isPieLike ? 1 : 2,
     fill: isArea ? 'origin' : false,
     tension: (serverData.chart_type === 'line' || isArea) ? 0.3 : 0,
   }))
@@ -505,6 +604,7 @@ export async function fetchChartData(
     group_by: config.groupBy || '',
     null_handling: config.nullHandling,
     histogram_bins: 10,
+    size_column: config.sizeColumn || '',
   }
 
   if (filters && Object.keys(filters).length > 0) {

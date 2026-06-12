@@ -60,6 +60,18 @@
               <BDropdownItem @click="openChartModal('violin')">
                 <i class="bi bi-music-note-beamed me-2"></i>Violin Plot
               </BDropdownItem>
+              <BDropdownItem @click="openChartModal('doughnut')">
+                <i class="bi bi-circle me-2"></i>Doughnut Chart
+              </BDropdownItem>
+              <BDropdownItem @click="openChartModal('bubble')">
+                <i class="bi bi-bullseye me-2"></i>Bubble Chart
+              </BDropdownItem>
+              <BDropdownItem @click="openChartModal('radar')">
+                <i class="bi bi-broadcast me-2"></i>Radar Chart
+              </BDropdownItem>
+              <BDropdownItem @click="openChartModal('polarArea')">
+                <i class="bi bi-record-circle me-2"></i>Polar Area
+              </BDropdownItem>
               <BDropdownDivider />
               <BDropdownItem @click="openAiAssisted">
                 <i class="bi bi-robot me-2"></i>AI Assisted…

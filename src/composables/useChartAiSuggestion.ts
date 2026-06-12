@@ -9,7 +9,7 @@ import type { ChartType } from './useChartConfig'
 import type { ColumnMeta } from './useColumnTypes'
 import { getApiUrl } from '@/utils/api'
 
-const VALID_CHART_TYPES: ChartType[] = ['bar', 'line', 'pie', 'scatter', 'histogram', 'area', 'boxplot', 'violin']
+const VALID_CHART_TYPES: ChartType[] = ['bar', 'line', 'pie', 'doughnut', 'scatter', 'bubble', 'radar', 'polarArea', 'histogram', 'area', 'boxplot', 'violin']
 const VALID_AGGREGATIONS = ['sum', 'avg', 'count', 'min', 'max']
 const VALID_PALETTES = ['default', 'pastel', 'vivid', 'cool', 'warm']
 
@@ -18,7 +18,11 @@ export const CHART_TYPE_LABELS: Record<ChartType, string> = {
   bar: 'Bar Chart',
   line: 'Line Chart',
   pie: 'Pie Chart',
+  doughnut: 'Doughnut Chart',
   scatter: 'Scatter Plot',
+  bubble: 'Bubble Chart',
+  radar: 'Radar Chart',
+  polarArea: 'Polar Area',
   histogram: 'Histogram',
   area: 'Area Chart',
   boxplot: 'Box Plot',
@@ -88,10 +92,10 @@ export function buildChartSuggestionPrompt(
 }\n\n`
 
   prompt += `Rules:\n`
-  prompt += `- chartType must be one of: bar, line, pie, scatter, histogram, area, boxplot, violin\n`
+  prompt += `- chartType must be one of: bar, line, pie, doughnut, scatter, bubble, radar, polarArea, histogram, area, boxplot, violin\n`
   prompt += `- xAxis must be an existing column name\n`
   prompt += `- yAxis must be an existing numeric column (empty string for histogram)\n`
-  prompt += `- aggregation is required for bar, line, pie, and area (not for scatter/histogram/boxplot/violin)\n`
+  prompt += `- aggregation is required for bar, line, pie, doughnut, radar, polarArea, and area (not for scatter/bubble/histogram/boxplot/violin)\n`
   prompt += `- Choose the chart type that best reveals patterns in this data\n`
   prompt += `- Consider column types: numeric for Y axis, categorical/datetime for X axis\n`
   prompt += `- Return ONLY the JSON block, no other text outside the JSON\n`

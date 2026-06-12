@@ -53,7 +53,13 @@ export function suggestChart(
 //   const allDatetime = columnMeta.filter(c => c.columnType === 'datetime')
 
   // Decision logic based on available column types
-  if (numericCols.length >= 2 && categoricalCols.length === 0 && datetimeCols.length === 0) {
+  if (numericCols.length >= 3 && categoricalCols.length === 0 && datetimeCols.length === 0) {
+    // Three numeric columns → Bubble (x, y, size)
+    result.chartType = 'bubble'
+    result.xAxis = numericCols[0].name
+    result.yAxis = numericCols[1].name
+    result.aggregation = 'sum'
+  } else if (numericCols.length >= 2 && categoricalCols.length === 0 && datetimeCols.length === 0) {
     // Two numeric columns → Scatter
     result.chartType = 'scatter'
     result.xAxis = numericCols[0].name
@@ -79,9 +85,9 @@ export function suggestChart(
       result.yAxis = numericCols[0].name
     }
 
-    // If categorical has few unique values and no datetime, suggest pie
+    // If categorical has few unique values and no datetime, suggest pie/doughnut
     if (categoricalCols[0].uniqueCount <= 12 && datetimeCols.length === 0) {
-      // Pie is a good alternative but bar is the default
+      // Pie/Doughnut are good alternatives but bar is the default
     }
   } else if (datetimeCols.length >= 1 && numericCols.length >= 1) {
     // Datetime + Numeric → Line
@@ -164,9 +170,29 @@ export function getRecommendedChartTypes(
       reason: hasCategorical && hasNumeric ? 'Few categories' : 'Needs categorical + numeric (≤12 categories)',
     },
     {
+      type: 'doughnut',
+      recommended: hasCategorical && hasNumeric && categoricalCount <= 12,
+      reason: hasCategorical && hasNumeric ? 'Few categories (ring style)' : 'Needs categorical + numeric (≤12 categories)',
+    },
+    {
       type: 'scatter',
       recommended: numericCount >= 2,
       reason: numericCount >= 2 ? 'Two numeric columns' : 'Needs 2 numeric columns',
+    },
+    {
+      type: 'bubble',
+      recommended: numericCount >= 3,
+      reason: numericCount >= 3 ? 'Three numeric columns (x, y, size)' : 'Needs 3 numeric columns',
+    },
+    {
+      type: 'radar',
+      recommended: hasCategorical && hasNumeric,
+      reason: hasCategorical && hasNumeric ? 'Multi-variable comparison' : 'Needs categorical + numeric',
+    },
+    {
+      type: 'polarArea',
+      recommended: hasCategorical && hasNumeric && categoricalCount <= 12,
+      reason: hasCategorical && hasNumeric ? 'Category magnitude comparison' : 'Needs categorical + numeric (≤12 categories)',
     },
     {
       type: 'histogram',

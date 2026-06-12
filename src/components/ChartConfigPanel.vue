@@ -19,6 +19,15 @@
       </BFormSelect>
     </BFormGroup>
 
+    <!-- Size Column (Bubble only) -->
+    <BFormGroup v-if="showSizeColumn" label="Size Column" label-size="sm" class="mb-2">
+      <BFormSelect v-model="config.sizeColumn" size="sm" :options="sizeColumnOptions">
+        <template #first>
+          <option value="">— None (fixed size) —</option>
+        </template>
+      </BFormSelect>
+    </BFormGroup>
+
     <!-- Group By -->
     <BFormGroup v-if="showGroupBy" label="Group By" label-size="sm" class="mb-2">
       <BFormSelect v-model="config.groupBy" size="sm" :options="groupByOptions">
@@ -127,7 +136,7 @@ const groupableColumns = computed(() =>
 
 // Axis options based on chart type
 const xAxisOptions = computed(() => {
-  if (props.config.chartType === 'scatter' || props.config.chartType === 'histogram') {
+  if (['scatter', 'histogram', 'bubble'].includes(props.config.chartType)) {
     return numericColumns.value
   }
   // Boxplot/violin: categorical on X-axis (groups), numeric on Y-axis
@@ -136,13 +145,16 @@ const xAxisOptions = computed(() => {
 
 const yAxisOptions = computed(() => numericColumns.value)
 
+const sizeColumnOptions = computed(() => numericColumns.value)
+
 const groupByOptions = computed(() => groupableColumns.value)
 
 // Visibility of config sections
 const showXAxis = computed(() => true)
-const showYAxis = computed(() => props.config.chartType !== 'histogram')
-const showGroupBy = computed(() => !['pie', 'scatter', 'histogram', 'boxplot', 'violin'].includes(props.config.chartType))
-const showAggregation = computed(() => !['scatter', 'boxplot', 'violin'].includes(props.config.chartType))
+const showYAxis = computed(() => !['histogram', 'doughnut', 'polarArea'].includes(props.config.chartType))
+const showSizeColumn = computed(() => props.config.chartType === 'bubble')
+const showGroupBy = computed(() => !['pie', 'doughnut', 'scatter', 'histogram', 'boxplot', 'violin', 'bubble', 'polarArea'].includes(props.config.chartType))
+const showAggregation = computed(() => !['scatter', 'bubble', 'boxplot', 'violin'].includes(props.config.chartType))
 </script>
 
 <style scoped>

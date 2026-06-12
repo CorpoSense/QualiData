@@ -14,6 +14,7 @@ from app.routers.datasets import (
     _apply_agg,
     _apply_chart_filters,
     _compute_chart_aggregation,
+    _compute_chart_bubble,
     _compute_chart_histogram,
     _compute_chart_scatter,
     ChartDataRequest,
@@ -264,6 +265,66 @@ class TestComputeChartScatter:
         assert len(result["datasets"][0]["data"]) == 2  # Only (1,10) and (4,40)
 
 
+class TestComputeChartBubble:
+    """Test the _compute_chart_bubble helper function."""
+
+    def test_empty_data(self):
+        result = _compute_chart_bubble([], "x", "y")
+        assert result["datasets"][0]["data"] == []
+
+    def test_empty_columns(self):
+        result = _compute_chart_bubble([{"a": 1}], "", "y")
+        assert result["datasets"][0]["data"] == []
+
+    def test_bubble_points_without_size(self):
+        data = [
+            {"x": 1, "y": 10},
+            {"x": 2, "y": 20},
+            {"x": 3, "y": 30},
+        ]
+        result = _compute_chart_bubble(data, "x", "y")
+        assert len(result["datasets"][0]["data"]) == 3
+        assert result["total_points"] == 3
+        # Without size column, radius should be default 8.0
+        for pt in result["datasets"][0]["data"]:
+            assert pt["r"] == 8.0
+            assert "x" in pt
+            assert "y" in pt
+
+    def test_bubble_points_with_size(self):
+        data = [
+            {"x": 1, "y": 10, "pop": 100},
+            {"x": 2, "y": 20, "pop": 200},
+            {"x": 3, "y": 30, "pop": 300},
+        ]
+        result = _compute_chart_bubble(data, "x", "y", "pop")
+        assert len(result["datasets"][0]["data"]) == 3
+        # Radius should be normalized to 5-30 range
+        radii = [pt["r"] for pt in result["datasets"][0]["data"]]
+        assert min(radii) >= 5
+        assert max(radii) <= 30
+
+    def test_bubble_null_handling_exclude(self):
+        data = [
+            {"x": 1, "y": 10},
+            {"x": None, "y": 20},
+            {"x": 3, "y": None},
+            {"x": 4, "y": 40},
+        ]
+        result = _compute_chart_bubble(data, "x", "y", null_handling="exclude")
+        assert len(result["datasets"][0]["data"]) == 2
+
+    def test_bubble_label_with_size(self):
+        data = [{"x": 1, "y": 10, "pop": 100}]
+        result = _compute_chart_bubble(data, "x", "y", "pop")
+        assert "pop" in result["datasets"][0]["label"]
+
+    def test_bubble_label_without_size(self):
+        data = [{"x": 1, "y": 10}]
+        result = _compute_chart_bubble(data, "x", "y")
+        assert "x" in result["datasets"][0]["label"]
+
+
 class TestChartDataEndpoint:
     """Test the chart-data API endpoint."""
 
@@ -294,6 +355,18 @@ class TestChartDataEndpoint:
         assert req.histogram_bins == 10
         assert req.filters is None
         assert req.scatter_max_points == 5000
+        assert req.size_column == ""
+
+    def test_chart_data_request_bubble(self):
+        """Test ChartDataRequest model for bubble chart type."""
+        req = ChartDataRequest(
+            chart_type="bubble",
+            x_column="gdp",
+            y_column="life_expectancy",
+            size_column="population",
+        )
+        assert req.chart_type == "bubble"
+        assert req.size_column == "population"
 
     def test_chart_data_request_with_filters(self):
         """Test ChartDataRequest model with filters."""

@@ -151,9 +151,9 @@ describe('getRecommendedChartTypes', () => {
     expect(scatter?.recommended).toBe(false)
   })
 
-  it('returns all 8 chart types', () => {
+  it('returns all 12 chart types', () => {
     const result = getRecommendedChartTypes([])
-    expect(result).toHaveLength(8)
+    expect(result).toHaveLength(12)
   })
 
   it('uses selected columns when provided', () => {

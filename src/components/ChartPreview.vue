@@ -11,7 +11,11 @@
     <Bar v-if="chartType === 'bar' && !isEmpty" :data="chartData" :options="chartOptions" />
     <Line v-if="(chartType === 'line' || chartType === 'area') && !isEmpty" :data="chartData" :options="chartOptions" />
     <Pie v-if="chartType === 'pie' && !isEmpty" :data="chartData" :options="chartOptions" />
+    <Doughnut v-if="chartType === 'doughnut' && !isEmpty" :data="chartData" :options="chartOptions" />
     <Scatter v-if="chartType === 'scatter' && !isEmpty" :data="chartData" :options="chartOptions" />
+    <Bubble v-if="chartType === 'bubble' && !isEmpty" :data="chartData" :options="chartOptions" />
+    <Radar v-if="chartType === 'radar' && !isEmpty" :data="chartData" :options="chartOptions" />
+    <PolarArea v-if="chartType === 'polarArea' && !isEmpty" :data="chartData" :options="chartOptions" />
     <Bar v-if="chartType === 'histogram' && !isEmpty" :data="chartData" :options="chartOptions" />
     <BoxPlotChart
       v-if="(chartType === 'boxplot' || chartType === 'violin') && !isEmpty"
@@ -24,7 +28,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Bar, Line, Pie, Scatter } from 'vue-chartjs'
+import { Bar, Line, Pie, Doughnut, Scatter, Bubble, Radar, PolarArea } from 'vue-chartjs'
 import BoxPlotChart from './BoxPlotChart.vue'
 import {
   Chart as ChartJS,
@@ -34,6 +38,7 @@ import {
   LineElement,
   PointElement,
   ArcElement,
+  RadialLinearScale,
   Title,
   Tooltip,
   Legend,
@@ -47,6 +52,7 @@ ChartJS.register(
   LineElement,
   PointElement,
   ArcElement,
+  RadialLinearScale,
   Title,
   Tooltip,
   Legend,

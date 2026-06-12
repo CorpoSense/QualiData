@@ -6,7 +6,11 @@ vi.mock('vue-chartjs', () => ({
   Bar: { name: 'Bar', template: '<div class="mock-bar"/>' },
   Line: { name: 'Line', template: '<div class="mock-line"/>' },
   Pie: { name: 'Pie', template: '<div class="mock-pie"/>' },
+  Doughnut: { name: 'Doughnut', template: '<div class="mock-doughnut"/>' },
   Scatter: { name: 'Scatter', template: '<div class="mock-scatter"/>' },
+  Bubble: { name: 'Bubble', template: '<div class="mock-bubble"/>' },
+  Radar: { name: 'Radar', template: '<div class="mock-radar"/>' },
+  PolarArea: { name: 'PolarArea', template: '<div class="mock-polar-area"/>' },
 }))
 
 vi.mock('chart.js', () => ({
@@ -17,6 +21,7 @@ vi.mock('chart.js', () => ({
   LineElement: {},
   PointElement: {},
   ArcElement: {},
+  RadialLinearScale: {},
   Title: {},
   Tooltip: {},
   Legend: {},
