@@ -35,6 +35,16 @@
           <i class="bi bi-exclamation-triangle me-1"></i>{{ chart.meta.warning }}
         </div>
         <div class="chart-panel-item-canvas" :class="{ 'chart-fullscreen': chart.isFullscreen }" :ref="el => setChartRef(el, index)">
+          <BButton
+            v-if="chart.isFullscreen"
+            size="sm"
+            variant="light"
+            class="chart-fullscreen-exit-btn"
+            @click="toggleFullscreen(index)"
+            title="Exit fullscreen"
+          >
+            <i class="bi bi-fullscreen-exit"></i>
+          </BButton>
           <ChartPreview
             :chart-type="chart.config.chartType"
             :chart-data="chart.chartData"
@@ -160,6 +170,17 @@ function exportPng(index) {
   background: white;
   padding: 20px;
   min-height: unset;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-fullscreen-exit-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 100000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
 }
 
 .chart-panel-warning {

@@ -368,6 +368,7 @@
     <!-- Chart Panel (applied charts) -->
     <ChartPanel
       :charts="appliedCharts"
+      @update:charts="appliedCharts = $event"
       @remove="removeAppliedChart"
       @clear="appliedCharts = []"
     />
