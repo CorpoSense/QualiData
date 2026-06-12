@@ -1733,11 +1733,11 @@ const chartFilters = computed(() => {
 
 function onChartApply(config, chartData, chartOptions, meta) {
   appliedCharts.value.push({
-    config,
-    chartData,
-    chartOptions,
+    config: JSON.parse(JSON.stringify(config)),
+    chartData: JSON.parse(JSON.stringify(chartData)),
+    chartOptions: JSON.parse(JSON.stringify(chartOptions)),
     isFullscreen: false,
-    meta: meta || {},
+    meta: meta ? { ...meta } : {},
   })
   toast.success('Chart added')
 }
