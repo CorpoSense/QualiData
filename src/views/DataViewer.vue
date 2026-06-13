@@ -370,7 +370,8 @@
       :charts="appliedCharts"
       @update:charts="appliedCharts = $event"
       @remove="removeAppliedChart"
-      @clear="appliedCharts = []"
+      @clear="clearAllCharts"
+      @refresh="refreshSingleChart"
     />
   
     <!-- Loading -->
@@ -1695,6 +1696,75 @@ const showChartModal = ref(false)
 const initialChartType = ref('bar')
 const chartModalMode = ref('preset')
 const appliedCharts = ref([])
+const chartsLoading = ref(false)
+
+// --- Chart persistence helpers ---
+
+function chartAuthHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${localStorage.getItem('token')}`,
+  }
+}
+
+async function fetchSavedCharts() {
+  if (!datasetId.value) return
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/charts`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    return data.charts || []
+  } catch { return [] }
+}
+
+async function regenerateChartData(config) {
+  try {
+    const { fetchChartData } = await import('@/composables/useChartConfig')
+    const cfg = {
+      chartType: config.chartType,
+      xAxis: config.xAxis,
+      yAxis: config.yAxis || '',
+      groupBy: config.groupBy || '',
+      aggregation: config.aggregation || 'count',
+      colorPalette: config.colorPalette || 'default',
+      title: config.title || '',
+      showLegend: config.showLegend !== false,
+      showGrid: config.showGrid !== false,
+    }
+    const result = await fetchChartData(datasetId.value, cfg, chartFilters.value)
+    return { chartData: result.chartData, chartOptions: result.chartOptions, warning: result.warning || '' }
+  } catch { return null }
+}
+
+async function loadPersistedCharts() {
+  if (!datasetId.value) return
+  chartsLoading.value = true
+  try {
+    const savedCharts = await fetchSavedCharts()
+    if (!savedCharts.length) {
+      appliedCharts.value = []
+      return
+    }
+    const regenerated = await Promise.all(
+      savedCharts.map(async (chart) => {
+        const result = await regenerateChartData(chart.config)
+        return {
+          id: chart.id,
+          config: chart.config,
+          chartData: result?.chartData || null,
+          chartOptions: result?.chartOptions || {},
+          isFullscreen: false,
+          meta: chart.meta || {},
+          warning: result?.warning || '',
+        }
+      })
+    )
+    appliedCharts.value = regenerated
+  } catch { /* silent */ }
+  finally { chartsLoading.value = false }
+}
 
 // Chart visualization functions
 function openChartModal(chartType) {
@@ -1731,8 +1801,23 @@ const chartFilters = computed(() => {
   return filters
 })
 
-function onChartApply(config, chartData, chartOptions, meta) {
+async function onChartApply(config, chartData, chartOptions, meta) {
+  // Persist to backend
+  let savedId = null
+  try {
+    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/charts`, {
+      method: 'POST',
+      headers: chartAuthHeaders(),
+      body: JSON.stringify({ config, meta }),
+    })
+    if (res.ok) {
+      const saved = await res.json()
+      savedId = saved.id
+    }
+  } catch { /* continue even if save fails */ }
+
   appliedCharts.value.push({
+    id: savedId,
     config: JSON.parse(JSON.stringify(config)),
     chartData: JSON.parse(JSON.stringify(chartData)),
     chartOptions: JSON.parse(JSON.stringify(chartOptions)),
@@ -1742,8 +1827,50 @@ function onChartApply(config, chartData, chartOptions, meta) {
   toast.success('Chart added')
 }
 
-function removeAppliedChart(index) {
+async function removeAppliedChart(index) {
+  const chart = appliedCharts.value[index]
+  if (chart?.id) {
+    try {
+      await fetch(`${apiUrl}/api/datasets/${datasetId.value}/charts/${chart.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
+    } catch { /* silent */ }
+  }
   appliedCharts.value.splice(index, 1)
+}
+
+async function refreshSingleChart(index) {
+  const chart = appliedCharts.value[index]
+  if (!chart?.config) return
+  const result = await regenerateChartData(chart.config)
+  if (!result) return
+  appliedCharts.value = appliedCharts.value.map((c, i) => {
+    if (i !== index) return c
+    return {
+      ...c,
+      chartData: result.chartData,
+      chartOptions: result.chartOptions,
+      warning: result.warning || '',
+    }
+  })
+}
+
+async function clearAllCharts() {
+  // Delete all from backend
+  if (datasetId.value) {
+    for (const chart of appliedCharts.value) {
+      if (chart.id) {
+        try {
+          await fetch(`${apiUrl}/api/datasets/${datasetId.value}/charts/${chart.id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          })
+        } catch { /* silent */ }
+      }
+    }
+  }
+  appliedCharts.value = []
 }
 const showExportRecipe = ref(false)
 const showImportRecipe = ref(false)
@@ -2079,6 +2206,7 @@ onMounted(async () => {
    loadSelectedColumns()
    await refreshData()
    await fetchAgents()
+   await loadPersistedCharts()
    if (route.query.showProfile === 'true') showProfile.value = true
  })
 
@@ -2096,7 +2224,7 @@ watch(limit, (newVal, oldVal) => {
 })
 
 // Watch datasetId changes - reset state and reload data for new dataset
-watch(datasetId, (newVal, oldVal) => {
+watch(datasetId, async (newVal, oldVal) => {
   if (newVal !== oldVal) {
     // Reset component state for the new dataset
     page.value = 1
@@ -2109,7 +2237,8 @@ watch(datasetId, (newVal, oldVal) => {
     sortKeys.value = []
     operations.value = []
     loadSelectedColumns()
-    refreshData()
+    await refreshData()
+    await loadPersistedCharts()
   }
 })
 

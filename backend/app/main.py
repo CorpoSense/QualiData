@@ -22,6 +22,7 @@ from app.routers import (
     auth,
     batch_ops,
     cell_ops,
+    charts,
     comparison,
     datasets,
     datetime_ops,
@@ -174,6 +175,7 @@ def create_app() -> FastAPI:
     app.include_router(cell_ops.router, prefix="/api")
     app.include_router(search_engines.router, prefix="/api")
     app.include_router(documents.router, prefix="/api")
+    app.include_router(charts.router, prefix="/api")
 
     # Serve Vue static files if available (for production)
     # Check multiple locations for frontend build

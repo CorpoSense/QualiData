@@ -26,6 +26,9 @@
             <BButton size="sm" variant="link" class="p-0" @click="exportPng(index)" title="Download as PNG">
               <i class="bi bi-download"></i>
             </BButton>
+            <BButton size="sm" variant="link" class="p-0" @click="$emit('refresh', index)" title="Refresh chart data">
+              <i class="bi bi-arrow-clockwise"></i>
+            </BButton>
             <BButton size="sm" variant="link" class="p-0 text-danger" @click="removeChart(index)" title="Close chart">
               <i class="bi bi-x-lg"></i>
             </BButton>
@@ -66,7 +69,7 @@ const props = defineProps({
   charts: { type: Array, default: () => [] },
 })
 
-const emit = defineEmits(['update:charts', 'remove', 'clear'])
+const emit = defineEmits(['update:charts', 'remove', 'clear', 'refresh'])
 
 const chartRefs = ref({})
 
