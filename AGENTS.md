@@ -294,7 +294,9 @@ async def health_check():
 
 **Data Storage:**
 - `datasets.preview_data`: JSON array with ~500 rows for display (limited preview)
-- `datasets.data_json`: Full dataset as `{"data": [...]}` for complete data access
+- `datasets.data_json`: Full dataset as `{"data": [...], "charts": [...]}` for complete data access
+- The `charts` key stores chart configurations (config + meta) — chart data is computed on load, not stored
+- Charts are managed via `GET /api/datasets/{id}/charts` (read) and `PUT /api/datasets/{id}/charts` (replace entire array)
 - **Always update BOTH fields** when modifying data - use `get_preview_data()` and `get_full_data_json()` from `app/routers/datasets.py`
 
 ---
@@ -309,7 +311,7 @@ Multiple routers organized by feature in [`backend/app/routers/`](backend/app/ro
 | `auth` | `/api/auth` | Authentication (login, register, OAuth) |
 | `users` | `/api/users` | User CRUD |
 | `projects` | `/api/projects` | Project CRUD |
-| `datasets` | `/api/datasets` | Dataset import/export/preview |
+| `datasets` | `/api/datasets` | Dataset import/export/preview, charts (embedded in data_json) |
 | `operations*` | `/api/operations` | Data operations (core, extra, structural, cell, datetime, missing values, batch, undo/redo, extract-json, extract-pattern, map-values) |
 | `agents` | `/api/agents` | Agent CRUD |
 | `search_engines` | `/api/search-engines` | Search engine CRUD & providers |

@@ -1406,6 +1406,77 @@ async def get_chart_data(
         }
 
 
+# --- Embedded chart persistence endpoints ---
+
+
+class ChartsSaveRequest(BaseModel):
+    """Request body for saving charts into data_json."""
+    charts: list[dict]
+
+
+async def _get_and_validate_dataset_for_charts(
+    dataset_id: str,
+    current_user: User,
+    session: AsyncSession,
+) -> Dataset:
+    """Validate dataset exists and user has access via project ownership."""
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    proj_result = await session.execute(
+        select(Project).where(
+            Project.id == dataset.project_id,
+            Project.user_id == current_user.id,
+        )
+    )
+    if not proj_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    return dataset
+
+
+@router.get("/{dataset_id}/charts")
+async def list_charts_embedded(
+    dataset_id: str,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """List charts stored in data_json["charts"]."""
+    dataset = await _get_and_validate_dataset_for_charts(dataset_id, current_user, session)
+    charts = (dataset.data_json or {}).get("charts", [])
+    return {"charts": charts}
+
+
+@router.put("/{dataset_id}/charts")
+async def save_charts_embedded(
+    dataset_id: str,
+    body: ChartsSaveRequest,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Replace charts in data_json["charts"] with the provided array."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    dataset = await _get_and_validate_dataset_for_charts(dataset_id, current_user, session)
+
+    # Ensure data_json exists
+    if not dataset.data_json:
+        dataset.data_json = {}
+
+    # Preserve existing data, replace charts
+    dataset.data_json["charts"] = body.charts
+
+    # SQLAlchemy JSON columns don't track in-place mutations — explicitly mark dirty
+    flag_modified(dataset, "data_json")
+
+    await session.commit()
+    await session.refresh(dataset)
+
+    return {"charts": dataset.data_json.get("charts", [])}
+
+
 @router.get("/{dataset_id}/unique-values")
 async def get_unique_values(
     dataset_id: str,

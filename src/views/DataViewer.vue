@@ -1700,23 +1700,32 @@ const chartsLoading = ref(false)
 
 // --- Chart persistence helpers ---
 
-function chartAuthHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${localStorage.getItem('token')}`,
-  }
-}
-
 async function fetchSavedCharts() {
   if (!datasetId.value) return
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/charts`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     })
-    if (!res.ok) return
+    if (!res.ok) return []
     const data = await res.json()
     return data.charts || []
   } catch { return [] }
+}
+
+async function savePersistedCharts() {
+  if (!datasetId.value) return
+  // Only persist the config/meta, not the rendered chartData/chartOptions/isFullscreen
+  const payload = appliedCharts.value.map((c) => ({
+    config: c.config,
+    meta: c.meta || {},
+  }))
+  try {
+    await fetch(`${apiUrl}/api/datasets/${datasetId.value}/charts`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ charts: payload }),
+    })
+  } catch { /* silent */ }
 }
 
 async function regenerateChartData(config) {
@@ -1751,7 +1760,6 @@ async function loadPersistedCharts() {
       savedCharts.map(async (chart) => {
         const result = await regenerateChartData(chart.config)
         return {
-          id: chart.id,
           config: chart.config,
           chartData: result?.chartData || null,
           chartOptions: result?.chartOptions || {},
@@ -1802,42 +1810,20 @@ const chartFilters = computed(() => {
 })
 
 async function onChartApply(config, chartData, chartOptions, meta) {
-  // Persist to backend
-  let savedId = null
-  try {
-    const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/charts`, {
-      method: 'POST',
-      headers: chartAuthHeaders(),
-      body: JSON.stringify({ config, meta }),
-    })
-    if (res.ok) {
-      const saved = await res.json()
-      savedId = saved.id
-    }
-  } catch { /* continue even if save fails */ }
-
   appliedCharts.value.push({
-    id: savedId,
     config: JSON.parse(JSON.stringify(config)),
     chartData: JSON.parse(JSON.stringify(chartData)),
     chartOptions: JSON.parse(JSON.stringify(chartOptions)),
     isFullscreen: false,
     meta: meta ? { ...meta } : {},
   })
+  await savePersistedCharts()
   toast.success('Chart added')
 }
 
 async function removeAppliedChart(index) {
-  const chart = appliedCharts.value[index]
-  if (chart?.id) {
-    try {
-      await fetch(`${apiUrl}/api/datasets/${datasetId.value}/charts/${chart.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      })
-    } catch { /* silent */ }
-  }
   appliedCharts.value.splice(index, 1)
+  await savePersistedCharts()
 }
 
 async function refreshSingleChart(index) {
@@ -1857,20 +1843,8 @@ async function refreshSingleChart(index) {
 }
 
 async function clearAllCharts() {
-  // Delete all from backend
-  if (datasetId.value) {
-    for (const chart of appliedCharts.value) {
-      if (chart.id) {
-        try {
-          await fetch(`${apiUrl}/api/datasets/${datasetId.value}/charts/${chart.id}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-          })
-        } catch { /* silent */ }
-      }
-    }
-  }
   appliedCharts.value = []
+  await savePersistedCharts()
 }
 const showExportRecipe = ref(false)
 const showImportRecipe = ref(false)
