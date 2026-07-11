@@ -3,6 +3,8 @@
 import pytest
 from unittest.mock import patch
 
+from tests.conftest import get_app_routes
+
 
 # Mock database before importing app
 with patch("app.db.database.get_async_session_maker"):
@@ -15,34 +17,32 @@ class TestRouteConfiguration:
 
     def test_no_duplicate_api_prefix_in_routes(self):
         """Verify no routes have duplicate /api/api prefix."""
-        routes = [r.path for r in app.routes if hasattr(r, 'path')]
-        
+        routes = get_app_routes(app)
+
         # Check for duplicate /api prefix
         duplicates = [r for r in routes if r.startswith('/api/api/')]
         assert len(duplicates) == 0, f"Found routes with duplicate /api prefix: {duplicates}"
 
     def test_all_dataset_routes_have_correct_prefix(self):
         """Verify dataset routes follow consistent pattern."""
-        dataset_routes = [
-            r.path for r in app.routes 
-            if hasattr(r, 'path') and 'datasets' in r.path
-        ]
-        
+        routes = get_app_routes(app)
+        dataset_routes = [r for r in routes if 'datasets' in r]
+
         # All should start with /api/datasets (not /api/api/datasets)
         wrong_prefix = [r for r in dataset_routes if r.startswith('/api/api/')]
         assert len(wrong_prefix) == 0, f"Routes with wrong prefix: {wrong_prefix}"
 
     def test_no_conflicting_routes(self):
         """Check for routes - just verify app has routes."""
-        routes = {r.path for r in app.routes if hasattr(r, 'path')}
-        
+        routes = set(get_app_routes(app))
+
         # Verify app has dataset routes (the exact pattern varies)
         dataset_routes = [r for r in routes if 'datasets' in r]
         assert len(dataset_routes) > 0, "No dataset routes found"
 
     def test_critical_endpoints_exist(self):
         """Verify critical endpoints are registered."""
-        routes = {r.path for r in app.routes if hasattr(r, 'path')}
+        routes = set(get_app_routes(app))
         
         critical = [
             '/api/auth/login',
@@ -142,7 +142,7 @@ class TestDatabaseMigrations:
         """Verify undo/redo routes come from undo_redo.py only."""
         from app.main import app
 
-        routes = [r.path for r in app.routes if hasattr(r, 'path')]
+        routes = get_app_routes(app)
 
         # Count how many undo/redo routes exist (exclude /redoc)
         undo_routes = [r for r in routes if 'undo' in r and 'operations' in r]

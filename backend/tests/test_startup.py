@@ -3,6 +3,8 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
+from tests.conftest import get_app_routes
+
 
 # Mock database before importing app
 with patch("app.db.database.get_async_session_maker"):
@@ -23,8 +25,8 @@ class TestAppStartup:
 
     def test_app_has_routers(self):
         """Test app has routers registered."""
-        routes = [r.path for r in app.routes if hasattr(r, "path")]
-        
+        routes = get_app_routes(app)
+
         # Check key routes exist
         assert any("/api/auth" in r for r in routes)
         assert any("/api/projects" in r for r in routes)

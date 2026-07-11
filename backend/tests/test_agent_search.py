@@ -184,10 +184,11 @@ def test_search_engine_model_has_required_columns():
 
 def test_search_engines_router_registered():
     """Search engines router is registered in the FastAPI app."""
+    from tests.conftest import get_app_routes
     with patch("app.db.database.get_async_session_maker"):
         with patch("app.db.database.get_sync_session_maker"):
             from app.main import app
-            routes = [r.path for r in app.routes]
+            routes = get_app_routes(app)
             assert "/api/search-engines/" in routes
             assert "/api/search-engines/providers" in routes
             assert "/api/search-engines/{engine_id}" in routes

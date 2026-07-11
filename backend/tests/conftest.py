@@ -22,6 +22,28 @@ with patch("app.db.database.get_async_session_maker"):
         from app.main import app
 
 
+def get_app_routes(app):
+    """Return a flat list of route paths from a FastAPI app.
+
+    Handles both legacy Starlette (< 0.41) where ``app.include_router()``
+    flattens routes into plain ``Route`` objects, and newer Starlette
+    (>= 0.41, bundled with FastAPI >= 0.115.4) where included routers are
+    wrapped in ``_IncludedRouter`` objects that do not expose ``.path``
+    directly and must be unwrapped to access their underlying routes.
+    """
+    paths = []
+    for r in app.routes:
+        # Newer Starlette wraps included routers in _IncludedRouter
+        router = getattr(r, "router", None)
+        if router is not None and hasattr(router, "routes"):
+            for sub in router.routes:
+                if hasattr(sub, "path"):
+                    paths.append(sub.path)
+        elif hasattr(r, "path"):
+            paths.append(r.path)
+    return paths
+
+
 @pytest.fixture
 def client():
     """Create test client."""

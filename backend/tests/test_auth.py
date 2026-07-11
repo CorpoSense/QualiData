@@ -5,6 +5,8 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.conftest import get_app_routes
+
 # Mock database before importing app
 with patch("app.db.database.get_async_session_maker"):
     with patch("app.db.database.get_sync_session_maker"):
@@ -36,7 +38,7 @@ class TestAuthRoutes:
 
     def test_routes_registered(self):
         """Test all auth routes are registered."""
-        routes = [r.path for r in app.routes if hasattr(r, "path")]
+        routes = get_app_routes(app)
         assert "/api/auth/register" in routes
         assert "/api/auth/login" in routes
         assert "/api/auth/me" in routes
