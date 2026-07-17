@@ -1293,7 +1293,12 @@ async def datetime_operations(
         target = new_column if new_column else target_columns[0]
         original_col = df[target].copy()
         df, results, total_error_count = _apply_datetime_op(df, operation, error_handling, fallback_value, new_column, input_format, output_format)
-        # Restore original values for rows NOT in row_indices
+        # Restore original values for rows NOT in row_indices.
+        # Cast to object dtype first so the column can hold mixed types (e.g. int years
+        # for selected rows and original string/datetime values for non-selected rows).
+        # Without this, assigning a string into an int32 column raises a TypeError on
+        # newer pandas versions (was a FutureWarning before).
+        df[target] = df[target].astype(object)
         valid_indices = [i for i in row_indices if 0 <= i < len(df)]
         for idx in range(len(df)):
             if idx not in valid_indices:
