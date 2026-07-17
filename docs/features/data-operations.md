@@ -286,18 +286,20 @@ Result: [10, 30, 30, 30, null]
 
 ### Parse Datetime
 
-Convert text to standardized datetime format.
+Convert text to standardized datetime format. Supports custom input/output formats, error handling, and writing results to a new column.
 
 **Parameters:**
-- **Input format** - Current format (auto-detected or specified)
-- **Output format** - Target format
+- **Input format** - Current format (auto-detected or specified). Uses Python `strptime` syntax (e.g. `%d/%m/%Y`, `%Y-%m-%d %H:%M:%S`). Leave empty for auto-detect.
+- **Output format** - Target format. Uses Python `strftime` syntax (e.g. `%Y-%m-%d`, `%d/%m/%Y`). Defaults to `%Y-%m-%d %H:%M:%S`.
+- **Error handling** - How to handle unparseable values:
+  - `coerce` (default) — Set to null
+  - `fallback` — Replace with fallback value
+  - `raise` — Fail operation on error
+- **Fallback value** - Value to use for unparseable rows when error handling is `fallback`
+- **Create new column** - Write results to a new column, preserving the original
 
 **Supported formats:**
-- `MM/DD/YYYY`
-- `DD-MM-YYYY`
-- `YYYY-MM-DD`
-- `MM/DD/YYYY HH:MM:SS`
-- And many more...
+- `MM/DD/YYYY`, `DD-MM-YYYY`, `YYYY-MM-DD`, `MM/DD/YYYY HH:MM:SS`, and more
 
 **Before → After:**
 ```
@@ -309,6 +311,8 @@ Convert text to standardized datetime format.
 
 Extract the year from a date column.
 
+**Options:** Create new column, error handling
+
 **Before → After:**
 ```
 "2024-03-15" → 2024
@@ -316,16 +320,11 @@ Extract the year from a date column.
 
 ### Extract Month
 
-Extract the month from a date column.
-
-**Options:**
-- **Number** - 1-12
-- **Name** - January, February, etc.
-- **Abbreviated** - Jan, Feb, etc.
+Extract the month from a date column (1-12).
 
 **Before → After:**
 ```
-"2024-03-15" → 3 (or "March" or "Mar")
+"2024-03-15" → 3
 ```
 
 ### Extract Day
@@ -337,24 +336,14 @@ Extract the day of the month.
 "2024-03-15" → 15
 ```
 
-### Extract Hour
+### Extract Weekday
 
-Extract the hour from a timestamp.
+Extract the day name (Monday, Tuesday, etc.).
 
 **Before → After:**
 ```
-"2024-03-15 14:30:00" → 14
+"2024-03-15" → "Friday"
 ```
-
-### Format Date
-
-Convert date to a specific string format.
-
-**Common formats:**
-- `YYYY-MM-DD` - ISO format
-- `MM/DD/YYYY` - US format
-- `DD/MM/YYYY` - European format
-- `MMMM D, YYYY` - Long format
 
 ## Deduplication
 

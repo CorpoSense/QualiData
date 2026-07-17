@@ -1134,6 +1134,14 @@ async def datetime_operations(
     Supports both single-column and batch (multi-column) mode:
     - Single: { "column": "date", "operation": "extract_year" }
     - Batch:  { "columns": ["date1", "date2"], "operation": "extract_year" }
+
+    Supports error handling:
+    - error_handling: "coerce" (default) | "fallback" | "raise"
+    - fallback_value: value to use when error_handling="fallback"
+    - new_column: write result to a new column instead of replacing
+    - input_format: strptime format for parsing (e.g. "%d/%m/%Y")
+    - output_format: strftime format for output (e.g. "%Y-%m-%d")
+    - row_indices: list of row indices to operate on (filtered operation)
     """
     dataset = await get_dataset_with_owner_check(dataset_id, current_user.id, session)
     if not dataset.data_json or "data" not in dataset.data_json:
@@ -1150,6 +1158,18 @@ async def datetime_operations(
     column = request.get('column')
     columns = request.get('columns')
     operation = request.get('operation')
+    error_handling = request.get('error_handling', 'coerce')
+    fallback_value = request.get('fallback_value')
+    new_column = request.get('new_column')
+    input_format = request.get('input_format')
+    output_format = request.get('output_format')
+    row_indices = request.get('row_indices')
+
+    # Validate error_handling
+    if error_handling not in ('coerce', 'fallback', 'raise'):
+        raise HTTPException(status_code=400, detail="error_handling must be 'coerce', 'fallback', or 'raise'")
+    if error_handling == 'fallback' and fallback_value is None:
+        raise HTTPException(status_code=400, detail="fallback_value required when error_handling='fallback'")
 
     # Determine target columns
     if columns and isinstance(columns, list):
@@ -1163,6 +1183,12 @@ async def datetime_operations(
     missing = [c for c in target_columns if c not in df.columns]
     if missing:
         raise HTTPException(status_code=400, detail=f"Columns not found: {missing}")
+
+    # Validate new_column
+    if new_column and len(target_columns) > 1:
+        raise HTTPException(status_code=400, detail="new_column can only be used with a single column (batch mode not supported)")
+    if new_column and new_column in df.columns:
+        raise HTTPException(status_code=400, detail=f"Column '{new_column}' already exists")
 
     # Normalize operation names
     op_map = {
@@ -1188,37 +1214,92 @@ async def datetime_operations(
     if operation in ['extract_year', 'extract_month', 'extract_day', 'extract_weekday']:
         for col in target_columns:
             try:
-                pd.to_datetime(df[col], errors='raise')
+                if input_format:
+                    pd.to_datetime(df[col], format=input_format, errors='raise')
+                else:
+                    pd.to_datetime(df[col], errors='raise')
             except Exception:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Column '{col}' is not a datetime column. Datetime extraction requires datetime data."
                 )
 
-    results = []
+    def _apply_datetime_op(filtered_df, operation, error_handling, fallback_value, new_column, input_format, output_format):
+        """Apply datetime operation to a DataFrame. Returns (modified_df, error_count)."""
+        results = []
+        total_error_count = 0
 
-    # Apply operation to each column
-    for col in target_columns:
-        try:
-            if operation == 'parse_datetime':
-                df[col] = pd.to_datetime(df[col], errors='coerce')
-                results.append({"column": col, "status": "success", "operation": "parse_datetime"})
-            elif operation == 'extract_year':
-                df[col] = pd.to_datetime(df[col], errors='coerce').dt.year
-                results.append({"column": col, "status": "success", "operation": "extract_year"})
-            elif operation == 'extract_month':
-                df[col] = pd.to_datetime(df[col], errors='coerce').dt.month
-                results.append({"column": col, "status": "success", "operation": "extract_month"})
-            elif operation == 'extract_day':
-                df[col] = pd.to_datetime(df[col], errors='coerce').dt.day
-                results.append({"column": col, "status": "success", "operation": "extract_day"})
-            elif operation == 'extract_weekday':
-                df[col] = pd.to_datetime(df[col], errors='coerce').dt.day_name()
-                results.append({"column": col, "status": "success", "operation": "extract_weekday"})
-            else:
-                results.append({"column": col, "status": "skipped", "reason": f"unknown operation: {operation}"})
-        except Exception as e:
-            results.append({"column": col, "status": "error", "reason": str(e)})
+        for col in target_columns:
+            try:
+                # Parse with optional explicit format
+                if input_format:
+                    parsed = pd.to_datetime(filtered_df[col], format=input_format, errors='coerce')
+                else:
+                    parsed = pd.to_datetime(filtered_df[col], errors='coerce')
+
+                # Count errors (NaT from coerce that were not originally null)
+                error_mask = parsed.isna() & filtered_df[col].notna()
+                error_count = int(error_mask.sum())
+                total_error_count += error_count
+
+                if error_handling == 'raise' and error_count > 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"{error_count} value(s) in '{col}' cannot be parsed as datetime"
+                    )
+
+                if error_handling == 'fallback' and fallback_value is not None:
+                    fb_parsed = pd.to_datetime(fallback_value, errors='coerce')
+                    parsed[error_mask] = fb_parsed
+
+                # Determine target column
+                target = new_column if new_column else col
+
+                # Apply operation
+                if operation == 'parse_datetime':
+                    fmt = output_format or "%Y-%m-%d %H:%M:%S"
+                    filtered_df[target] = parsed.dt.strftime(fmt)
+                elif operation == 'extract_year':
+                    filtered_df[target] = parsed.dt.year
+                elif operation == 'extract_month':
+                    filtered_df[target] = parsed.dt.month
+                elif operation == 'extract_day':
+                    filtered_df[target] = parsed.dt.day
+                elif operation == 'extract_weekday':
+                    filtered_df[target] = parsed.dt.day_name()
+                else:
+                    results.append({"column": col, "status": "skipped", "reason": f"unknown operation: {operation}"})
+                    continue
+
+                results.append({
+                    "column": col,
+                    "target": target,
+                    "status": "success",
+                    "operation": operation,
+                    "error_count": error_count,
+                })
+            except HTTPException:
+                raise
+            except Exception as e:
+                results.append({"column": col, "status": "error", "reason": str(e)})
+
+        return filtered_df, results, total_error_count
+
+    results = []
+    total_error_count = 0
+
+    if row_indices:
+        # Store original column values, apply to all, then restore for non-selected rows
+        target = new_column if new_column else target_columns[0]
+        original_col = df[target].copy()
+        df, results, total_error_count = _apply_datetime_op(df, operation, error_handling, fallback_value, new_column, input_format, output_format)
+        # Restore original values for rows NOT in row_indices
+        valid_indices = [i for i in row_indices if 0 <= i < len(df)]
+        for idx in range(len(df)):
+            if idx not in valid_indices:
+                df.at[idx, target] = original_col.iloc[idx]
+    else:
+        df, results, total_error_count = _apply_datetime_op(df, operation, error_handling, fallback_value, new_column, input_format, output_format)
 
     # Check if any operations succeeded
     successful = [r for r in results if r.get('status') == 'success']
@@ -1237,6 +1318,13 @@ async def datetime_operations(
 
     success_count = len(successful)
     msg = f"Applied {operation} to {success_count} column(s)"
+    if new_column:
+        msg += f" into new column '{new_column}'"
+    if total_error_count > 0:
+        if error_handling == 'coerce':
+            msg += f". {total_error_count} value(s) could not be parsed and were set to null"
+        elif error_handling == 'fallback':
+            msg += f". {total_error_count} value(s) could not be parsed and were set to fallback value"
 
     return {"status": "success", "message": msg, "columns": dataset.columns, "results": results}
 
@@ -1847,6 +1935,58 @@ async def import_recipe(
                                 df[c] = df[c].astype(str).str.replace(find_val, replace_val, regex=False)
                             else:
                                 df[c] = df[c].astype(str).str.replace(find_val, replace_val, case=False, regex=False)
+
+            elif op_type in ("datetime-operations", "datetime_operations"):
+                # Datetime operations — inline implementation
+                dt_operation = op_params.get("operation")
+                dt_cols = op_columns or ([op_column] if op_column else [])
+                dt_error_handling = op_params.get("error_handling", "coerce")
+                dt_fallback_value = op_params.get("fallback_value")
+                dt_new_column = op_params.get("new_column")
+                dt_input_format = op_params.get("input_format")
+                dt_output_format = op_params.get("output_format")
+                # Normalize operation names
+                op_map = {
+                    'parse': 'parse_datetime', 'parse-datetime': 'parse_datetime',
+                    'parse_datetime': 'parse_datetime',
+                    'year': 'extract_year', 'extract-year': 'extract_year',
+                    'extract_year': 'extract_year',
+                    'month': 'extract_month', 'extract-month': 'extract_month',
+                    'extract_month': 'extract_month',
+                    'day': 'extract_day', 'extract-day': 'extract_day',
+                    'extract_day': 'extract_day',
+                    'weekday': 'extract_weekday', 'extract-weekday': 'extract_weekday',
+                    'extract_weekday': 'extract_weekday',
+                }
+                dt_operation = op_map.get(dt_operation, dt_operation)
+                for c in dt_cols:
+                    if c not in df.columns:
+                        continue
+                    try:
+                        if dt_input_format:
+                            parsed = pd.to_datetime(df[c], format=dt_input_format, errors="coerce")
+                        else:
+                            parsed = pd.to_datetime(df[c], errors="coerce")
+                        error_mask = parsed.isna() & df[c].notna()
+                        if dt_error_handling == "raise" and error_mask.any():
+                            raise ValueError(f"{error_mask.sum()} value(s) in '{c}' cannot be parsed")
+                        if dt_error_handling == "fallback" and dt_fallback_value is not None:
+                            fb = pd.to_datetime(dt_fallback_value, errors="coerce")
+                            parsed[error_mask] = fb
+                        target = dt_new_column if dt_new_column and dt_new_column not in df.columns else c
+                        if dt_operation == "parse_datetime":
+                            fmt = dt_output_format or "%Y-%m-%d %H:%M:%S"
+                            df[target] = parsed.dt.strftime(fmt)
+                        elif dt_operation == "extract_year":
+                            df[target] = parsed.dt.year
+                        elif dt_operation == "extract_month":
+                            df[target] = parsed.dt.month
+                        elif dt_operation == "extract_day":
+                            df[target] = parsed.dt.day
+                        elif dt_operation == "extract_weekday":
+                            df[target] = parsed.dt.day_name()
+                    except ValueError:
+                        pass  # skip silently in import-recipe
 
             elif op_type == "extract-json":
                 if op_column and op_column in df.columns:

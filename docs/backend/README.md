@@ -52,7 +52,6 @@ backend/
 │   │   ├── operations_extra.py  # Additional operations
 │   │   ├── structural_ops.py    # Structural transformations
 │   │   ├── cell_ops.py          # Cell-level operations
-│   │   ├── datetime_ops.py      # Date/time operations
 │   │   ├── missing_values.py    # Null handling
 │   │   ├── batch_ops.py         # Batch operations
 │   │   ├── ai_operations.py     # AI-powered operations

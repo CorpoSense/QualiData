@@ -150,14 +150,20 @@
     </BDropdown>
 
           <BDropdown text="Date Ops" size="sm">
-            <BDropdownItem @click="showOpConfirmModal('datetime-parse-datetime')">
+            <BDropdownItem @click="openDatetimeModal('parse_datetime')">
               <i class="bi bi-calendar me-2"></i>Parse datetime
             </BDropdownItem>
-            <BDropdownItem @click="showOpConfirmModal('datetime-extract-year')">
+            <BDropdownItem @click="openDatetimeModal('extract_year')">
               <i class="bi bi-calendar3 me-2"></i>Extract year
             </BDropdownItem>
-            <BDropdownItem @click="showOpConfirmModal('datetime-extract-month')">
+            <BDropdownItem @click="openDatetimeModal('extract_month')">
               <i class="bi bi-calendar3 me-2"></i>Extract month
+            </BDropdownItem>
+            <BDropdownItem @click="openDatetimeModal('extract_day')">
+              <i class="bi bi-calendar3 me-2"></i>Extract day
+            </BDropdownItem>
+            <BDropdownItem @click="openDatetimeModal('extract_weekday')">
+              <i class="bi bi-calendar3 me-2"></i>Extract weekday
             </BDropdownItem>
           </BDropdown>
 
@@ -1295,6 +1301,16 @@
     @apply="applyChangeType"
   />
 
+  <!-- Datetime Operations Modal -->
+  <DatetimeModal
+    v-model="showDatetimeModal"
+    :selected-columns="effectiveSelectedColumns"
+    :data="data"
+    :operating="operating"
+    :default-operation="datetimeModalOperation"
+    @apply="applyDatetimeOp"
+  />
+
   <!-- Value Mapping Modal -->
   <ValueMappingModal
     v-model="showValueMappingModal"
@@ -1402,6 +1418,7 @@ import FuzzyMatchModal from '@/components/FuzzyMatchModal.vue'
 import ProfileModal from '@/components/ProfileModal.vue'
 import ColumnReorderModal from '@/components/ColumnReorderModal.vue'
 import ChangeTypeModal from '@/components/ChangeTypeModal.vue'
+import DatetimeModal from '@/components/DatetimeModal.vue'
 import ExtractPatternModal from '@/components/ExtractPatternModal.vue'
 import ValueMappingModal from '@/components/ValueMappingModal.vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
@@ -1679,6 +1696,8 @@ const showHistory = ref(false)
 const showPivotModal = ref(false)
 const showColumnReorderModal = ref(false)
 const showChangeTypeModal = ref(false)
+const showDatetimeModal = ref(false)
+const datetimeModalOperation = ref('parse_datetime')
 const exportZip = ref(false)
 const importText = ref('')
 const importFile = ref(null)
@@ -2705,30 +2724,51 @@ async function applyFindReplace() {
   finally { operating.value = false }
 }
 
-async function applyDatetimeOp(operation) {
+function openDatetimeModal(presetOperation = null) {
+  if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length === 0) {
+    toast.warning('Select column(s) first')
+    return
+  }
+  datetimeModalOperation.value = presetOperation || 'parse_datetime'
+  showDatetimeModal.value = true
+}
+
+async function applyDatetimeOp(payload) {
   if (!effectiveSelectedColumns.value || effectiveSelectedColumns.value.length === 0) {
     toast.warning('No columns selected'); return
   }
   operating.value = true
   try {
-    const body = { 
-      columns: effectiveSelectedColumns.value, 
-      operation,
-      row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined
+    const body = {
+      columns: effectiveSelectedColumns.value,
+      operation: payload.operation,
+      error_handling: payload.error_handling,
+      row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined,
     }
+    if (payload.fallback_value != null) body.fallback_value = payload.fallback_value
+    if (payload.new_column) body.new_column = payload.new_column
+    if (payload.input_format) body.input_format = payload.input_format
+    if (payload.output_format) body.output_format = payload.output_format
+
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/datetime-operations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     })
-    if (res.ok) { 
+    if (res.ok) {
       const data = await res.json()
-      toast.success(data.message || 'Operation applied successfully')
-      await refreshData() 
+      toast.success(data.message || 'Datetime operation applied')
+      showDatetimeModal.value = false
+      await refreshData()
+    } else {
+      const err = await res.json()
+      toast.error(err.detail || 'Operation failed')
     }
-    else { const err = await res.json(); toast.error(err.detail || 'Operation failed') }
-  } catch (e) { toast.error(e.message) }
-  finally { operating.value = false }
+  } catch (e) {
+    toast.error(e.message)
+  } finally {
+    operating.value = false
+  }
 }
 async function applyStructuralOp(operation) {
   if (operation === 'add_column') {
@@ -2845,10 +2885,6 @@ const OP_CONFIGS = {
   'string-upper': { title: 'Uppercase', description: 'Converts all text to UPPERCASE.', operation: 'string-operations', params: { operation: 'upper' }, options: [] },
   'string-title': { title: 'Title Case', description: 'Capitalizes The First Letter Of Each Word.', operation: 'string-operations', params: { operation: 'title' }, options: [] },
   'string-capitalize': { title: 'Capitalize', description: 'Capitalizes only the first letter of each value.', operation: 'string-operations', params: { operation: 'capitalize' }, options: [] },
-  // Date ops
-  'datetime-parse-datetime': { title: 'Parse Datetime', description: 'Attempts to parse text values into datetime format.', operation: 'datetime-operations', params: { operation: 'parse-datetime' }, options: [] },
-  'datetime-extract-year': { title: 'Extract Year', description: 'Extracts the year component from datetime values into a new column.', operation: 'datetime-operations', params: { operation: 'extract-year' }, options: [] },
-  'datetime-extract-month': { title: 'Extract Month', description: 'Extracts the month component from datetime values into a new column.', operation: 'datetime-operations', params: { operation: 'extract-month' }, options: [] },
   // Numeric ops
   'numeric-round': { title: 'Round Numbers', description: 'Rounds numeric values to a specified number of decimal places.', operation: 'numeric', params: { operation: 'round' }, options: [{ key: 'decimals', label: 'Decimal places', type: 'range', min: 0, max: 10, step: 1, hint: 'Number of decimal places to round to' }] },
   'numeric-normalize': { title: 'Normalize (Min-Max)', description: 'Scales numeric values to a 0-1 range. Formula: (x - min) / (max - min). Use when you need bounded values.', operation: 'numeric', params: { operation: 'normalize' }, options: [] },
@@ -2908,9 +2944,6 @@ async function onOpConfirmApply(params) {
       }
     } else if (config.operation === 'string-operations') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/string-operations`
-      body = { columns: effectiveSelectedColumns.value, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
-    } else if (config.operation === 'datetime-operations') {
-      endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/datetime-operations`
       body = { columns: effectiveSelectedColumns.value, ...mergedParams, row_indices: operationRowScope.value === 'selected' ? selectedRowIndices.value : undefined }
     } else if (config.operation === 'numeric') {
       endpoint = `${apiUrl}/api/datasets/${datasetId.value}/operations/numeric`

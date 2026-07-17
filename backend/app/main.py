@@ -24,7 +24,6 @@ from app.routers import (
     cell_ops,
     comparison,
     datasets,
-    datetime_ops,
     documents,
     health,
     missing_values,
@@ -161,7 +160,6 @@ def create_app() -> FastAPI:
     app.include_router(agents.router, prefix="/api")
     app.include_router(missing_values.router, prefix="/api")
     app.include_router(undo_redo.router, prefix="/api")
-    app.include_router(datetime_ops.router, prefix="/api")
     app.include_router(structural_ops.router, prefix="/api")
     app.include_router(ai_operations.router, prefix="/api")
     app.include_router(batch_ops.router, prefix="/api")

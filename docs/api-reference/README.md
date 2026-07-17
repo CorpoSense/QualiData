@@ -587,37 +587,38 @@ Content-Type: application/json
 
 ---
 
-### Date Operations
+### Datetime Operations
 
-#### Parse Datetime
+#### Datetime Operations (Parse, Extract)
 
 ```http
-POST /api/operations/datetime/parse
+POST /api/datasets/{dataset_id}/operations/datetime-operations
 Authorization: Bearer <token>
 Content-Type: application/json
 
 {
-  "dataset_id": "uuid",
-  "column": "created_at",
-  "format": "YYYY-MM-DD"
+  "columns": ["created_at"],
+  "operation": "parse-datetime",
+  "error_handling": "coerce",
+  "input_format": "%d/%m/%Y",
+  "output_format": "%Y-%m-%d",
+  "new_column": "parsed_date",
+  "fallback_value": "1970-01-01",
+  "row_indices": [0, 1, 2]
 }
 ```
 
-#### Extract Component
+**Operations:** `parse-datetime`, `extract-year`, `extract-month`, `extract-day`, `extract-weekday`
 
-```http
-POST /api/operations/datetime/extract
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "dataset_id": "uuid",
-  "column": "created_at",
-  "component": "year"
-}
-```
-
-**Components:** `year`, `month`, `day`, `hour`, `minute`, `second`
+**Parameters:**
+- `columns` (required): Array of column names
+- `operation` (required): Operation to perform
+- `error_handling` (optional): `coerce` (default), `fallback`, or `raise`
+- `fallback_value` (optional): Value for unparseable rows when `error_handling=fallback`
+- `input_format` (optional): Python strptime format (e.g. `%d/%m/%Y`)
+- `output_format` (optional): Python strftime format for output
+- `new_column` (optional): Write result to a new column (single column only)
+- `row_indices` (optional): Apply only to specific rows
 
 ---
 
