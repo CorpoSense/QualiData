@@ -194,7 +194,7 @@ async def add_column(
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+    after = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
     await save_operation(dataset_id, "add_column", request.model_dump(), before, after, session)
     await session.commit()
     return OperationResponse(
@@ -232,7 +232,7 @@ async def remove_columns(
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+    after = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
     await save_operation(dataset_id, "remove_columns", request.model_dump(), before, after, session)
     await session.commit()
     return OperationResponse(
@@ -270,7 +270,7 @@ async def rename_column(
     df = df.rename(columns={request.old_name: request.new_name})
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     await save_operation(dataset_id, "rename_column", request.model_dump(), before, after, session)
     await session.commit()
     return OperationResponse(
@@ -309,7 +309,7 @@ async def merge_columns(
     )
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     # PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
     # await save_operation(dataset_id, "merge_columns", request.dict(), before, after, session)
     await save_operation(dataset_id, "merge_columns", request.model_dump(), before, after, session)
@@ -353,7 +353,7 @@ async def split_column(
         df[col_name] = split_data[i] if i < len(split_data.columns) else None
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     # PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
     # await save_operation(dataset_id, "split_column", request.dict(), before, after, session)
     await save_operation(dataset_id, "split_column", request.model_dump(), before, after, session)
@@ -394,7 +394,7 @@ async def duplicate_column(
     df[request.new_column] = df[request.source_column]
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     await save_operation(
         dataset_id, "duplicate_column", request.model_dump(), before, after, session
     )
@@ -428,7 +428,7 @@ async def reorder_columns(
     df = df[request.columns]
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     await save_operation(
         # PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
         # dataset_id, "reorder_columns", request.dict(), before, after, session
@@ -514,7 +514,7 @@ async def reorder_rows(
     df = pd.DataFrame(rows)
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     await save_operation(
         # PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
         # dataset_id, "reorder_rows", request.dict(), before, after, session
@@ -832,7 +832,7 @@ async def string_operations(
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+    after = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "string_operations", request, before, after, session)
     await session.commit()
@@ -912,7 +912,7 @@ async def extract_json_value(
     before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": get_preview_data(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "extract-json", {"column": column, "key": key}, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -1015,7 +1015,7 @@ async def extract_pattern_value(
     before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": get_preview_data(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
 
     op_params = {"column": column, "pattern": pattern, "case_sensitive": case_sensitive}
     if new_column:
@@ -1113,7 +1113,7 @@ async def find_replace(
     before_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "preview_data": get_preview_data(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "find-replace", request, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -1316,7 +1316,7 @@ async def datetime_operations(
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+    after = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "datetime_operations", request, before, after, session)
     await session.commit()
@@ -1404,7 +1404,7 @@ async def fillna_operations(
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "fillna", request, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -1439,7 +1439,7 @@ async def remove_duplicates(
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": after_count, "preview_data": get_preview_data(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": after_count, "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "remove_duplicates", request, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -1544,10 +1544,10 @@ async def sort_operations(
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     _data_json_cols = list(dataset.data_json["data"][0].keys()) if dataset.data_json.get("data") else []
-    _preview_cols = list(after_snapshot["preview_data"][0].keys()) if after_snapshot.get("preview_data") else []
+    _preview_cols = list(after_snapshot["data"][0].keys()) if after_snapshot.get("data") else []
 
     await save_operation(dataset_id, "sort", request, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -1630,7 +1630,7 @@ async def encoding_operations(
     dataset.columns = detect_columns(df)
     dataset.row_count = len(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns, "row_count": dataset.row_count}
+    after = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
     await save_operation(dataset_id, f"encoding_{operation}", request, before, after, session)
     await session.commit()
     return OperationResponse(status="success", message=msg, columns=dataset.columns)
@@ -1734,7 +1734,7 @@ async def structural_operations(
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "structural", request, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -1811,7 +1811,7 @@ async def add_records(
     dataset.columns = detect_columns(df)
     dataset.row_count = len(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns, "row_count": dataset.row_count}
+    after = {"columns": dataset.columns, "row_count": dataset.row_count, "data": dataset.data_json["data"]}
     await save_operation(
         dataset_id, "add_records", {"count": len(new_rows)}, before, after, session
     )
@@ -1875,7 +1875,7 @@ async def import_recipe(
                 continue
 
         try:
-            before_snapshot = {"columns": detect_columns(df), "row_count": len(df)}
+            before_snapshot = {"columns": detect_columns(df), "row_count": len(df), "data": get_full_data_json(df)["data"]}
 
             if op_type == "fillna":
                 method = op_params.get("method", "constant")
@@ -2135,7 +2135,7 @@ async def import_recipe(
             existing_columns = set(df.columns)
 
             # Save operation history
-            after_snapshot = {"columns": list(df.columns), "row_count": len(df)}
+            after_snapshot = {"columns": list(df.columns), "row_count": len(df), "data": get_full_data_json(df)["data"]}
             await save_operation(
                 dataset_id, op_type, {**op_params, "column": op_column, "columns": op_columns},
                 before_snapshot, after_snapshot, session
@@ -2224,7 +2224,7 @@ async def delete_rows(
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "delete-rows", request, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -2375,7 +2375,7 @@ async def fuzzy_dedupe(
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "fuzzy_dedupe", request, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -2509,7 +2509,7 @@ async def fuzzy_advanced(
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
     
     await save_operation(dataset_id, "fuzzy_advanced", request, before_snapshot, after_snapshot, session)
     await session.commit()
@@ -2701,7 +2701,7 @@ async def map_values(
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "map-values", request.model_dump(), before_snapshot, after_snapshot, session)
     await session.commit()
@@ -2823,7 +2823,7 @@ async def numeric_operations(
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "preview_data": get_preview_data(df)}
+    after_snapshot = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "numeric", request, before_snapshot, after_snapshot, session)
     await session.commit()

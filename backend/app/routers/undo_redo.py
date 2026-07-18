@@ -12,6 +12,61 @@ from app.routers.auth import get_current_active_user
 router = APIRouter()
 
 
+def _restore_snapshot(dataset: Dataset, snapshot: dict | None) -> None:
+    """Restore dataset state from a before/after snapshot.
+
+    Handles both the modern snapshot format (``{"data": [...]}``) and the
+    legacy format (``{"preview_data": [...]}``) written by older operation
+    endpoints. Preserves the ``charts`` key in ``data_json`` so that chart
+    configurations are not destroyed on undo/redo.
+    """
+    if not snapshot:
+        return
+
+    # Restore columns
+    if "columns" in snapshot:
+        dataset.columns = snapshot.get("columns")
+
+    # Restore data_json. Prefer the full "data" key; fall back to the legacy
+    # "preview_data" key for history records written by older endpoints.
+    data = snapshot.get("data")
+    if data is None:
+        data = snapshot.get("preview_data")
+
+    if data is not None:
+        # Preserve existing charts (and any other keys) in data_json.
+        existing = dataset.data_json if isinstance(dataset.data_json, dict) else {}
+        new_data_json = {**existing, "data": data}
+        dataset.data_json = new_data_json
+
+    # Restore row_count
+    if "row_count" in snapshot:
+        dataset.row_count = snapshot.get(
+            "row_count", len(data) if data is not None else dataset.row_count
+        )
+    elif data is not None:
+        dataset.row_count = len(data)
+
+
+async def _get_owned_dataset(
+    dataset_id: str, current_user: User, session: AsyncSession
+) -> Dataset:
+    """Fetch dataset and verify ownership via project."""
+    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
+    dataset = result.scalar_one_or_none()
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    project_result = await session.execute(
+        select(Project).where(
+            Project.id == dataset.project_id, Project.user_id == current_user.id
+        )
+    )
+    if not project_result.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Access denied")
+    return dataset
+
+
 @router.post(
     "/datasets/{dataset_id}/operations/undo", response_model=dict
 )
@@ -26,23 +81,7 @@ async def undo_operation(
     If operation_id is provided in request body, undo that specific operation.
     Otherwise, undo the last applied operation.
     """
-    # Get dataset with ownership check
-    result = await session.execute(
-        select(Dataset).where(Dataset.id == dataset_id)
-    )
-    dataset = result.scalar_one_or_none()
-
-    if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
-
-    # Verify ownership
-    project_result = await session.execute(
-        select(Project).where(
-            Project.id == dataset.project_id, Project.user_id == current_user.id
-        )
-    )
-    if not project_result.scalar_one_or_none():
-        raise HTTPException(status_code=403, detail="Access denied")
+    dataset = await _get_owned_dataset(dataset_id, current_user, session)
 
     # Find the operation to undo
     operation_id = (request or {}).get("operation_id")
@@ -77,17 +116,7 @@ async def undo_operation(
         return {"status": "success", "message": "No operations to undo"}
 
     # Restore from before_snapshot
-    if operation.before_snapshot:
-        if "columns" in operation.before_snapshot:
-            dataset.columns = operation.before_snapshot.get("columns")
-        # Restore data_json from saved state
-    if "data" in operation.before_snapshot:
-        # Wrap data in proper format {"data": [...]} as expected by other endpoints
-        dataset.data_json = {"data": operation.before_snapshot.get("data")}
-        if "row_count" in operation.before_snapshot:
-            dataset.row_count = operation.before_snapshot.get(
-                "row_count", len(operation.before_snapshot.get("data", []))
-            )
+    _restore_snapshot(dataset, operation.before_snapshot)
 
     # Mark as undone
     operation.is_undone = True
@@ -107,27 +136,11 @@ async def redo_operation(
     session: AsyncSession = Depends(get_async_session),
 ):
     """Redo the last undone operation on a dataset by restoring from after_snapshot."""
-    # Get dataset with ownership check
-    result = await session.execute(
-        select(Dataset).where(Dataset.id == dataset_id)
-    )
-    dataset = result.scalar_one_or_none()
-    
-    if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
-    
-    # Verify ownership
-    project_result = await session.execute(
-        select(Project).where(
-            Project.id == dataset.project_id, Project.user_id == current_user.id
-        )
-    )
-    if not project_result.scalar_one_or_none():
-        raise HTTPException(status_code=403, detail="Access denied")
+    dataset = await _get_owned_dataset(dataset_id, current_user, session)
 
     # Find the operation to redo
     operation_id = (request or {}).get("operation_id")
-    
+
     if operation_id:
         op_result = await session.execute(
             select(OperationHistory).where(
@@ -157,17 +170,7 @@ async def redo_operation(
         return {"status": "success", "message": "No operations to redo"}
 
     # Restore from after_snapshot
-    if operation.after_snapshot:
-        if "columns" in operation.after_snapshot:
-            dataset.columns = operation.after_snapshot.get("columns")
-        # Restore data_json from saved state
-    if "data" in operation.after_snapshot:
-        # Wrap data in proper format {"data": [...]} as expected by other endpoints
-        dataset.data_json = {"data": operation.after_snapshot.get("data")}
-        if "row_count" in operation.after_snapshot:
-            dataset.row_count = operation.after_snapshot.get(
-                "row_count", len(operation.after_snapshot.get("data", []))
-            )
+    _restore_snapshot(dataset, operation.after_snapshot)
 
     # Mark as applied (not undone)
     operation.is_undone = False
@@ -185,18 +188,7 @@ async def undo_batch(
     session: AsyncSession = Depends(get_async_session),
 ):
     """Undo multiple operations by ID. Processes in reverse chronological order."""
-    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
-    dataset = result.scalar_one_or_none()
-    if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
-
-    project_result = await session.execute(
-        select(Project).where(
-            Project.id == dataset.project_id, Project.user_id == current_user.id
-        )
-    )
-    if not project_result.scalar_one_or_none():
-        raise HTTPException(status_code=403, detail="Access denied")
+    dataset = await _get_owned_dataset(dataset_id, current_user, session)
 
     operation_ids = request.get("operation_ids", [])
     if not operation_ids:
@@ -220,17 +212,7 @@ async def undo_batch(
     # Undo in reverse chronological order
     # The last operation's before_snapshot becomes the dataset state
     last_op = operations[0]  # newest (first in desc order)
-    if last_op.before_snapshot:
-        if "columns" in last_op.before_snapshot:
-            dataset.columns = last_op.before_snapshot.get("columns")
-        # Restore data_json from saved state
-    if "data" in last_op.before_snapshot:
-        # Wrap data in proper format {"data": [...]} as expected by other endpoints
-        dataset.data_json = {"data": last_op.before_snapshot.get("data")}
-        if "row_count" in last_op.before_snapshot:
-            dataset.row_count = last_op.before_snapshot.get(
-                "row_count", len(last_op.before_snapshot.get("data", []))
-            )
+    _restore_snapshot(dataset, last_op.before_snapshot)
 
     undone_ids = []
     for op in operations:
@@ -254,18 +236,7 @@ async def redo_batch(
     session: AsyncSession = Depends(get_async_session),
 ):
     """Redo multiple operations by ID. Processes in chronological order."""
-    result = await session.execute(select(Dataset).where(Dataset.id == dataset_id))
-    dataset = result.scalar_one_or_none()
-    if not dataset:
-        raise HTTPException(status_code=404, detail="Dataset not found")
-
-    project_result = await session.execute(
-        select(Project).where(
-            Project.id == dataset.project_id, Project.user_id == current_user.id
-        )
-    )
-    if not project_result.scalar_one_or_none():
-        raise HTTPException(status_code=403, detail="Access denied")
+    dataset = await _get_owned_dataset(dataset_id, current_user, session)
 
     operation_ids = request.get("operation_ids", [])
     if not operation_ids:
@@ -289,17 +260,7 @@ async def redo_batch(
     # Redo in chronological order
     # The first operation's after_snapshot becomes the dataset state
     first_op = operations[0]  # oldest (first in asc order)
-    if first_op.after_snapshot:
-        if "columns" in first_op.after_snapshot:
-            dataset.columns = first_op.after_snapshot.get("columns")
-        # Restore data_json from saved state
-    if "data" in first_op.after_snapshot:
-        # Wrap data in proper format {"data": [...]} as expected by other endpoints
-        dataset.data_json = {"data": first_op.after_snapshot.get("data")}
-        if "row_count" in first_op.after_snapshot:
-            dataset.row_count = first_op.after_snapshot.get(
-                "row_count", len(first_op.after_snapshot.get("data", []))
-            )
+    _restore_snapshot(dataset, first_op.after_snapshot)
 
     redone_ids = []
     for op in operations:

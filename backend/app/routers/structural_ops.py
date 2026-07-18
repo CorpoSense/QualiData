@@ -54,10 +54,10 @@ async def fix_case(
 
     from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
 
     save_operation(
         dataset_id, "fix_case", {"column": column, "case": case}, before, after, session
@@ -102,10 +102,10 @@ async def trim_whitespace(
 
     from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
 
     save_operation(
         dataset_id, "trim_whitespace", {"columns": cols}, before, after, session
@@ -147,10 +147,10 @@ async def fix_typos(
 
     from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
 
     save_operation(
         dataset_id,
@@ -223,10 +223,10 @@ async def standardize_values(
 
     from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
 
     save_operation(
         dataset_id, "standardize_values", {"column": column}, before, after, session

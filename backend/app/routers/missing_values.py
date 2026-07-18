@@ -79,11 +79,11 @@ async def fill_na(
 
     from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns, "row_count": len(dataset.data_json["data"])}
+    before = {"columns": dataset.columns, "row_count": len(dataset.data_json["data"]), "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df)}
+    after = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     save_operation(dataset_id, "fillna", request.model_dump(), before, after, session)
     await session.commit()
@@ -127,11 +127,11 @@ async def drop_na(
 
     from app.routers.datasets import detect_columns, get_full_data_json
 
-    before = {"columns": dataset.columns, "row_count": before_count}
+    before = {"columns": dataset.columns, "row_count": before_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df)}
+    after = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     save_operation(
         dataset_id,
@@ -190,10 +190,10 @@ async def string_operations(
 
     from app.routers.datasets import detect_columns, get_full_data_json
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
 
     save_operation(
         dataset_id,

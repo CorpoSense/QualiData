@@ -405,11 +405,11 @@ async def filter_rows(
 
     from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns, "row_count": before_row_count}
+    before = {"columns": dataset.columns, "row_count": before_row_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df)}
+    after = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "filter_rows", request.model_dump(), before, after, session)
     await session.commit()
@@ -448,10 +448,10 @@ async def sort_data(
 
     from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "sort_data", request.model_dump(), before, after, session)
     await session.commit()
@@ -491,11 +491,11 @@ async def remove_duplicates(
 
     from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns, "row_count": before_count}
+    before = {"columns": dataset.columns, "row_count": before_count, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
     dataset.row_count = len(df)
-    after = {"columns": dataset.columns, "row_count": len(df)}
+    after = {"columns": dataset.columns, "row_count": len(df), "data": dataset.data_json["data"]}
 
     await save_operation(
         dataset_id, "remove_duplicates", request.model_dump(), before, after, session
@@ -549,10 +549,10 @@ async def find_replace(
 
     from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "find_replace", request.model_dump(), before, after, session)
     await session.commit()
@@ -771,10 +771,10 @@ async def change_type(
 
     from app.routers.datasets import detect_columns, get_preview_data, get_full_data_json
 
-    before = {"columns": dataset.columns}
+    before = {"columns": dataset.columns, "data": dataset.data_json["data"]}
     dataset.columns = detect_columns(df)
     dataset.data_json = get_full_data_json(df)
-    after = {"columns": dataset.columns}
+    after = {"columns": dataset.columns, "data": dataset.data_json["data"]}
 
     await save_operation(dataset_id, "change_type", request.model_dump(), before, after, session)
     await session.commit()
