@@ -669,9 +669,10 @@
       :columns="columns"
       :dataset-id="datasetId"
       :agent-options="agentOptions"
- :total-rows="totalRows"
+      :total-rows="totalRows"
       :selected-columns="selectedColumns"
       @apply="onFuzzyMatchApply"
+      @applySimple="onFuzzySimpleApply"
       @aiHelp="onFuzzyAiHelp"
     />
 
@@ -3623,7 +3624,7 @@ async function onFuzzyMatchApply(payload) {
   if (!payload.column) { toast.warning('Select a column first'); return }
   if (!payload.mapping || Object.keys(payload.mapping).length === 0) { toast.warning('No value mapping defined'); return }
 
-  
+
   operating.value = true
   try {
     const res = await fetch(`${apiUrl}/api/datasets/${datasetId.value}/operations/fuzzy-advanced`, {
@@ -3647,6 +3648,18 @@ async function onFuzzyMatchApply(payload) {
     }
   } catch (e) { toast.error(e.message) }
   finally { operating.value = false }
+}
+
+async function onFuzzySimpleApply(payload) {
+  // Simple tab: operation already applied via fuzzy-dedupe endpoint in the modal.
+  // Just close the modal, show the backend message, and refresh data.
+  showFuzzyMatchModal.value = false
+  if (payload?.data?.message) {
+    toast.success(payload.data.message)
+  } else {
+    toast.success('Fuzzy match applied')
+  }
+  await refreshData()
 }
 
 function onFuzzyAiHelp(payload) {

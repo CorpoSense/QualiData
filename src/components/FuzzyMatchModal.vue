@@ -102,6 +102,27 @@
         ></BFormInput>
         <small class="text-muted">Higher = more strict matching (0.8 = 80% similarity)</small>
       </BFormGroup>
+
+      <!-- Error message -->
+      <div v-if="error" class="alert alert-danger mt-3 mb-0 py-2 small">
+        <i class="bi bi-exclamation-triangle me-1"></i>{{ error }}
+      </div>
+
+      <!-- Apply -->
+      <div class="mt-3">
+        <button
+          class="btn btn-primary"
+          :disabled="!simpleColumn || applying"
+          @click="applySimpleFuzzy"
+        >
+          <span v-if="applying">
+            <span class="spinner-border spinner-border-sm me-1"></span> Applying...
+          </span>
+          <span v-else>
+            <i class="bi bi-check me-1"></i> Apply
+          </span>
+        </button>
+      </div>
     </div>
 
     <!-- Advanced Tab -->
@@ -412,7 +433,7 @@ const props = defineProps({
   selectedColumns: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['update:modelValue', 'apply', 'aiHelp'])
+const emit = defineEmits(['update:modelValue', 'apply', 'applySimple', 'aiHelp'])
 
 // State
 const activeTab = ref('simple')
@@ -602,6 +623,56 @@ function aiHelp() {
     clusters: clusters.value,
     mode: 'fuzzy-match'
   })
+}
+
+async function applySimpleFuzzy() {
+  if (!simpleColumn.value) {
+    error.value = 'Please select a column from the table header first.'
+    return
+  }
+
+  applying.value = true
+  error.value = ''
+
+  try {
+    const apiUrl = getApiUrl()
+    const res = await fetch(
+      `${apiUrl}/api/datasets/${props.datasetId}/operations/fuzzy-dedupe`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          column: simpleColumn.value,
+          threshold: simpleThreshold.value,
+          matching_type: simpleMatchingType.value,
+          mode: simpleMode.value
+        })
+      }
+    )
+
+    if (res.ok) {
+      const data = await res.json()
+      emit('applySimple', {
+        status: 'success',
+        data,
+        column: simpleColumn.value,
+        matching_type: simpleMatchingType.value,
+        threshold: simpleThreshold.value,
+        mode: simpleMode.value
+      })
+      onClose()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      error.value = err.detail || 'Operation failed'
+    }
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    applying.value = false
+  }
 }
 
 async function applyOperation() {
