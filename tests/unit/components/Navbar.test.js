@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createRouter, createWebHistory } from 'vue-router'
-import Navbar from './Navbar.vue'
+import Navbar from '@/components/Navbar.vue'
 
 // Mock localStorage
 const localStorageMock = {

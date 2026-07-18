@@ -13,7 +13,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import DataTable from './DataTable.vue'
+import DataTable from '@/components/DataTable.vue'
 
 const defaultItems = [
   { name: 'Charlie', age: 30 },

@@ -35,7 +35,7 @@ Follow these guidelines when working on this project.
 11. **Check dependencies** - Review `package.json` or `requirements.txt` before using any library
 12. **Use existing venv** - Always use the existing virtual environment at `backend/.venv/` when running Python commands or modules (e.g., `backend/.venv/bin/python`, `backend/.venv/bin/pip`, `backend/.venv/bin/pytest`...etc.)
 13. **No inline imports** - Newer write inline import (like: `await import()`, `import("pkg").Type`, dynamic type imports), write Top-level imports only when needed.
-14. **Frontend tests files** - Always place frontend test files in `tests` directory, never place them in `src` directory.
+14. **Frontend tests files** - Always place frontend test files in `tests` directory, never place them in `src` directory. Component tests go in `tests/unit/components/`.
 
 ---
 

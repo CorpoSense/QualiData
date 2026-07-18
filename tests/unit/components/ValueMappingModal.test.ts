@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
-import ValueMappingModal from './ValueMappingModal.vue'
+import ValueMappingModal from '@/components/ValueMappingModal.vue'
 
 // Mock getApiUrl
 vi.mock('@/utils/api', () => ({

@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import ColumnFilterDropdown from './ColumnFilterDropdown.vue'
+import ColumnFilterDropdown from '@/components/ColumnFilterDropdown.vue'
 
 const defaultValues = [
   { value: 'Paris', count: 15 },

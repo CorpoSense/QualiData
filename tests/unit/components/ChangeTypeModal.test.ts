@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
-import ChangeTypeModal from './ChangeTypeModal.vue'
+import ChangeTypeModal from '@/components/ChangeTypeModal.vue'
 
 // Mock getApiUrl
 vi.mock('@/utils/api', () => ({
