@@ -303,11 +303,11 @@
         </div>
       </div>
 
-      <!-- Step 3: Select Values to Keep -->
+      <!-- Step 3: Select Values to Keep / Skip -->
       <div v-if="currentStep === 3">
         <div class="alert alert-info">
           <i class="bi bi-info-circle me-1"></i>
-          Select which value to keep for each group. Values not selected will be merged.
+          For each group, choose which value to keep or skip values that should remain distinct.
         </div>
 
         <div v-if="clusterGroups.length">
@@ -323,15 +323,25 @@
               <div
                 v-for="item in group.values"
                 :key="item.value"
-                class="form-check mb-2"
+                class="d-flex align-items-center mb-2"
               >
+                <input
+                  :id="`skip-${idx}-${item.value}`"
+                  v-model="item.skipped"
+                  type="checkbox"
+                  class="form-check-input me-2"
+                >
+                <label :for="`skip-${idx}-${item.value}`" class="form-check-label me-auto small text-muted">
+                  Skip (keep as-is)
+                </label>
                 <input
                   :id="`keep-${idx}-${item.value}`"
                   v-model="group.selected"
                   type="radio"
                   :value="item.value"
                   :name="`group-${idx}`"
-                  class="form-check-input"
+                  class="form-check-input me-2"
+                  :disabled="item.skipped"
                 >
                 <label :for="`keep-${idx}-${item.value}`" class="form-check-label">
                   {{ item.value }} ({{ item.frequency }} occurrences)
@@ -552,8 +562,9 @@ const canProceed = computed(() => {
 const totalChanges = computed(() => {
   let count = 0
   for (const group of clusterGroups.value) {
-    if (group.values.length > 1) {
-      count += group.values.length - 1
+    const nonSkipped = group.values.filter(v => !v.skipped)
+    if (nonSkipped.length > 1) {
+      count += nonSkipped.length - 1
     }
   }
   return count
@@ -568,8 +579,14 @@ async function loadUniqueValues() {
   
   try {
     const apiUrl = getApiUrl()
+    const params = new URLSearchParams({
+      column: advColumn.value,
+      limit: String(previewLimit.value),
+      threshold: String(advThreshold.value),
+      matching_type: advMatchingType.value
+    })
     const res = await fetch(
-      `${apiUrl}/api/datasets/${props.datasetId}/operations/fuzzy-preview?column=${encodeURIComponent(advColumn.value)}&limit=${previewLimit.value}`,
+      `${apiUrl}/api/datasets/${props.datasetId}/operations/fuzzy-preview?${params}`,
       {
         headers: {
           'Content-Type': 'application/json',
@@ -586,7 +603,7 @@ async function loadUniqueValues() {
       
       // Build cluster groups for selection
       clusterGroups.value = clusters.value.map((cluster, idx) => ({
-        values: cluster.values.map(v => ({ value: v, frequency: uniqueValues.value.find(uv => uv.value === v)?.frequency || 0 })),
+        values: cluster.values.map(v => ({ value: v, frequency: uniqueValues.value.find(uv => uv.value === v)?.frequency || 0, skipped: false })),
         selected: cluster.values[0]
       }))
     } else {
@@ -606,13 +623,50 @@ function sortValues() {
   })
 }
 
-function previewTransformation() {
+async function previewTransformation() {
+  if (!advColumn.value) return
   previewLoading.value = true
-  
-  setTimeout(() => {
+  error.value = ''
+
+  try {
+    const apiUrl = getApiUrl()
+    const params = new URLSearchParams({
+      column: advColumn.value,
+      limit: String(previewLimit.value),
+      threshold: String(advThreshold.value),
+      matching_type: advMatchingType.value
+    })
+    const res = await fetch(
+      `${apiUrl}/api/datasets/${props.datasetId}/operations/fuzzy-preview?${params}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      }
+    )
+
+    if (res.ok) {
+      const data = await res.json()
+      uniqueValues.value = data.unique_values || []
+      hasMore.value = data.has_more || false
+      clusters.value = data.clusters || []
+
+      // Build cluster groups for selection with skipped flag
+      clusterGroups.value = clusters.value.map((cluster) => ({
+        values: cluster.values.map(v => ({ value: v, frequency: uniqueValues.value.find(uv => uv.value === v)?.frequency || 0, skipped: false })),
+        selected: cluster.values[0]
+      }))
+      currentStep.value = 3
+    } else {
+      const err = await res.json().catch(() => ({}))
+      error.value = err.detail || 'Failed to generate preview'
+    }
+  } catch (e) {
+    error.value = e.message
+  } finally {
     previewLoading.value = false
-    currentStep.value = 3
-  }, 500)
+  }
 }
 
 function aiHelp() {
@@ -676,13 +730,14 @@ async function applySimpleFuzzy() {
 }
 
 async function applyOperation() {
-  // Build mapping from cluster groups
+  // Build mapping from cluster groups, respecting skipped values
   const mapping = {}
   
   for (const group of clusterGroups.value) {
     const selectedValue = group.selected
     for (const item of group.values) {
-      if (item.value !== selectedValue) {
+      // Skip values marked as "keep as-is" and the selected value itself
+      if (!item.skipped && item.value !== selectedValue) {
         mapping[item.value] = selectedValue
       }
     }
