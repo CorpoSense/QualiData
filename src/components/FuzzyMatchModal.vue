@@ -425,7 +425,7 @@
     </div>
 
     <template #footer>
-      <BButton variant="outline-secondary" @click="onClose">Cancel</BButton>
+      <BButton variant="outline-secondary" @click="onClose">Close</BButton>
     </template>
   </BModal>
 </template>
